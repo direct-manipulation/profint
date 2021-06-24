@@ -41,4 +41,9 @@ let tests =
       let ty = arrow tyx (arrow tyy (arrow a c)) in
       test_type_check Terms.ts ty
     end ;
+    "ii = i" >:: Terms.(fun _cx ->
+        assert_equal (do_app ti [ti]) ti) ;
+    "skk = i" >:: Terms.(fun _cx ->
+        assert_equal ~cmp:eq_term
+          (do_app ts [tk ; tk]) ti) ;
   ]

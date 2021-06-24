@@ -101,21 +101,27 @@ and ty_check_spine cx spine argtys result =
   | _ ->
       type_error "ty_check_spine"
 
-module Test = struct
-  let basic a = {args = [] ; result = a}
-  let arrow ty1 ty2 = {ty2 with args = ty1 :: ty2.args}
-  let ti = Abs {var = "x" ; body = index 0}
-  let tk = Abs {var = "x" ;
-                body = Abs {var = "y" ;
-                            body = index 1}}
-  let ts = Abs {var = "x" ;
-                body = Abs {var = "y" ;
-                            body = Abs {var = "z" ;
-                                        body = App {head = Index 2 ;
-                                                    spine = [index 0 ;
-                                                             App {head = Index 1 ;
-                                                                  spine = [index 0]}]}}}}
-  let tdelta = Abs {var = "x" ;
-                    body = App {head = Index 0 ;
-                                spine = [index 0]}}
-end
+let rec eq_term term1 term2 =
+  match term1, term2 with
+  | Abs f1, Abs f2 ->
+      eq_term f1.body f2.body
+  | App u1, App u2 ->
+      eq_head u1.head u2.head &&
+      eq_spine u1.spine u2.spine
+  | _ -> false
+
+and eq_head head1 head2 =
+  match head1, head2 with
+  | Const (k1, ty1), Const (k2, ty2) ->
+      k1 = k2 && ty1 = ty2
+  | Index n1, Index n2 ->
+      n1 = n2
+  | _ -> false
+
+and eq_spine spine1 spine2 =
+  match spine1, spine2 with
+  | [], [] ->
+      true
+  | (t1 :: spine1), (t2 :: spine2) ->
+      eq_term t1 t2 && eq_spine spine1 spine2
+  | _ -> false
