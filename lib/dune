@@ -1,0 +1,3 @@
+(library
+  (name profint)
+  (preprocess (pps ppx_deriving.show)))
