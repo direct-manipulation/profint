@@ -76,7 +76,7 @@ let rec ty_infer cx head =
 and ty_lookup cx n =
   match cx, n with
   | ty :: _, 0 -> ty
-  | _ :: cx, n -> ty_lookup cx n
+  | _ :: cx, n -> ty_lookup cx (n - 1)
   | [], _ -> type_error "invalid variable"
 
 let rec ty_check cx term ty =

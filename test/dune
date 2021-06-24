@@ -1,0 +1,3 @@
+(test
+  (name profint_test)
+  (libraries profint ounit2))
