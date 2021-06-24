@@ -87,5 +87,3 @@ module Test = struct
   let cx = CBinR(a, AND, CBinL(CSucc(b, CHole), OR, d))
   let f = Impl(c, Nul BOT)
 end
-
-
