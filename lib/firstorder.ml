@@ -1,36 +1,29 @@
 type ident = string
-[@@deriving show]
 
 type ty =
   | Basic of ident
   | Arrow of ty list * ty
-[@@deriving show]
 
 type term =
   | Const of ident
   | Index of int
   | App of term * term list
   | Abs of ident * ty * term list
-[@@deriving show]
 
 type bin =
   | AND | OR
-[@@deriving show]
 
 type nul =
   | TOP | BOT
-[@@deriving show]
 
 type q =
   | FORALL | EXISTS
-[@@deriving show]
 
 type quant = {
   q : q ;
   var : ident ;
   ty : ty ;
 }
-[@@deriving show]
 
 type 'a form =
   | Ext of 'a
@@ -39,7 +32,6 @@ type 'a form =
   | Nul of nul
   | Impl of 'a form * 'a form
   | Quant of quant * 'a form
-[@@deriving show]
 
 type void = |
 
@@ -50,7 +42,6 @@ type 'a succ =
   | CQuant of quant * 'a succ
   | CSucc of 'a form * 'a succ
   | CAnte of 'a ante * 'a form
-[@@deriving show]
 
 and 'a ante =
   | ABinL of 'a ante * bin * 'a form
@@ -58,7 +49,6 @@ and 'a ante =
   | AQuant of quant * 'a ante
   | ASucc of 'a form * 'a ante
   | AAnte of 'a succ * 'a form
-[@@deriving show]
 
 let rec std_succ cx f =
   match cx with

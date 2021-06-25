@@ -1,17 +1,22 @@
-open Syntax
+(*
+ * Author: Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>
+ * Copyright (C) 2021  Inria (Institut National de Recherche
+ *                     en Informatique et en Automatique)
+ * See LICENSE for licensing details.
+ *)
+
+type bincon = And | Or | Impl
+type nulcon = Top | Bot
 
 type form_ =
-  | Atom  of ident
-  | And   of form * form | Top
-  | Or    of form * form | Bot
-  | Impl  of form * form
-[@@deriving show]
+  | Atom  of Idt.t
+  | Bin   of form * bincon * form
+  | Unit  of nulcon
 
 and form = {
   skel : form_ ;
   id : int ;
 }
-[@@deriving show]
 
 let make_form =
   let count = ref 0 in
@@ -20,32 +25,57 @@ let make_form =
     { skel ; id = !count }
 
 let f_atom a   = make_form @@ Atom a
-let f_and f g  = make_form @@ And (f, g)
-let f_top ()   = make_form Top
-let f_or f g   = make_form @@ Or (f, g)
-let f_bot ()   = make_form Bot
-let f_impl f g = make_form @@ Impl (f, g)
+let f_and f g  = make_form @@ Bin (f, And, g)
+let f_top ()   = make_form @@ Unit Top
+let f_or f g   = make_form @@ Bin (f, Or, g)
+let f_bot ()   = make_form @@ Unit Bot
+let f_impl f g = make_form @@ Bin (f, Impl, g)
+
+type form1_slice =
+  | BinL of bincon * form
+  | BinR of form * bincon
+
+type form1 = form1_slice list
+
+
+(*
+
+type parity = Even | Odd
+
+let flip = function Even -> Odd | Odd -> Even
 
 type path = int list
 
-let rec at ~(path:path) f =
-  let open Result in
-  let path0 = path in
+exception Invalid_path of {
+    parity : parity ;
+    form : form ;
+    step : int ;
+    msg : string
+  }
+
+let invalid_pathf ~parity ~form ~step fmt =
+  Format.ksprintf begin fun msg ->
+    raise @@ Invalid_path { parity ; form ; step ; msg }
+  end fmt
+
+let down ?(parity=Even) step form =
+  match step, form.skel with
+  | 1, (And (_, form) | Or (_, form) | Impl (_, form)) ->
+      (parity, form)
+  | 0, (And (form, _) | Or (form, _)) ->
+      (parity, form)
+  | 0, Impl (form, _) ->
+      (flip parity, form)
+  | n, _ ->
+      invalid_pathf ~parity ~step ~form
+        "invalid operand number %d" n
+
+let rec at ?(parity=Even) ~path form =
   match path with
-  | [] -> Ok f
-  | 0 :: path -> begin
-      match f.skel with
-      | And (f, _) | Or (f, _) | Impl (f, _) ->
-          at ~path f
-      | _ -> Error path0
-    end
-  | 1 :: path -> begin
-      match f.skel with
-      | And (_, f) | Or (_, f) | Impl (_, f) ->
-          at ~path f
-      | _ -> Error path0
-    end
-  | _ -> Error path0
+  | [] -> (form, parity)
+  | step :: path ->
+      let (parity, form) = down ~parity step form in
+      at ~parity ~path form
 
 type fpath = {
   form : form ;
@@ -53,6 +83,18 @@ type fpath = {
 }
 
 let fpath form path = {form ; path}
+
+exception Resolution_failure of {
+    lfp : fpath ;
+    rfp : fpath ;
+    parity : parity ;
+    msg : string ;
+  }
+
+let resolution_failure ~parity ~lfp ~rfp fmt =
+  Printf.ksprintf begin fun msg ->
+    raise @@ Resolution_failure { parity ; lfp ; rfp ; msg }
+  end fmt
 
 let rec resolve_cx lfp rfp =
   match lfp.form.skel, rfp.form.skel with
@@ -170,3 +212,5 @@ and resolve_ax lfp rfp =
       | _ -> assert false
     end
   | _ -> assert false
+
+*)
