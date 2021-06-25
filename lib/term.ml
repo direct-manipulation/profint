@@ -1,13 +1,11 @@
-open Syntax
-
-type ty = {args : ty list ; result : ident}
+type ty = {args : ty list ; result : Idt.t}
 
 type term =
-  | Abs of {var : ident ; body : term}
+  | Abs of {var : Idt.t ; body : term}
   | App of {head : head ; spine : term list}
 
 and head =
-  | Const of ident * ty
+  | Const of Idt.t * ty
   | Index of int
 
 let index n = App {head = Index n ; spine = []}
