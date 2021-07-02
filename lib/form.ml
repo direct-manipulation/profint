@@ -30,13 +30,63 @@ let f_top ()   = make_form @@ Unit Top
 let f_or f g   = make_form @@ Bin (f, Or, g)
 let f_bot ()   = make_form @@ Unit Bot
 let f_impl f g = make_form @@ Bin (f, Impl, g)
+let f_bin f op g = make_form @@ Bin (f, op, g)
 
-type form1_slice =
+type slice =
   | BinL of bincon * form
   | BinR of form * bincon
 
-type form1 = form1_slice list
+type parity = Even | Odd
 
+let flip = function Even -> Odd | Odd -> Even
+
+type fpath = {
+  context : slice list ;
+  form : form ;
+  flips : int ;
+}
+
+let fpath form = {context = [] ; form ; flips = 0}
+
+let down step fp =
+  match step, fp.form.skel with
+  | 1, Bin (fl, op, form) ->
+      {fp with
+       form ;
+       context = BinR (fl, op) :: fp.context}
+  | 0, Bin (form, op, fr) ->
+      let flips = match op with
+        | Impl -> fp.flips + 1
+        | _ -> fp.flips
+      in
+      {form ; flips ;
+       context = BinL (op, fr) :: fp.context}
+  | n, _ ->
+      Printf.ksprintf failwith "invalid operand %d" n
+
+let up fp =
+  match fp.context with
+  | BinL (op, fr) :: context ->
+      let flips = match op with
+        | Impl -> fp.flips + 1
+        | _ -> fp.flips
+      in
+      let form = f_bin fp.form op fr in
+      {form ; flips ; context}
+  | BinR (fl, op) :: context ->
+      let form = f_bin fl op fp.form in
+      {fp with form ; context}
+  | [] ->
+      failwith "cannot go up"
+
+let rec unfpath fp =
+  match fp.context with
+  | [] -> begin
+      match fp.flips with
+      | 0 -> fp.form
+      | _ -> failwith "invalid parity"
+    end
+  | _ -> unfpath (up fp)
 
 (*
 
