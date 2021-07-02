@@ -13,23 +13,30 @@ type idt = {
 module IdtHashed = struct
   type t = idt
   let equal (id1 : idt) id2 =
-    id1.str = id2.str
+    String.equal id1.str id2.str
   let hash (id : idt) =
     Stdlib.Hashtbl.hash id.str
 end
 
-module IdtTab = Stdlib.Weak.Make(IdtHashed)
 module Hash = Stdlib.Hashtbl.Make(IdtHashed)
 
 let intern : string -> idt =
-  let idtab = IdtTab.create 109 in
+  let module StringH = struct
+    type t = string
+    let hash (x : t) = Stdlib.Hashtbl.hash x
+    let equal (x : t) y = String.equal x y
+  end in
+  let module Ht = Stdlib.Hashtbl.Make(StringH) in
+  let idtab = Ht.create 109 in  (* memory leak *)
   let last_idx = ref 0 in
-  fun id ->
-    incr last_idx ;
-    let cand = { str = id ; idx = !last_idx } in
-    let idt = IdtTab.merge idtab cand in
-    if idt.idx != cand.idx then decr last_idx ;
-    idt
+  fun str ->
+    match Ht.find idtab str with
+    | idt -> idt
+    | exception Not_found ->
+        incr last_idx ;
+        let idt = { str ; idx = !last_idx } in
+        Ht.replace idtab str idt ;
+        idt
 
 module IdtOrdered = struct
   type t = idt
