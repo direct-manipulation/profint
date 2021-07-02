@@ -9,27 +9,65 @@ type bincon = And | Or | Impl
 type nulcon = Top | Bot
 
 type form_ =
-  | Atom  of Idt.t
-  | Bin   of form * bincon * form
-  | Unit  of nulcon
+  | Atom of Idt.t
+  | Bin  of form * bincon * form
+  | Nul  of nulcon
 
 and form = {
   skel : form_ ;
-  id : int ;
+  id   : int ;
+  hkey : int ;
 }
 
+module FormHashEq = struct
+  type t = form
+  let equal_ f1 f2 =
+    match f1, f2 with
+    | Atom a, Atom b ->
+        a == b
+    | Bin (f1, op1, f2), Bin (g1, op2, g2) ->
+        op1 == op2 && f1 == g1 && f2 == g2
+    | Nul op1, Nul op2 ->
+        op1 == op2
+    | _ -> false
+  let equal f1 f2 = equal_ f1.skel f2.skel
+  let hash_ f =
+    match f with
+    | Atom a -> a.idx
+    | Bin (f1, op, f2) ->
+        let h = Stdlib.Hashtbl.hash op in
+        let h = 19 * f1.hkey + h in
+        let h = 19 * f2.hkey + h in
+        Stdlib.abs (h + 1)
+    | Nul op ->
+        Stdlib.abs (19 * Stdlib.Hashtbl.hash op + 2)
+  let hash f = f.hkey
+  let compare f1 f2 = Stdlib.Int.compare f1.id f2.id
+end
+
 let make_form =
+  let module FormHC = Stdlib.Weak.Make(FormHashEq) in
+  let tab = FormHC.create 251 in
   let count = ref 0 in
   fun skel ->
+    let hkey = FormHashEq.hash_ skel in
     incr count ;
-    { skel ; id = !count }
+    let id = !count in
+    let f = FormHC.merge tab { skel ; hkey ; id } in
+    if f.id != id then decr count ;
+    f
 
-let f_atom a   = make_form @@ Atom a
-let f_and f g  = make_form @@ Bin (f, And, g)
-let f_top ()   = make_form @@ Unit Top
-let f_or f g   = make_form @@ Bin (f, Or, g)
-let f_bot ()   = make_form @@ Unit Bot
-let f_impl f g = make_form @@ Bin (f, Impl, g)
+module FormSet : Stdlib.Set.S with type elt := form =
+  Stdlib.Set.Make(FormHashEq)
+module FormTab : Stdlib.Hashtbl.S with type key := form =
+  Stdlib.Hashtbl.Make(FormHashEq)
+
+let f_atom a     = make_form @@ Atom a
+let f_and f g    = make_form @@ Bin (f, And, g)
+let f_top ()     = make_form @@ Nul Top
+let f_or f g     = make_form @@ Bin (f, Or, g)
+let f_bot ()     = make_form @@ Nul Bot
+let f_impl f g   = make_form @@ Bin (f, Impl, g)
 let f_bin f op g = make_form @@ Bin (f, op, g)
 
 type slice =
