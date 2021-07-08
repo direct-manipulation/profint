@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="katex-dist/katex.min.css">
+    <script src="katex-dist/katex.min.js"></script>
+  </head>
+  <body>
+    <div id='output'>...</div>
+
+    <script>
+      $( '#output' ).replaceWith(function(){
+          // const expr = '\\formlForm{f1,form}{(\\htmlId{f2}{(\\htmlId{f3}{\\htmlId{f4}{\\mathsf{a}}\\wedge(\\htmlId{f5}{\\htmlId{f6}{\\mathsf{b}}\\supset\\htmlId{f7}{\\mathsf{c}}})})\\vee\\htmlId{f8}{\\bot}})\\supset\\htmlId{f9}{\\mathsf{f}}}';
+          const expr = '\\htmlAttrs{id=f1,class=form}{a = b^2 + c}';
+          return "<div id='output'>" +
+              katex.renderToString(expr, {
+                  trust: true
+              }) +
+              "</div>";
+      });
+      /*
+      $('#output').replaceWith(function(){
+          return katex.renderToString("c = \\pm\\sqrt{a^2 + b^2}", {
+              throwOnError: false
+          });
+      });
+      */
+    </script>
+  </body>
+</html>

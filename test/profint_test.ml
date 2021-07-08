@@ -3,4 +3,5 @@ let () =
   "Profint" >::: [
     Idt_test.tests ;
     Term_test.tests ;
+    Form_test.tests ;
   ] |> run_test_tt_main

@@ -1,11 +1,20 @@
-type ty = {args : ty list ; result : Idt.t}
+(*
+ * Author: Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>
+ * Copyright (C) 2021  Inria (Institut National de Recherche
+ *                     en Informatique et en Automatique)
+ * See LICENSE for licensing details.
+ *)
+
+open! Util
+
+type ty = {args : ty list ; result : ident}
 
 type term =
-  | Abs of {var : Idt.t ; body : term}
+  | Abs of {var : ident ; body : term}
   | App of {head : head ; spine : term list}
 
 and head =
-  | Const of Idt.t * ty
+  | Const of ident * ty
   | Index of int
 
 let index n = App {head = Index n ; spine = []}
