@@ -58,6 +58,7 @@ let k_or  = "\\or"
 let k_bot = "\\bot"
 let k_imp = "\\imp"
 let ty_o  = Basic "\\o"
+let ty_i  = Basic "\\i"
 let () =
   let open Hashtbl in
   let vnum n = Tyvar {id = n ; subst = None} in
@@ -197,14 +198,3 @@ let ty_check cx term =
   let term = tygen ~emit (ucx_of_cx cx) term ty in
   solve !eqns ;
   (norm_term term, norm_ty ty)
-
-(* module Terms = struct
- *   let ti = Abs ("x", Some (Basic "a"), Var "x")
- *   let tk = Abs ("x", Some (Basic "a"), Abs ("y", Some (Basic "b"), Var "x"))
- *   let ts = Abs ("x", Some (Arrow (Basic "a", Arrow (Basic "b", Basic "c"))),
- *                 Abs ("y", None,
- *                      Abs ("z", None,
- *                           App (App (Var "x", Var "z"),
- *                                App (Var "y", Var "z")))))
- *   let tdelta = Abs ("x", None, App (Var "x", Var "x"))
- * end *)
