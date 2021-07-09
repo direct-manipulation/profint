@@ -23,3 +23,16 @@ type ident = string
 
 let failwith_s fmt   = Printf.ksprintf failwith fmt
 let failwith_fmt fmt = Format.ksprintf failwith fmt
+
+let rec range_up step lo hi : int Seq.t = fun () ->
+  if lo >= hi then Seq.Nil else
+    Seq.Cons (lo, range_up step (lo + step) hi)
+
+let rec range_down step hi lo : int Seq.t = fun () ->
+  if hi <= lo then Seq.Nil else
+    Seq.Cons (hi, range_down step (hi + step) lo)
+
+let range ?(step = 1) x y =
+  if step >= 0
+  then range_up step x y
+  else range_down step x y
