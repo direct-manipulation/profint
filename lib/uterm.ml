@@ -44,12 +44,34 @@ let freshen pty =
   |> Seq.iter (fun k -> ITab.replace tab k (fresh_tyvar ())) ;
   subst tab pty.uty
 
-exception TypeError of string
+exception TypeError of {ty : uty option ; msg : string}
 
-let ty_error fmt =
-  Printf.ksprintf (fun msg -> raise (TypeError msg)) fmt
+let ty_error ?ty fmt =
+  Printf.ksprintf (fun msg -> raise (TypeError {ty ; msg})) fmt
 
 let gsig : (ident, poly_uty) Hashtbl.t = Hashtbl.create 19
+let k_all = "\\A"
+let k_ex  = "\\E"
+let k_and = "\\and"
+let k_top = "\\top"
+let k_or  = "\\or"
+let k_bot = "\\bot"
+let k_imp = "\\imp"
+let ty_o  = Basic "\\o"
+let () =
+  let open Hashtbl in
+  let vnum n = Tyvar {id = n ; subst = None} in
+  replace gsig k_all {nvars = 1 ;
+                              uty = Arrow (Arrow (vnum 0, ty_o), ty_o)} ;
+  replace gsig k_ex {nvars = 1 ;
+                     uty = Arrow (Arrow (vnum 0, ty_o), ty_o)} ;
+  replace gsig k_and {nvars = 0 ; uty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
+  replace gsig k_top {nvars = 0 ; uty = ty_o} ;
+  replace gsig k_or  {nvars = 0 ; uty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
+  replace gsig k_bot {nvars = 0 ; uty = ty_o} ;
+  replace gsig k_imp {nvars = 0 ; uty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
+  replace gsig "p" {nvars = 0 ;
+                    uty = Arrow (Basic "a", Arrow (Basic "b", ty_o))}
 
 type uterm =
   | Idx of int
@@ -143,28 +165,15 @@ let solve eqns =
   in
   spin ()
 
-let rec ty_freeze ?inst ty =
-  match ty with
-  | Arrow (ty1, ty2) ->
-      Arrow (ty_freeze ?inst ty1,
-             ty_freeze ?inst ty2)
-  | Basic _ -> ty
-  | Tyvar v -> begin
-      match v.subst with
-      | None -> begin
-          match inst with
-          | Some f -> f v.id
-          | None -> ty
-        end
-      | Some ty ->
-          ty_freeze ?inst ty
-    end
-
 let rec norm_ty ty =
   match ty with
   | Basic a -> Term.Basic a
   | Arrow (tya, tyb) -> Term.Arrow (norm_ty tya, norm_ty tyb)
-  | Tyvar _ -> assert false
+  | Tyvar v -> begin
+      match v.subst with
+      | None -> ty_error ~ty "non-normalized tyvar %d" v.id
+      | Some ty -> norm_ty ty
+    end
 
 let rec norm_term tm =
   match tm with
@@ -187,16 +196,15 @@ let ty_check cx term =
   let emit tya tyb = eqns := (tya, tyb) :: !eqns in
   let term = tygen ~emit (ucx_of_cx cx) term ty in
   solve !eqns ;
-  let ty = ty_freeze ty ~inst:(fun _ -> ty_error "non-ground type inferred") in
   (norm_term term, norm_ty ty)
 
-module Terms = struct
-  let ti = Abs ("x", Some (Basic "a"), Var "x")
-  let tk = Abs ("x", Some (Basic "a"), Abs ("y", Some (Basic "b"), Var "x"))
-  let ts = Abs ("x", Some (Arrow (Basic "a", Arrow (Basic "b", Basic "c"))),
-                Abs ("y", None,
-                     Abs ("z", None,
-                          App (App (Var "x", Var "z"),
-                               App (Var "y", Var "z")))))
-  let tdelta = Abs ("x", None, App (Var "x", Var "x"))
-end
+(* module Terms = struct
+ *   let ti = Abs ("x", Some (Basic "a"), Var "x")
+ *   let tk = Abs ("x", Some (Basic "a"), Abs ("y", Some (Basic "b"), Var "x"))
+ *   let ts = Abs ("x", Some (Arrow (Basic "a", Arrow (Basic "b", Basic "c"))),
+ *                 Abs ("y", None,
+ *                      Abs ("z", None,
+ *                           App (App (Var "x", Var "z"),
+ *                                App (Var "y", Var "z")))))
+ *   let tdelta = Abs ("x", None, App (Var "x", Var "x"))
+ * end *)

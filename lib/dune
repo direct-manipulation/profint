@@ -4,6 +4,7 @@
 )
 
 (menhir
-  (modules proprs))
+  (modules proprs)
+  (flags --explain))
 
 (ocamllex prolex)

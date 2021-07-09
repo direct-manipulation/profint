@@ -19,3 +19,4 @@ let thing_of_string prs str =
 
 let term_of_string str = thing_of_string Proprs.one_term str
 let ty_of_string str = thing_of_string Proprs.one_ty str
+let form_of_string str = thing_of_string Proprs.one_form str

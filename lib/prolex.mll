@@ -18,8 +18,8 @@
 
   let process_ident =
     let kwds : (string, P.token) Hashtbl.t = Hashtbl.create 19 in
-    Hashtbl.replace kwds "forall" P.FORALL ;
-    Hashtbl.replace kwds "exists" P.EXISTS ;
+    (* Hashtbl.replace kwds "forall" P.FORALL ;
+     * Hashtbl.replace kwds "exists" P.EXISTS ; *)
     fun ident ->
       match Hashtbl.find kwds ident with
       | tok -> tok
@@ -42,11 +42,14 @@ rule token = parse
 
 | ident            { process_ident @@ Lexing.lexeme lexbuf }
 
-| "\\lambda"       { P.LAMBDA }
+| "\\A"            { P.FORALL }
+| "\\E"            { P.EXISTS }
 | "\\and" | '&'    { P.AND }
 | "\\or"  | '|'    { P.OR }
 | "\\to"  | "=>"   { P.TO }
 | "\\if"  | "<="   { P.FROM }
+| "\\top" | "#t"   { P.TOP }
+| "\\bot" | "#f"   { P.BOT }
 
 | "->"             { P.ARROW }
 
@@ -56,8 +59,6 @@ rule token = parse
 | ')'              { P.RPAREN }
 | '['              { P.LBRACK }
 | ']'              { P.RBRACK }
-
-| '.'              { P.DOT }
 
 | eof              { P.EOS }
 | _                { raise P.Error }
