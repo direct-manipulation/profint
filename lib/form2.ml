@@ -93,7 +93,7 @@ let pp out (ftab, f_id) =
   in
   pp_skel out (ITab.find ftab.skels f_id)
 
-let to_doc_exp prefix ftab root =
+let to_doc_exp ftab root =
   let rec aux id =
     let str = match ITab.find ftab.skels id with
       | Atom a ->
@@ -113,55 +113,14 @@ let to_doc_exp prefix ftab root =
           in
           Doc.(Appl (op_prec, Infix (op_str, op_assoc, [aux f1 ; aux f2])))
     in
-    let id_left = Doc.StringAs (0, Printf.sprintf "\\htmlId{%s%d}{" prefix id) in
-    let id_right = Doc.StringAs (0, "}") in
-    Doc.(Wrap (Transparent, id_left, str, id_right))
+    let _str =
+      let id_left = Doc.StringAs (0, Printf.sprintf "\\htmlId{%d}{" id) in
+      let id_right = Doc.StringAs (0, "}") in
+      Doc.(Wrap (Transparent, id_left, str, id_right))
+    in
+    str
   in
   aux root
-
-type fdiv =
-  | Struct of {ident : int ; contents : fdiv list}
-  | Text of string
-
-let rec fdiv_to_string prefix = function
-  | Struct s ->
-      Printf.sprintf "<div id=\"%s-%d\">%s</div>"
-        prefix s.ident
-        (fdivs_to_string prefix s.contents)
-  | Text s -> s
-and fdivs_to_string prefix = function
-  | [] -> ""
-  | fdiv :: fdivs ->
-      fdiv_to_string prefix fdiv ^
-      fdivs_to_string prefix fdivs
-
-let make_div ftab root =
-  let rec make id =
-    match ITab.find ftab.skels id with
-    | Atom a ->
-        Struct {ident = id ; contents = [Text a]}
-    | Nul op ->
-        let op_str = match op with
-          | Top -> "\\top"
-          | Bot -> "\\bot"
-        in
-        Struct {ident = id ; contents = [Text op_str]}
-    | Bin (f1_id, op, f2_id) ->
-        let op_str = match op with
-          | And -> "\\,{\\wedge}\\,"
-          | Or -> "\\,{\\vee}\\,"
-          | Impl -> "\\,{\\supset}\\,"
-        in
-        Struct {ident = id ;
-                contents = [
-                  Text "(" ;
-                  make f1_id ;
-                  Text op_str ;
-                  make f2_id ;
-                  Text ")" ;
-                ]}
-  in
-  make root
 
 let f_bin op f g = F (Bin (f, op, g))
 let f_impl = f_bin Impl
@@ -171,10 +130,12 @@ let f_atom a = F (Atom a)
 let f_top = F (Nul Top)
 let f_bot = F (Nul Bot)
 
-let f = f_impl (f_or (f_and (f_atom "a")
+let _f = f_impl (f_or (f_and (f_atom "a")
                         (f_impl (f_atom "b") (f_atom "c")))
                   f_bot)
     (f_atom "f")
+let f = f_and (f_and (f_atom "a") (f_atom "b")) (f_atom "c")
+
 let (f_tab, f_root) = tabulate f
 let show () =
   (f_tab.skels |> ITab.to_seq |> List.of_seq,

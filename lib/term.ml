@@ -9,13 +9,17 @@ open! Util
 
 type ty = {args : ty list ; result : ident}
 
+let arrow ty1 ty2 = {ty2 with args = ty1 :: ty2.args}
+
 type term =
   | Abs of {var : ident ; body : term}
-  | App of {head : head ; spine : term list}
+  | App of {head : head ; spine : spine}
 
 and head =
   | Const of ident * ty
   | Index of int
+
+and spine = term list
 
 let index n = App {head = Index n ; spine = []}
 
@@ -86,6 +90,8 @@ and ty_lookup cx n =
   | _ :: cx, n -> ty_lookup cx (n - 1)
   | [], _ -> type_error "invalid variable"
 
+module GroundTypechcker = struct
+
 let rec ty_check cx term ty =
   match term, ty with
   | Abs f, {args = ty :: args ; result} ->
@@ -107,6 +113,150 @@ and ty_check_spine cx spine argtys result =
       ty_check_spine cx spine argtys result
   | _ ->
       type_error "ty_check_spine"
+
+end
+
+module LiftedTypechecker = struct
+
+  let prefix = "'"
+
+  let fresh_tyvar =
+    let count = ref 0 in
+    fun () ->
+      incr count ;
+      {args = [] ; result = prefix ^ string_of_int !count}
+
+  let rec ty_gen cx term ty =
+    match term with
+    | Abs f ->
+        let tyarg = fresh_tyvar () in
+        let tyres = fresh_tyvar () in
+        let cx = tyarg :: cx in
+        (arrow tyarg tyres, ty) :: ty_gen cx f.body tyres
+    | App u ->
+        let tyargs = List.map (fun _ -> fresh_tyvar ()) u.spine in
+        let tyres = fresh_tyvar () in
+        let tyhead = ty_infer cx u.head in
+        ({tyres with args = tyargs}, tyhead) :: (tyres, ty) ::
+        ty_gen_spine cx u.spine tyargs
+
+  and ty_gen_spine cx spine tyargs =
+    match spine, tyargs with
+    | [], _ -> []
+    | (term :: spine), (ty :: tyargs) ->
+        ty_gen cx term ty @
+        ty_gen_spine cx spine tyargs
+    | _ -> assert false
+
+  (* let solve eqns =
+   *   let tab = Hashtbl.create 19 in *)
+
+  let rec occurs x ty =
+    x == ty.result || List.exists (occurs x) ty.args
+
+  type ty_ =
+    | Arrow of ty * ty
+    | Basic of string
+    | Var   of string
+
+  let ty_expose ty =
+    match ty.args with
+    | [] -> begin
+        if ty.result.[0] = '\'' then Var ty.result
+        else Basic ty.result
+      end
+    | arg :: args ->
+        Arrow (arg, {ty with args})
+
+  let rec ty_to_string ty =
+    match ty_expose ty with
+    | Basic x | Var x -> x
+    | Arrow (tya, tyb) ->
+        Printf.sprintf "(%s -> %s)"
+          (ty_to_string tya) (ty_to_string tyb)
+
+  let ty_hide ty_ =
+    match ty_ with
+    | Basic x | Var x -> {args = [] ; result = x}
+    | Arrow (ty1, ty2) -> {ty2 with args = ty1 :: ty2.args}
+
+  let rec subst ~tab ty =
+    let args = List.map (subst ~tab) ty.args in
+    let result =
+      match Hashtbl.find tab ty.result with
+      | ty -> ty
+      | exception Not_found -> {args = [] ; result = ty.result}
+    in
+    {result with args = args @ result.args}
+
+  let solve1 ~emit ~tab l r =
+    match ty_expose l, ty_expose r with
+    | Var x, ty_
+    | ty_, Var x -> begin
+        match Hashtbl.find tab x with
+        | other -> emit (ty_hide ty_, other)
+        | exception Not_found ->
+            let ty = ty_hide ty_ in
+            if occurs x ty then type_error "circularity" ;
+            Hashtbl.replace tab x ty ;
+            Hashtbl.filter_map_inplace (fun _ ty -> Some (subst ~tab ty)) tab
+      end
+    | Basic a, Basic b when a = b ->
+        ()
+    | Arrow (la, lb), Arrow (ra, rb) ->
+        emit (la, ra) ;
+        emit (lb, rb)
+    | _ ->
+        type_error "tycon mismatch"
+
+  let subst_solved ~tab (l, r) = (subst ~tab l, subst ~tab r)
+
+  let solve eqns =
+    let eqns = ref eqns in
+    let emit eqn = eqns := eqn :: !eqns in
+    let tab = Hashtbl.create 19 in
+    let rec spin () =
+      match !eqns with
+      | [] -> ()
+      | (l, r) :: rest ->
+          eqns := rest ;
+          solve1 ~emit ~tab l r ;
+          spin ()
+    in
+    spin () ;
+    tab
+
+  let ty_check cx term =
+    let ty = fresh_tyvar () in
+    let eqns = ty_gen cx term ty in
+    let tab = solve eqns in
+    let cx = List.map (subst ~tab) cx in
+    let ty = subst ~tab ty in
+    (cx, term, ty)
+end
+
+module Types = struct
+  let basic a = {args = [] ; result = a}
+  let arrow ty1 ty2 = {ty2 with args = ty1 :: ty2.args}
+end
+
+module Terms = struct
+  let ti = Abs {var = "x" ; body = index 0}
+  let tk = Abs {var = "x" ;
+                body = Abs {var = "y" ;
+                            body = index 1}}
+  let ts = Abs {var = "x" ;
+                body = Abs {var = "y" ;
+                            body = Abs {var = "z" ;
+                                        body = App {head = Index 2 ;
+                                                    spine = [index 0 ;
+                                                             App {head = Index 1 ;
+                                                                  spine = [index 0]}]}}}}
+  let tdelta = Abs {var = "x" ;
+                    body = App {head = Index 0 ;
+                                spine = [index 0]}}
+end
+
 
 let rec eq_term term1 term2 =
   match term1, term2 with

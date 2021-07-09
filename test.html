@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="katex-dist/katex.min.css">
+    <script src="katex-dist/katex.min.js"></script>
+    <style>
+      .formSource {
+          background-color: #f2bf88;
+      }
+      .formSink {
+          background-color: #9cc3f0;
+      }
+    </style>
+    <script>
+      const formLink = {
+          source: null,
+          sink: null
+      };
+      function clickSubformula(elem) {
+          if (formLink.source && !elem.hasClass("formSource")) {
+              $("span.form").removeClass("formSink");
+              elem.addClass("formSink");
+              formLink.sink = elem;
+              $("#destId").text($(elem).attr('id'));
+          } else {
+              $("span.form").removeClass("formSource");
+              elem.addClass("formSource");
+              formLink.source = elem;
+              $("#srcId").text($(elem).attr('id'));
+          }
+      }
+    </script>
+  </head>
+  <body>
+    <div id='output'>...</div>
+    <table>
+      <tr><td>Source:</td><td id='srcId'>...</td></tr>
+      <tr><td>Dest:</td><td id='destId'>...</td></tr>
+    </table>
+
+    <script>
+      $('#output').html(function(){
+          const expr = "\\htmlId{1}{(\\htmlId{2}{\\htmlId{3}{\\mathsf{a}}\\wedge\\htmlId{4}{\\mathsf{b}}})\\vee\\htmlId{5}{\\mathsf{c}}}";
+          // const expr = "\\htmlId{1}{(\\htmlId{2}{(\\htmlId{3}{\\htmlId{4}{\\mathsf{a}}\\wedge(\\htmlId{5}{\\htmlId{6}{\\mathsf{b}}\\supset\\htmlId{7}{\\mathsf{c}}})})\\vee\\htmlId{8}{\\bot}})\\supset\\htmlId{9}{\\mathsf{f}}}" ;
+          return katex.renderToString(expr, {
+              trust: true
+          }) ;
+      });
+      $("#output span.enclosing").on("mousedown", function(ev) {
+          clickSubformula($(this));
+          ev.stopPropagation();
+      });
+      $("#output span.enclosing").mouseover(function(ev) {
+          $("span.enclosing").css({"border-bottom": "0"});
+          $(this).css({"border-bottom": "3px solid red"});
+          ev.stopPropagation();
+      });
+      $("#output span.enclosing").mouseout(function(ev) {
+          $("span.enclosing").css({"border-bottom": "0"});
+      });
+    </script>
+  </body>
+</html>
