@@ -9,6 +9,9 @@
 
 open! Util
 
+(* The constructors of uty need to be in the same order as in Term.ty;
+   otherwise we will not get the O(1) transformations. *)
+
 type uty =
   | Basic of ident
   | Arrow of uty * uty

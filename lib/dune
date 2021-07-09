@@ -2,3 +2,8 @@
   (name profint)
   ;  (preprocess (pps ppx_deriving.show))
 )
+
+(menhir
+  (modules proprs))
+
+(ocamllex prolex)

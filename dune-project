@@ -15,6 +15,8 @@
 
 (generate_opam_files true)
 
+(using menhir 2.0)
+
 (package
  (name profint)
  (synopsis "Profound: Intuitionistic Version")
