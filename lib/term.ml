@@ -7,9 +7,47 @@
 
 open! Util
 
-type ty = {args : ty list ; result : ident}
+type ty =
+  | Arrow of ty * ty
+  | Basic of ident
+  | Tyvar of tyvar
 
-let arrow ty1 ty2 = {ty2 with args = ty1 :: ty2.args}
+and tyvar = {
+  id : int ;
+  mutable subst : ty option ;
+}
+
+let rec ty_freeze ?inst ty =
+  match ty with
+  | Arrow (ty1, ty2) ->
+      Arrow (ty_freeze ?inst ty1,
+             ty_freeze ?inst ty2)
+  | Basic _ -> ty
+  | Tyvar v -> begin
+      match v.subst with
+      | None -> begin
+          match inst with
+          | Some f -> f v
+          | None -> ty
+        end
+      | Some ty ->
+          ty_freeze ?inst ty
+    end
+
+let rec ty_thaw ty =
+  match ty with
+  | Arrow (ty1, ty2) ->
+      ty_thaw ty1 ; ty_thaw ty2
+  | Basic _ -> ()
+  | Tyvar v ->
+      if Option.is_some v.subst then
+        v.subst <- None
+
+let fresh_tyvar =
+  let count = ref 0 in
+  fun () ->
+    incr count ;
+    Tyvar {id = !count ; subst = None}
 
 type term =
   | Abs of {var : ident ; body : term}
@@ -94,23 +132,23 @@ module GroundTypechcker = struct
 
 let rec ty_check cx term ty =
   match term, ty with
-  | Abs f, {args = ty :: args ; result} ->
-      let cx = ty :: cx in
-      ty_check cx f.body {args ; result}
+  | Abs f, Arrow (tya, tyb) ->
+      let cx = tya :: cx in
+      ty_check cx f.body tyb
   | Abs _, _ ->
       type_error "ty_check: abs"
   | App u, _ ->
       let hty = ty_infer cx u.head in
-      let rty = ty_check_spine cx u.spine hty.args hty.result in
+      let rty = ty_check_spine cx u.spine hty in
       if ty <> rty then
         type_error "ty_check: app"
 
-and ty_check_spine cx spine argtys result =
-  match spine, argtys with
-  | [], _ -> {args = argtys ; result}
-  | (term :: spine), (ty :: argtys) ->
+and ty_check_spine cx spine hty =
+  match spine, hty with
+  | [], _ -> hty
+  | (term :: spine), Arrow (ty, hty) ->
       ty_check cx term ty ;
-      ty_check_spine cx spine argtys result
+      ty_check_spine cx spine hty
   | _ ->
       type_error "ty_check_spine"
 
@@ -118,13 +156,10 @@ end
 
 module LiftedTypechecker = struct
 
-  let prefix = "'"
-
-  let fresh_tyvar =
-    let count = ref 0 in
-    fun () ->
-      incr count ;
-      {args = [] ; result = prefix ^ string_of_int !count}
+  let rec arrow args result =
+    match args with
+    | [] -> result
+    | ty :: args -> Arrow (ty, arrow args result)
 
   let rec ty_gen cx term ty =
     match term with
@@ -132,12 +167,12 @@ module LiftedTypechecker = struct
         let tyarg = fresh_tyvar () in
         let tyres = fresh_tyvar () in
         let cx = tyarg :: cx in
-        (arrow tyarg tyres, ty) :: ty_gen cx f.body tyres
+        (Arrow (tyarg, tyres), ty) :: ty_gen cx f.body tyres
     | App u ->
         let tyargs = List.map (fun _ -> fresh_tyvar ()) u.spine in
         let tyres = fresh_tyvar () in
         let tyhead = ty_infer cx u.head in
-        ({tyres with args = tyargs}, tyhead) :: (tyres, ty) ::
+        (arrow tyargs tyres, tyhead) :: (tyres, ty) ::
         ty_gen_spine cx u.spine tyargs
 
   and ty_gen_spine cx spine tyargs =
@@ -148,59 +183,37 @@ module LiftedTypechecker = struct
         ty_gen_spine cx spine tyargs
     | _ -> assert false
 
-  (* let solve eqns =
-   *   let tab = Hashtbl.create 19 in *)
-
   let rec occurs x ty =
-    x == ty.result || List.exists (occurs x) ty.args
-
-  type ty_ =
-    | Arrow of ty * ty
-    | Basic of string
-    | Var   of string
-
-  let ty_expose ty =
-    match ty.args with
-    | [] -> begin
-        if ty.result.[0] = '\'' then Var ty.result
-        else Basic ty.result
+    match ty with
+    | Tyvar y -> x == y.id || begin
+        match y.subst with
+        | None -> false
+        | Some ty -> occurs x ty
       end
-    | arg :: args ->
-        Arrow (arg, {ty with args})
+    | Basic _ -> false
+    | Arrow (tya, tyb) -> occurs x tya || occurs x tyb
 
   let rec ty_to_string ty =
-    match ty_expose ty with
-    | Basic x | Var x -> x
+    match ty with
+    | Basic x -> x
+    | Tyvar x -> begin
+        match x.subst with
+        | Some ty -> ty_to_string ty
+        | None -> "," ^ string_of_int x.id
+      end
     | Arrow (tya, tyb) ->
         Printf.sprintf "(%s -> %s)"
           (ty_to_string tya) (ty_to_string tyb)
 
-  let ty_hide ty_ =
-    match ty_ with
-    | Basic x | Var x -> {args = [] ; result = x}
-    | Arrow (ty1, ty2) -> {ty2 with args = ty1 :: ty2.args}
-
-  let rec subst ~tab ty =
-    let args = List.map (subst ~tab) ty.args in
-    let result =
-      match Hashtbl.find tab ty.result with
-      | ty -> ty
-      | exception Not_found -> {args = [] ; result = ty.result}
-    in
-    {result with args = args @ result.args}
-
-  let solve1 ~emit ~tab l r =
-    match ty_expose l, ty_expose r with
-    | Var x, ty_
-    | ty_, Var x -> begin
-        match Hashtbl.find tab x with
-        | other -> emit (ty_hide ty_, other)
-        | exception Not_found ->
-            let ty = ty_hide ty_ in
-            if occurs x ty then type_error "circularity" ;
-            Hashtbl.replace tab x ty ;
-            Hashtbl.filter_map_inplace (fun _ ty -> Some (subst ~tab ty)) tab
-      end
+  let solve1 ~emit l r =
+    match l, r with
+    | Tyvar ({subst = None ; _} as v), ty
+    | ty, Tyvar ({subst = None ; _} as v) ->
+        if occurs v.id ty then type_error "circularity" ;
+        v.subst <- Some ty
+    | Tyvar {subst = Some l ; _}, r
+    | l, Tyvar {subst = Some r ; _} ->
+        emit (l, r)
     | Basic a, Basic b when a = b ->
         ()
     | Arrow (la, lb), Arrow (ra, rb) ->
@@ -209,35 +222,25 @@ module LiftedTypechecker = struct
     | _ ->
         type_error "tycon mismatch"
 
-  let subst_solved ~tab (l, r) = (subst ~tab l, subst ~tab r)
-
   let solve eqns =
     let eqns = ref eqns in
     let emit eqn = eqns := eqn :: !eqns in
-    let tab = Hashtbl.create 19 in
     let rec spin () =
       match !eqns with
       | [] -> ()
       | (l, r) :: rest ->
           eqns := rest ;
-          solve1 ~emit ~tab l r ;
+          solve1 ~emit l r ;
           spin ()
     in
-    spin () ;
-    tab
+    spin ()
 
   let ty_check cx term =
     let ty = fresh_tyvar () in
     let eqns = ty_gen cx term ty in
-    let tab = solve eqns in
-    let cx = List.map (subst ~tab) cx in
-    let ty = subst ~tab ty in
-    (cx, term, ty)
-end
-
-module Types = struct
-  let basic a = {args = [] ; result = a}
-  let arrow ty1 ty2 = {ty2 with args = ty1 :: ty2.args}
+    solve eqns ;
+    ty_freeze ty
+      (* ~inst:(fun _ -> type_error "inferred type is not ground") *)
 end
 
 module Terms = struct
