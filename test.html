@@ -42,10 +42,15 @@
 
     <script>
       $('#output').html(function(){
-          const expr = "\\htmlId{1}{(\\htmlId{2}{\\htmlId{3}{\\mathsf{a}}\\wedge\\htmlId{4}{\\mathsf{b}}})\\vee\\htmlId{5}{\\mathsf{c}}}";
-          // const expr = "\\htmlId{1}{(\\htmlId{2}{(\\htmlId{3}{\\htmlId{4}{\\mathsf{a}}\\wedge(\\htmlId{5}{\\htmlId{6}{\\mathsf{b}}\\supset\\htmlId{7}{\\mathsf{c}}})})\\vee\\htmlId{8}{\\bot}})\\supset\\htmlId{9}{\\mathsf{f}}}" ;
+          const macros = {
+              "\\o": "\\mathsf{o}",
+              "\\i": "\\mathsf{i}",
+          };
+          const expr =
+"\\htmlId{7}{(\\htmlId{6}{\\exists{x{:}\\i}.\\,\\htmlId{5}{p{\\cdot}[x]}})\\supset(\\htmlId{4}{\\exists{y{:}\\i}.\\,\\htmlId{3}{\\htmlId{2}{p{\\cdot}[y]}\\supset\\htmlId{1}{c}}})}";
           return katex.renderToString(expr, {
-              trust: true
+              trust: true,
+              macros
           }) ;
       });
       $("#output span.enclosing").on("mousedown", function(ev) {

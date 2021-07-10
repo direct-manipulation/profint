@@ -210,44 +210,45 @@ let k_cx = "\\cx"
 
 let rec form_to_exp ?(cx = []) form =
   let open Doc in
-  match form with
-  | App {head = Const (k, _) ; spine = []} when k = k_top ->
+  match expose form with
+  | Top ->
       Atom (String "#T")
-  | App {head = Const (k, _) ; spine = []} when k = k_bot ->
+  | Bot ->
       Atom (String "#B")
-  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = k_and ->
+  | And (fa, fb) ->
       Appl (30, Infix (String " & ", Left,
                        [form_to_exp ~cx fa ; form_to_exp ~cx fb]))
-  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = k_or ->
+  | Or (fa, fb) ->
       Appl (20, Infix (String " | ", Left,
                        [form_to_exp ~cx fa ; form_to_exp ~cx fb]))
-  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = k_imp ->
+  | Imp (fa, fb) ->
       Appl (10, Infix (String " => ", Right,
                        [form_to_exp ~cx fa ; form_to_exp ~cx fb]))
-  | App {head = Const (k, _) ; spine = [t1 ; t2]} when k = k_eq ->
+  | Eq (t1, t2, _) ->
       Appl (10, Infix (String " == ", Non,
                        [Term.term_to_exp ~cx t1 ; Term.term_to_exp ~cx t2]))
-  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = k_neg_int ->
+  | Neg_int (fa, fb) ->
       Appl (30, Infix (String " @ ", Non,
                        [form_to_exp ~cx fa ; form_to_exp ~cx fb]))
-  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = k_pos_int ->
+  | Pos_int (fa, fb) ->
       Appl (10, Infix (String " |> ", Non,
                        [form_to_exp ~cx fa ; form_to_exp ~cx fb]))
-  | App {head = Const (k, Arrow (Arrow (ty, _), _)) ;
-         spine = [Abs {var ; body}]} when k = k_all ->
+  | Forall (var, ty, body) ->
       let qstr = Printf.sprintf "\\A [%s:%s] " var (ty_to_string ty) in
       Appl (5, Prefix (String qstr,
                        form_to_exp ~cx:((var, ty) :: cx) body))
-  | App {head = Const (k, Arrow (Arrow (ty, _), _)) ;
-         spine = [Abs {var ; body}]} when k = k_ex ->
+  | Exists (var, ty, body) ->
       let qstr = Printf.sprintf "\\E [%s:%s] " var (ty_to_string ty) in
       Appl (5, Prefix (String qstr,
                        form_to_exp ~cx:((var, ty) :: cx) body))
-  | App {head = Const (k, _) ; spine = [f]} when k = k_cx ->
-      let fe = form_to_exp ~cx f in
-      Wrap (Opaque, String "{{ ", fe, String " }}")
-  | _ ->
-      Term.term_to_exp ~cx form
+  | Atom f -> begin
+      match f with
+      | App {head = Const (k, _) ; spine = [f]} when k = k_cx ->
+          let fe = form_to_exp ~cx f in
+          Wrap (Opaque, String "{ ", fe, String " }")
+      | _ ->
+          Term.term_to_exp ~cx form
+    end
 
 let pp_form ?cx out form =
   form_to_exp ?cx form
@@ -256,6 +257,65 @@ let pp_form ?cx out form =
 
 let form_to_string ?cx form =
   form_to_exp ?cx form
+  |> Doc.bracket
+  |> Doc.lin_doc
+
+let fresh_id =
+  let count = ref 0 in
+  fun () -> incr count ; string_of_int !count
+
+let rec form_to_exp_html ?(cx = []) form =
+  let open Doc in
+  let e = match expose form with
+    | Top ->
+        Atom (StringAs (1, "\\top"))
+    | Bot ->
+        Atom (StringAs (1, "\\bot"))
+    | And (fa, fb) ->
+        Appl (30, Infix (StringAs (1, "\\wedge"), Left,
+                         [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
+    | Or (fa, fb) ->
+        Appl (20, Infix (StringAs (1, "\\vee"), Left,
+                         [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
+    | Imp (fa, fb) ->
+        Appl (10, Infix (StringAs (1, "\\supset"), Right,
+                         [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
+    | Eq (t1, t2, _) ->
+        Appl (10, Infix (StringAs (1, "\\doteq"), Non,
+                         [Term.term_to_exp ~cx t1 ; Term.term_to_exp ~cx t2]))
+    | Neg_int (fa, fb) ->
+        Appl (30, Infix (StringAs (1, "{\\circ}"), Non,
+                         [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
+    | Pos_int (fa, fb) ->
+        Appl (10, Infix (StringAs (1, "{\rhd}"), Non,
+                         [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
+    | Forall (var, ty, body) ->
+        let qstr = Printf.sprintf "\\forall{%s{:}%s}.\\," var (ty_to_string ty) in
+        Appl (5, Prefix (StringAs (1, qstr),
+                         form_to_exp_html ~cx:((var, ty) :: cx) body))
+    | Exists (var, ty, body) ->
+        let qstr = Printf.sprintf "\\exists{%s{:}%s}.\\," var (ty_to_string ty) in
+        Appl (5, Prefix (StringAs (1, qstr),
+                         form_to_exp_html ~cx:((var, ty) :: cx) body))
+    | Atom f -> begin
+        match f with
+        | App {head = Const (k, _) ; spine = [f]} when k = k_cx ->
+            let fe = form_to_exp_html ~cx f in
+            Wrap (Opaque,
+                  StringAs (1, "\\bigl\\{"),
+                  fe,
+                  StringAs (1, "\\bigr\\}"))
+        | _ ->
+            Term.term_to_exp_html ~cx form
+      end
+  in
+  Wrap (Transparent,
+        StringAs (0, "\\htmlId{" ^ fresh_id () ^ "}{"),
+        e,
+        StringAs (0, "}"))
+
+let form_to_html ?cx form =
+  form_to_exp_html ?cx form
   |> Doc.bracket
   |> Doc.lin_doc
 
@@ -965,4 +1025,4 @@ module TestFn () = struct
 
   let () = Uterm.clear_declarations ()
 end
-(* module Test = TestFn () *)
+module Test = TestFn ()

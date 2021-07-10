@@ -148,6 +148,28 @@ and head_to_exp ?(cx = []) head =
   | Index n -> Atom (String (fst (List.nth cx n)))
   | Const (k, _) -> Atom (String k)
 
+let rec term_to_exp_html ?(cx = []) term =
+  let open Doc in
+  match term with
+  | Abs {var ; body} ->
+      let rep = StringAs (1, Printf.sprintf "\\lambda{%s}.\\," var) in
+      Appl (5, Prefix (rep, term_to_exp_html ~cx:((var, Types.ty_i) :: cx) body))
+  | App {head ; spine = []} ->
+      head_to_exp ~cx head
+  | App {head ; spine} ->
+      let left = head_to_exp ~cx head in
+      let right = match spine with
+        | [t] ->
+            Wrap (Opaque, String "[", term_to_exp_html ~cx t, String "]")
+        | _ ->
+            Wrap (Opaque,
+                  String "[",
+                  Appl (0, Infix (String ",", Left,
+                                  List.map (term_to_exp_html ~cx) spine)),
+                  String "]")
+      in
+      Appl (200, Infix (StringAs (1, "{\\cdot}"), Non, [left ; right]))
+
 let pp_term ?cx out term =
   term_to_exp ?cx term
   |> Doc.bracket
