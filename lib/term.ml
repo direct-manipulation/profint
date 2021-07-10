@@ -120,3 +120,50 @@ and eq_spine spine1 spine2 =
   | (t1 :: spine1), (t2 :: spine2) ->
       eq_term t1 t2 && eq_spine spine1 spine2
   | _ -> false
+
+let rec term_to_exp ?(cx = []) term =
+  let open Doc in
+  match term with
+  | Abs {var ; body} ->
+      let rep = String (Printf.sprintf "[%s] " var) in
+      Appl (1, Prefix (rep, term_to_exp ~cx:((var, Types.ty_i) :: cx) body))
+  | App {head ; spine = []} ->
+      head_to_exp ~cx head
+  | App {head ; spine} ->
+      let left = head_to_exp ~cx head in
+      let right = match spine with
+        | [t] -> term_to_exp ~cx t
+        | _ ->
+            Wrap (Opaque,
+                  String "[",
+                  Appl (0, Infix (String ",", Left,
+                                  List.map (term_to_exp ~cx) spine)),
+                  String "]")
+      in
+      Appl (2, Infix (String " ", Non, [left ; right]))
+
+and head_to_exp ?(cx = []) head =
+  let open Doc in
+  match head with
+  | Index n -> Atom (String (fst (List.nth cx n)))
+  | Const (k, _) -> Atom (String k)
+
+let pp_term ?cx out term =
+  term_to_exp ?cx term
+  |> Doc.bracket
+  |> Doc.pp_doc out
+
+let term_to_string ?cx term =
+  term_to_exp ?cx term
+  |> Doc.bracket
+  |> Doc.lin_doc
+
+let pp_head ?cx out head =
+  head_to_exp ?cx head
+  |> Doc.bracket
+  |> Doc.pp_doc out
+
+let head_to_string ?cx head =
+  head_to_exp ?cx head
+  |> Doc.bracket
+  |> Doc.lin_doc

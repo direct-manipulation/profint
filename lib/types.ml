@@ -41,6 +41,11 @@ let k_or  = "\\or"
 let k_bot = "\\bot"
 let k_imp = "\\imp"
 
+let k_eq  = "\\eq"
+
+let k_pos_int = "\\rhd"
+let k_neg_int = "\\circ"
+
 let ty_o  = Basic "\\o"
 let ty_i  = Basic "\\i"
 
@@ -55,7 +60,11 @@ let global_sig : poly_ty IdMap.t =
     k_top, {nvars = 0 ; ty = ty_o} ;
     k_or,  {nvars = 0 ; ty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
     k_bot, {nvars = 0 ; ty = ty_o} ;
-    k_imp, {nvars = 0 ; ty = Arrow (ty_o, Arrow (ty_o, ty_o))}
+    k_imp, {nvars = 0 ; ty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
+    k_eq,  {nvars = 1 ;
+            ty = Arrow (vnum 0, Arrow (vnum 0, ty_o))} ;
+    k_pos_int, {nvars = 0 ; ty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
+    k_neg_int, {nvars = 0 ; ty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
   ] |> List.to_seq in
   IdMap.add_seq binds IdMap.empty
 

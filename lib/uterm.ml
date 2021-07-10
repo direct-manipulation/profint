@@ -203,6 +203,9 @@ let declare_const k str =
   let pty = {nvars = 0 ; ty = ty_of_string str} in
   local_sig := IdMap.add k pty !local_sig
 
+let clear_declarations () =
+  local_sig := IdMap.empty
+
 (* module Test = struct
  *   let () = declare_const "p" {| \i -> \i -> \o |} ;;
  *   let () = declare_const "f" {| \i -> \i -> \i |} ;;

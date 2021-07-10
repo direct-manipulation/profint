@@ -30,8 +30,7 @@ let rec doc_map_strings fn = function
 
 let rec pp_doc ff = function
   | String s ->
-      let fmt : (unit, formatter, unit) format = Obj.magic s in
-      Format.fprintf ff fmt
+      pp_print_string ff s
   | StringAs (n, s) ->
       pp_print_as ff n s
   | Fmt fmt -> fmt ff
