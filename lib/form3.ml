@@ -206,6 +206,8 @@ let get_cx context : cx =
   in
   spin [] context.frames
 
+let k_cx = "\\cx"
+
 let rec form_to_exp ?(cx = []) form =
   let open Doc in
   match form with
@@ -241,6 +243,9 @@ let rec form_to_exp ?(cx = []) form =
       let qstr = Printf.sprintf "\\E [%s:%s] " var (ty_to_string ty) in
       Appl (5, Prefix (String qstr,
                        form_to_exp ~cx:((var, ty) :: cx) body))
+  | App {head = Const (k, _) ; spine = [f]} when k = k_cx ->
+      let fe = form_to_exp ~cx f in
+      Wrap (Opaque, String "{{ ", fe, String " }}")
   | _ ->
       Term.term_to_exp ~cx form
 
@@ -254,8 +259,13 @@ let form_to_string ?cx form =
   |> Doc.bracket
   |> Doc.lin_doc
 
-let pp_context out context = pp_form out (leave context)
-let context_to_string context = form_to_string (leave context)
+let marked_leave context =
+  let form = App {head = Const (k_cx, Arrow (ty_o, ty_o)) ;
+                  spine = [context.form]} in
+  leave {context with form}
+
+let pp_context out context = pp_form out (marked_leave context)
+let context_to_string context = form_to_string (marked_leave context)
 
 let with_context ~(fn: ?cx:cx -> _) context arg =
   let cx = get_cx context in
@@ -399,10 +409,433 @@ let r_pos_andr concl =
     end
   | _ -> abort ()
 
+let r_pos_orl concl =
+  abort_unless concl.context.pos ;
+  match expose concl.context.form, concl.lf.trail with
+  | Pos_int (fa, fb), (L :: trail) -> begin
+      match expose fa, trail with
+      | Or (fa, ff), (L :: trail) ->
+          let f_int = Pos_int (fa, fb) |> reform0 in
+          let f_imp = Imp (ff, fb) |> reform0 in
+          let form = And (f_int, f_imp) |> reform0 in
+          let context = go_left {concl.context with form} in
+          let lf = {concl.lf with trail = L :: trail} in
+          Continue {concl with context ; lf}
+          |> dprintf "pos_orl_1"
+      | Or (ff, fa), (R :: trail) ->
+          let f_int = Pos_int (fa, fb) |> reform0 in
+          let f_imp = Imp (ff, fb) |> reform0 in
+          let form = And (f_imp, f_int) |> reform0 in
+          let context = go_right {concl.context with form} in
+          let lf = {concl.lf with trail = L :: trail} in
+          Continue {concl with context ; lf}
+          |> dprintf "pos_orl_2"
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let r_pos_impr concl =
+  abort_unless concl.context.pos ;
+  match expose concl.context.form, concl.rt.trail with
+  | Pos_int (fa, fb), (R :: trail) -> begin
+      match expose fb, trail with
+      | Imp (fb, ff), (L :: trail) ->
+          let f_int = Neg_int (fa, fb) |> reform0 in
+          let form = Imp (f_int, ff) |> reform0 in
+          let context = go_left {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "pos_impr_1"
+      | Imp (ff, fb), (R :: trail) ->
+          let f_int = Pos_int (fa, fb) |> reform0 in
+          let form = Imp (ff, f_int) |> reform0 in
+          let context = go_right {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "pos_impr_2"
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let r_pos_orr concl =
+  abort_unless concl.context.pos ;
+  match expose concl.context.form, concl.rt.trail with
+  | Pos_int (fa, fb), (R :: trail) -> begin
+      match expose fb, trail with
+      | Or (fb, _), (L :: trail)
+      | Or (_, fb), (R :: trail) ->
+          let form = Pos_int (fa, fb) |> reform0 in
+          let context = {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "pos_orr"
+      (* | Or (_ff, fb), (R :: trail) ->
+       *     let form = Pos_int (fa, fb) |> reform0 in
+       *     let context = {concl.context with form} in
+       *     let rt = {concl.rt with trail = R :: trail} in
+       *     Continue {concl with context ; rt}
+       *     |> dprintf "pos_orr_2" *)
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let r_pos_andl concl =
+  abort_unless concl.context.pos ;
+  match expose concl.context.form, concl.lf.trail with
+  | Pos_int (fa, fb), (L :: trail) -> begin
+      match expose fa, trail with
+      | And (fa, _), (L :: trail)
+      | And (_, fa), (R :: trail) ->
+          let form = Pos_int (fa, fb) |> reform0 in
+          let context = {concl.context with form} in
+          let lf = {concl.lf with trail = L :: trail} in
+          Continue {concl with context ; lf}
+          |> dprintf "pos_andl"
+      (* | And (_, fa), (R :: trail) ->
+       *     let form = Pos_int (fa, fb) |> reform0 in
+       *     let context = {concl.context with form} in
+       *     let lf = {concl.lf with trail = L :: trail} in
+       *     Continue {concl with context ; lf}
+       *     |> dprintf "pos_andl_2" *)
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let r_pos_impl concl =
+  abort_unless concl.context.pos ;
+  match expose concl.context.form, concl.lf.trail with
+  | Pos_int (fa, fb), (L :: trail) -> begin
+      match expose fa, trail with
+      | Imp (ff, fa), (R :: trail) ->
+          let f_int = Pos_int (fa, fb) |> reform0 in
+          let form = And (ff, f_int) |> reform0 in
+          let context = go_right {concl.context with form} in
+          let lf = {concl.lf with trail = L :: trail} in
+          Continue {concl with context ; lf}
+          |> dprintf "pos_impl"
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let r_pos_allr concl =
+  abort_unless concl.context.pos ;
+  match expose concl.context.form, concl.rt.trail with
+  | Pos_int (fa, fb), (R :: trail) -> begin
+      match expose fb, trail with
+      | Forall (var, ty, fb), (D :: trail) ->
+          (* C{ \A [x] (fa |> fb) }
+           * ----
+           * C{ fa |> \A [x] fb } *)
+          let fa = Term.sub_term (Shift 1) fa in
+          let f_int = Pos_int (fa, fb) |> reform0 in
+          let form = Forall (var, ty, f_int) |> reform0 in
+          let context = go_down {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "pos_allr"
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let r_pos_alll concl =
+  abort_unless concl.context.pos ;
+  match expose concl.context.form, concl.lf.trail with
+  | Pos_int (fa, fb), (L :: trail) -> begin
+      match expose fa, trail with
+      | Forall (var, ty, fa), (D :: trail) ->
+          (* C{ \E [x] (fa |> fb) }
+           * ----
+           * C{ (\A [x] fa) |> fb } *)
+          let fb = Term.sub_term (Shift 1) fb in
+          let f_int = Pos_int (fa, fb) |> reform0 in
+          let form = Exists (var, ty, f_int) |> reform0 in
+          let context = go_down {concl.context with form} in
+          let lf = {concl.lf with trail = L :: trail} in
+          Continue {concl with context ; lf}
+          |> dprintf "pos_alll"
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let r_pos_exl concl =
+  abort_unless concl.context.pos ;
+  match expose concl.context.form, concl.lf.trail with
+  | Pos_int (fa, fb), (L :: trail) -> begin
+      match expose fa, trail with
+      | Exists (var, ty, fa), (D :: trail) ->
+          (* C{ \A [x] (fa |> fb) }
+           * ----
+           * C{ (\E [x] fa) |> fb } *)
+          let fb = Term.sub_term (Shift 1) fb in
+          let f_int = Pos_int (fa, fb) |> reform0 in
+          let form = Forall (var, ty, f_int) |> reform0 in
+          let context = go_down {concl.context with form} in
+          let lf = {concl.lf with trail = L :: trail} in
+          Continue {concl with context ; lf}
+          |> dprintf "pos_exl"
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let r_pos_exr concl =
+  abort_unless concl.context.pos ;
+  match expose concl.context.form, concl.rt.trail with
+  | Pos_int (fa, fb), (R :: trail) -> begin
+      match expose fb, trail with
+      | Exists (var, ty, fb), (D :: trail) ->
+          (* C{ \E [x] (fa |> fb) }
+           * ----
+           * C{ fa |> \E [x] fb } *)
+          let fa = Term.sub_term (Shift 1) fa in
+          let f_int = Pos_int (fa, fb) |> reform0 in
+          let form = Exists (var, ty, f_int) |> reform0 in
+          let context = go_down {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "pos_exr"
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let can_descend lr concl =
+  match lr with
+  | L ->
+      (* - either left is dest and its trail is not [L] *)
+      (* - or right is dest and its trail is [R] *)
+      if concl.rt.has_src then
+        concl.lf.trail <> [L]
+      else
+        concl.rt.trail = [R]
+  | R ->
+      if concl.lf.has_src then
+        concl.rt.trail <> [R]
+      else
+        concl.lf.trail = [L]
+  | _ ->
+      assert false
+
+let r_neg_or concl =
+  abort_if concl.context.pos ;
+  match expose concl.context.form, concl.lf.trail, concl.rt.trail with
+  | Neg_int (fa, fb), (L :: trail), _
+    when can_descend L concl -> begin
+      match expose fa, trail with
+      | Or (fa, ff), (L :: trail) ->
+          let f_int = Neg_int (fa, fb) |> reform0 in
+          let form = Or (f_int, ff) |> reform0 in
+          let context = go_left {concl.context with form} in
+          let lf = {concl.lf with trail = L :: trail} in
+          Continue {concl with context ; lf}
+          |> dprintf "neg_or_l1"
+      | Or (ff, fa), (R :: trail) ->
+          let f_int = Neg_int (fa, fb) |> reform0 in
+          let form = Or (ff, f_int) |> reform0 in
+          let context = go_right {concl.context with form} in
+          let lf = {concl.lf with trail = R :: trail} in
+          Continue {concl with context ; lf}
+          |> dprintf "neg_or_l2"
+      | _ -> abort ()
+    end
+  | Neg_int (fa, fb), _, (R :: trail)
+    when can_descend R concl -> begin
+      match expose fb, trail with
+      | Or (fb, ff), (L :: trail) ->
+          let f_int = Neg_int (fa, fb) |> reform0 in
+          let form = Or (f_int, ff) |> reform0 in
+          let context = go_left {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "neg_or_r1"
+      | Or (ff, fb), (R :: trail) ->
+          let f_int = Neg_int (fa, fb) |> reform0 in
+          let form = Or (ff, f_int) |> reform0 in
+          let context = go_right {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "neg_or_r2"
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let r_neg_and concl =
+  abort_if concl.context.pos ;
+  match expose concl.context.form, concl.lf.trail, concl.rt.trail with
+  | Neg_int (fa, fb), (L :: trail), _
+    when can_descend L concl -> begin
+      match expose fa, trail with
+      | And (fa, _), (L :: trail)
+      | And (_, fa), (R :: trail) ->
+          let form = Neg_int (fa, fb) |> reform0 in
+          let context = {concl.context with form} in
+          let lf = {concl.lf with trail = L :: trail} in
+          Continue {concl with context ; lf}
+          |> dprintf "neg_and_l"
+      | _ -> abort ()
+    end
+  | Neg_int (fa, fb), _, (R :: trail)
+    when can_descend R concl -> begin
+      match expose fb, trail with
+      | And (fb, _), (L :: trail)
+      | And (_, fb), (R :: trail) ->
+          let form = Neg_int (fa, fb) |> reform0 in
+          let context = {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "neg_and_r"
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let r_neg_imp concl =
+  abort_if concl.context.pos ;
+  match expose concl.context.form, concl.lf.trail, concl.rt.trail with
+  | Neg_int (fa, fb), (L :: trail), _
+    when can_descend L concl -> begin
+      match expose fa, trail with
+      | Imp (fa, ff), (L :: trail) ->
+          (* A{ (fb |> fa) => ff }
+           * ----
+           * A{ (fa => ff) @ fb } *)
+          let f_int = Pos_int (fb, fa) (* OK *) |> reform0 in
+          let form = Imp (f_int, ff) |> reform0 in
+          let context = go_left {concl.context with form} in
+          let lf = {concl.lf with trail = L :: trail} in
+          Continue {concl with context ; lf}
+          |> dprintf "neg_imp_l1"
+      | Imp (ff, fa), (R :: trail) ->
+          (* A{ ff => (fa @ fb) }
+           * ----
+           * A{ (ff => fa) @ fb } *)
+          let f_int = Neg_int (fa, fb) |> reform0 in
+          let form = Imp (ff, f_int) |> reform0 in
+          let context = go_right {concl.context with form} in
+          let lf = {concl.lf with trail = R :: trail} in
+          Continue {concl with context ; lf}
+          |> dprintf "neg_imp_l2"
+      | _ -> abort ()
+    end
+  | Neg_int (fa, fb), _, (R :: trail)
+    when can_descend R concl -> begin
+      match expose fb, trail with
+      | Imp (fb, ff), (L :: trail) ->
+          (* A{ (fa |> fb) => ff }
+           * ----
+           * A{ fa @ (fb => ff) } *)
+          let f_int = Pos_int (fa, fb) |> reform0 in
+          let form = Imp (f_int, ff) |> reform0 in
+          let context = go_left {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "neg_imp_r1"
+      | Imp (ff, fb), (R :: trail) ->
+          (* A{ ff => (fa @ fb) }
+           * ----
+           * A{ fa @ (ff => fb) } *)
+          let f_int = Neg_int (fa, fb) |> reform0 in
+          let form = Imp (ff, f_int) |> reform0 in
+          let context = go_right {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "neg_imp_r1"
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+
+let r_neg_all concl =
+  abort_if concl.context.pos ;
+  match expose concl.context.form, concl.lf.trail, concl.rt.trail with
+  | Neg_int (fa, fb), (L :: trail), _
+    when can_descend L concl -> begin
+      match expose fa, trail with
+      | Forall (var, ty, fa), (D :: trail) ->
+          (* A{ \A [x] (fa @ fb) }
+           * ----
+           * A{ (\A [x] fa) @ fb } *)
+          let fb = Term.sub_term (Shift 1) fb in
+          let f_int = Neg_int (fa, fb) |> reform0 in
+          let form = Forall (var, ty, f_int) |> reform0 in
+          let context = go_down {concl.context with form} in
+          let lf = {concl.lf with trail = L :: trail} in
+          Continue {concl with context ; lf}
+          |> dprintf "r_neg_all_l"
+      | _ -> abort ()
+    end
+  | Neg_int (fa, fb), _, (R :: trail)
+    when can_descend R concl -> begin
+      match expose fb, trail with
+      | Forall (var, ty, fb), (D :: trail) ->
+          (* A{ \A [x] (fa @ fb) }
+           * ----
+           * A{ fa @ (\A [x] fb) } *)
+          let fa = Term.sub_term (Shift 1) fa in
+          let f_int = Neg_int (fa, fb) |> reform0 in
+          let form = Forall (var, ty, f_int) |> reform0 in
+          let context = go_down {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "r_neg_all_2"
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let r_neg_ex concl =
+  abort_if concl.context.pos ;
+  match expose concl.context.form, concl.lf.trail, concl.rt.trail with
+  | Neg_int (fa, fb), (L :: trail), _
+    when can_descend L concl -> begin
+      match expose fa, trail with
+      | Exists (var, ty, fa), (D :: trail) ->
+          (* A{ \E [x] (fa @ fb) }
+           * ----
+           * A{ (\E [x] fa) @ fb } *)
+          let fb = Term.sub_term (Shift 1) fb in
+          let f_int = Neg_int (fa, fb) |> reform0 in
+          let form = Exists (var, ty, f_int) |> reform0 in
+          let context = go_down {concl.context with form} in
+          let lf = {concl.lf with trail = L :: trail} in
+          Continue {concl with context ; lf}
+          |> dprintf "r_neg_ex_l"
+      | _ -> abort ()
+    end
+  | Neg_int (fa, fb), _, (R :: trail)
+    when can_descend R concl -> begin
+      match expose fb, trail with
+      | Exists (var, ty, fb), (D :: trail) ->
+          (* A{ \E [x] (fa @ fb) }
+           * ----
+           * A{ fa @ (\E [x] fb) } *)
+          let fa = Term.sub_term (Shift 1) fa in
+          let f_int = Neg_int (fa, fb) |> reform0 in
+          let form = Exists (var, ty, f_int) |> reform0 in
+          let context = go_down {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "r_neg_ex_2"
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
 let all_rules = [
-  r_pos_init ;
-  r_pos_rel ;
-  r_pos_andr ;
+  (* conclusive context *)
+  r_pos_init ;                  (* async *)
+  r_pos_rel ;                   (* async *)
+  r_pos_andr ;                  (* async *)
+  r_pos_orl ;                   (* async *)
+  r_pos_impr ;                  (* async *)
+  r_pos_allr ;                  (* async *)
+  r_pos_exl ;                   (* async *)
+  r_pos_orr ;
+  r_pos_andl ;
+  r_pos_impl ;
+  r_pos_alll ;
+  r_pos_exr ;
+  (* assumptive context *)
+  r_neg_or ;
+  r_neg_and ;
+  r_neg_imp ;
+  r_neg_all ;
+  r_neg_ex ;
 ]
 
 let rec spin_rules concl =
@@ -410,6 +843,7 @@ let rec spin_rules concl =
     match rules with
     | [] ->
         (* tried all the rules, and now it's stuck *)
+        Continue concl |> dprintf "stuck" |> ignore ;
         concl.context
     | rule :: rules -> begin
         match rule concl with
@@ -458,9 +892,12 @@ let resolve form src dest =
   let context = go form common in
   let concl = {context ; lf ; rt} in
   dprintf "start" (Continue concl) |> ignore ;
-  if context.pos
-  then pos_interaction concl
-  else neg_interaction concl
+  let context =
+    if context.pos
+    then pos_interaction concl
+    else neg_interaction concl
+  in
+  leave context
 
 module Test = struct
   let () = Uterm.declare_const "f" {| \i -> \i |}
@@ -468,6 +905,8 @@ module Test = struct
   let () = Uterm.declare_const "k" {| \i |}
 
   let () = Uterm.declare_const "p" {| \i -> \o |}
+  let () = Uterm.declare_const "q" {| \i -> \o |}
+
   let () =
     List.iter begin fun p ->
       Uterm.declare_const p {| \o |}
@@ -476,7 +915,7 @@ module Test = struct
   let aa1 = Uterm.form_of_string {| a => a |}
   let aa2 = Uterm.form_of_string {| p j => p k |}
   let aa3 = Uterm.form_of_string {| c => a => a |}
-  let aaa = Uterm.form_of_string {| a => (b & c) |}
+  let aaa = Uterm.form_of_string {| (\A [y:\i] p y) => (\E [x:\i] p x) => c |}
 
   let p1 = Uterm.form_of_string {| a => (b => c) => d |}
   let p1s = form_to_string p1
