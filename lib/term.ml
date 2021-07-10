@@ -7,22 +7,9 @@
 
 open! Util
 open Types
-
-type term =
-  | Abs of {var : ident ; body : term}
-  | App of {head : head ; spine : spine}
-
-and head =
-  | Const of ident * ty
-  | Index of int
-
-and spine = term list
+open! T
 
 let index n = App {head = Index n ; spine = []}
-
-type sub =
-  | Shift of int
-  | Dot of sub * term
 
 let rec do_app head spine =
   match head, spine with

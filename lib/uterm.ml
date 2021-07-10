@@ -9,6 +9,7 @@
 
 open! Util
 open! Types
+open! U
 
 (* The constructors of uty need to be in the same order as in Term.ty;
    otherwise we will not get the O(1) transformations. *)
@@ -41,20 +42,26 @@ exception TypeError of {ty : ty option ; msg : string}
 let ty_error ?ty fmt =
   Printf.ksprintf (fun msg -> raise (TypeError {ty ; msg})) fmt
 
+let local_sig : poly_ty IdMap.t ref = ref IdMap.empty
+
 let rec tygen ~emit (cx : cx) tm ty_expected =
   match tm with
   | Idx n ->
       emit (snd (List.nth cx n)) ty_expected ;
       Idx n
-  | Var x ->
-      let n, ty = tyget cx x in
-      emit ty ty_expected ;
-      Idx n
+  | Var x -> begin
+      match tyget cx x with
+      | (n, ty) ->
+          emit ty ty_expected ;
+          Idx n
+      | exception Not_found ->
+          tygen ~emit cx (Kon (x, None)) ty_expected
+    end
   | Kon (k, Some ty) ->
       emit ty ty_expected ;
       Kon (k, Some ty)
   | Kon (k, None) -> begin
-      match IdMap.find k gsig with
+      match lookup k !local_sig with
       | pty ->
           emit (freshen pty) ty_expected ;
           Kon (k, Some ty_expected)
@@ -85,7 +92,7 @@ and tyget ?(depth = 0) cx x =
   match cx with
   | (y, ty) :: _ when x = y -> (depth, ty)
   | _ :: cx -> tyget ~depth:(depth + 1) cx x
-  | [] -> ty_error "unknown variable %s" x
+  | [] -> raise Not_found
 
 let rec occurs x ty =
   match ty with
@@ -133,20 +140,25 @@ let rec norm_ty ty =
   | Arrow (tya, tyb) -> Arrow (norm_ty tya, norm_ty tyb)
   | Tyvar v -> begin
       match v.subst with
-      | None -> ty_error ~ty "non-normalized tyvar %d" v.id
+      | None -> raise Not_found
       | Some ty -> norm_ty ty
     end
 
 let rec norm_term tm =
   match tm with
   | Idx n ->
-      Term.(App {head = Index n ; spine = []})
-  | Kon (k, Some ty) ->
-      Term.(App {head = Const (k, norm_ty ty) ; spine = []})
+      T.(App {head = Index n ; spine = []})
+  | Kon (k, Some ty) -> begin
+      match norm_ty ty with
+      | ty -> T.(App {head = Const (k, ty) ; spine = []})
+      | exception Not_found ->
+          ty_error "inferred non-monomorphic type for %s: %s"
+            k (ty_to_string ty)
+    end
   | App (tm, tn) ->
       Term.(do_app (norm_term tm) [norm_term tn])
   | Abs (x, _, tm) ->
-      Term.(Abs {var = x ; body = norm_term tm})
+      T.(Abs {var = x ; body = norm_term tm})
   | Var _ | Kon (_, None) ->
       assert false
 
@@ -156,7 +168,11 @@ let ty_check cx term =
   let emit tya tyb = eqns := (tya, tyb) :: !eqns in
   let term = tygen ~emit cx term ty in
   solve !eqns ;
-  (norm_term term, norm_ty ty)
+  match norm_ty ty with
+    | ty -> (norm_term term, ty)
+    | exception Not_found ->
+        ty_error "inferred non-monomorphic type: %s"
+          (ty_to_string ty)
 
 exception Parsing of string
 
@@ -168,13 +184,13 @@ let thing_of_string prs str =
   with
   | Proprs.Error -> raise (Parsing "")
 
-let term_of_string ?(cx = []) str =
-  thing_of_string Proprs.one_term str
-  |> ty_check cx
-
 let ty_of_string str =
   thing_of_string Proprs.one_ty str
   |> norm_ty
+
+let term_of_string ?(cx = []) str =
+  thing_of_string Proprs.one_term str
+  |> ty_check cx
 
 let form_of_string ?(cx = []) str =
   let t = thing_of_string Proprs.one_form str in
@@ -182,3 +198,17 @@ let form_of_string ?(cx = []) str =
   if ty <> ty_o then
     ty_error "form must have type \\o" ;
   f
+
+let declare_const k str =
+  let pty = {nvars = 0 ; ty = ty_of_string str} in
+  local_sig := IdMap.add k pty !local_sig
+
+(* module Test = struct
+ *   let () = declare_const "p" {| \i -> \i -> \o |} ;;
+ *   let () = declare_const "f" {| \i -> \i -> \i |} ;;
+ *   let t1 = term_of_string {| [x] f x x |}
+ *   let t2 = term_of_string {| [x, y] f x y |}
+ *   let t3 = term_of_string {| [x, y] [z:\o] f x (f y x) |}
+ *   let f1 = form_of_string {| \A [x, y, z] p x (f y z) |}
+ *   let () = local_sig := IdMap.empty
+ * end *)

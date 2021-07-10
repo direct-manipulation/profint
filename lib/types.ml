@@ -14,13 +14,21 @@ type ty =
 
 type poly_ty = {nvars : int ; ty : ty}
 
+type cx = (ident * ty) list
+
 let rec ty_to_exp ty =
   match ty with
   | Basic a -> Doc.(Atom (String a))
   | Arrow (ta, tb) ->
       Doc.(Appl (1, Infix (String " -> ", Right,
                            [ty_to_exp ta ; ty_to_exp tb])))
-  | Tyvar _ -> Doc.(Atom (String "_"))
+  | Tyvar v -> begin
+      match v.subst with
+      | None ->
+          let rep = "'a" ^ string_of_int v.id in
+          Doc.(Atom (String rep))
+      | Some ty -> ty_to_exp ty
+    end
 
 let ty_to_string ty =
   ty_to_exp ty |> Doc.bracket |> Doc.lin_doc
@@ -36,7 +44,7 @@ let k_imp = "\\imp"
 let ty_o  = Basic "\\o"
 let ty_i  = Basic "\\i"
 
-let gsig : poly_ty IdMap.t =
+let global_sig : poly_ty IdMap.t =
   let vnum n = Tyvar {id = n ; subst = None} in
   let binds = [
     k_all, {nvars = 1 ;
@@ -51,11 +59,35 @@ let gsig : poly_ty IdMap.t =
   ] |> List.to_seq in
   IdMap.add_seq binds IdMap.empty
 
-type uterm =
-  | Idx of int
-  | Var of ident
-  | Kon of ident * ty option
-  | App of uterm * uterm
-  | Abs of ident * ty option * uterm
+let lookup k local_sig =
+  match IdMap.find k local_sig with
+  | ty -> ty
+  | exception Not_found ->
+      IdMap.find k global_sig
 
-type cx = (ident * ty) list
+(** Untyped terms *)
+module U = struct
+  type term =
+    | Idx of int
+    | Var of ident
+    | Kon of ident * ty option
+    | App of term * term
+    | Abs of ident * ty option * term
+end
+
+(** Typed and normalized terms *)
+module T = struct
+  type term =
+    | Abs of {var : ident ; body : term}
+    | App of {head : head ; spine : spine}
+
+  and head =
+    | Const of ident * ty
+    | Index of int
+
+  and spine = term list
+
+  type sub =
+    | Shift of int
+    | Dot of sub * term
+end
