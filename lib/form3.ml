@@ -621,6 +621,9 @@ let r_neg_or concl =
     when can_descend L concl -> begin
       match expose fa, trail with
       | Or (fa, ff), (L :: trail) ->
+          (* A{ (fa @ fb) | ff }
+           * -------------------
+           * A{ (fa | ff) @ fb } *)
           let f_int = Neg_int (fa, fb) |> reform0 in
           let form = Or (f_int, ff) |> reform0 in
           let context = go_left {concl.context with form} in
@@ -628,6 +631,9 @@ let r_neg_or concl =
           Continue {concl with context ; lf}
           |> dprintf "neg_or_l1"
       | Or (ff, fa), (R :: trail) ->
+          (* A{ ff | (fa @ fb }
+           * -------------------
+           * A{ (ff | fa) @ fb } *)
           let f_int = Neg_int (fa, fb) |> reform0 in
           let form = Or (ff, f_int) |> reform0 in
           let context = go_right {concl.context with form} in
@@ -640,6 +646,9 @@ let r_neg_or concl =
     when can_descend R concl -> begin
       match expose fb, trail with
       | Or (fb, ff), (L :: trail) ->
+          (* A{ (fa @ fb) | ff }
+           * -------------------
+           * A{ fa @ (fb | ff) } *)
           let f_int = Neg_int (fa, fb) |> reform0 in
           let form = Or (f_int, ff) |> reform0 in
           let context = go_left {concl.context with form} in
@@ -647,6 +656,9 @@ let r_neg_or concl =
           Continue {concl with context ; rt}
           |> dprintf "neg_or_r1"
       | Or (ff, fb), (R :: trail) ->
+          (* A{ ff | (fa @ fb) }
+           * -------------------
+           * A{ fa @ (ff | fb) } *)
           let f_int = Neg_int (fa, fb) |> reform0 in
           let form = Or (ff, f_int) |> reform0 in
           let context = go_right {concl.context with form} in
@@ -664,7 +676,13 @@ let r_neg_and concl =
     when can_descend L concl -> begin
       match expose fa, trail with
       | And (fa, _), (L :: trail)
+      (* A{ fa @ fb }
+       * -------------------
+       * A{ (fa & ff) @ fb } *)
       | And (_, fa), (R :: trail) ->
+          (* A{ fa @ fb }
+           * -------------------
+           * A{ (ff & fa) @ fb } *)
           let form = Neg_int (fa, fb) |> reform0 in
           let context = {concl.context with form} in
           let lf = {concl.lf with trail = L :: trail} in
@@ -676,7 +694,13 @@ let r_neg_and concl =
     when can_descend R concl -> begin
       match expose fb, trail with
       | And (fb, _), (L :: trail)
+      (* A{ fa @ fb }
+       * -------------------
+       * A{ fa @ (fb & ff) } *)
       | And (_, fb), (R :: trail) ->
+          (* A{ fa @ fb }
+           * -------------------
+           * A{ fa @ (ff & fb) } *)
           let form = Neg_int (fa, fb) |> reform0 in
           let context = {concl.context with form} in
           let rt = {concl.rt with trail = R :: trail} in
@@ -741,7 +765,6 @@ let r_neg_imp concl =
     end
   | _ -> abort ()
 
-
 let r_neg_all concl =
   abort_if concl.context.pos ;
   match expose concl.context.form, concl.lf.trail, concl.rt.trail with
@@ -758,7 +781,7 @@ let r_neg_all concl =
           let context = go_down {concl.context with form} in
           let lf = {concl.lf with trail = L :: trail} in
           Continue {concl with context ; lf}
-          |> dprintf "r_neg_all_l"
+          |> dprintf "neg_all_l"
       | _ -> abort ()
     end
   | Neg_int (fa, fb), _, (R :: trail)
@@ -774,18 +797,18 @@ let r_neg_all concl =
           let context = go_down {concl.context with form} in
           let rt = {concl.rt with trail = R :: trail} in
           Continue {concl with context ; rt}
-          |> dprintf "r_neg_all_2"
+          |> dprintf "neg_all_2"
       | _ -> abort ()
     end
   | _ -> abort ()
 
 let r_neg_ex concl =
+  (* unusually, this is an asynchronous rule *)
   abort_if concl.context.pos ;
-  match expose concl.context.form, concl.lf.trail, concl.rt.trail with
-  | Neg_int (fa, fb), (L :: trail), _
-    when can_descend L concl -> begin
-      match expose fa, trail with
-      | Exists (var, ty, fa), (D :: trail) ->
+  match expose concl.context.form with
+  | Neg_int (fa, fb) -> begin
+      match expose fa, expose fb, concl.lf.trail, concl.rt.trail with
+      | Exists (var, ty, fa), _, (L :: D :: trail), _ ->
           (* A{ \E [x] (fa @ fb) }
            * ----
            * A{ (\E [x] fa) @ fb } *)
@@ -795,13 +818,8 @@ let r_neg_ex concl =
           let context = go_down {concl.context with form} in
           let lf = {concl.lf with trail = L :: trail} in
           Continue {concl with context ; lf}
-          |> dprintf "r_neg_ex_l"
-      | _ -> abort ()
-    end
-  | Neg_int (fa, fb), _, (R :: trail)
-    when can_descend R concl -> begin
-      match expose fb, trail with
-      | Exists (var, ty, fb), (D :: trail) ->
+          |> dprintf "neg_ex_l"
+      | _, Exists (var, ty, fb), _, (R :: D :: trail) ->
           (* A{ \E [x] (fa @ fb) }
            * ----
            * A{ fa @ (\E [x] fb) } *)
@@ -811,20 +829,34 @@ let r_neg_ex concl =
           let context = go_down {concl.context with form} in
           let rt = {concl.rt with trail = R :: trail} in
           Continue {concl with context ; rt}
-          |> dprintf "r_neg_ex_2"
+          |> dprintf "neg_ex_2"
       | _ -> abort ()
     end
+  | _ -> abort ()
+
+let r_neg_rel concl =
+  abort_if concl.context.pos ;
+  abort_unless (concl.lf.trail = [L]) ;
+  abort_unless (concl.rt.trail = [R]) ;
+  match expose concl.context.form with
+  | Neg_int (fa, fb) ->
+      let form = And (fa, fb) |> reform0 in
+      let context = {concl.context with form} in
+      Ordinary context
+      |> dprintf "neg_rel"
   | _ -> abort ()
 
 let all_rules = [
   (* conclusive context *)
   r_pos_init ;                  (* async *)
   r_pos_rel ;                   (* async *)
+  r_neg_rel ;                   (* async *)
   r_pos_andr ;                  (* async *)
   r_pos_orl ;                   (* async *)
   r_pos_impr ;                  (* async *)
   r_pos_allr ;                  (* async *)
   r_pos_exl ;                   (* async *)
+  r_neg_ex ;                    (* async *)
   r_pos_orr ;
   r_pos_andl ;
   r_pos_impl ;
@@ -835,7 +867,7 @@ let all_rules = [
   r_neg_and ;
   r_neg_imp ;
   r_neg_all ;
-  r_neg_ex ;
+  (* r_neg_ex ; *)
 ]
 
 let rec spin_rules concl =
@@ -899,7 +931,7 @@ let resolve form src dest =
   in
   leave context
 
-module Test = struct
+module TestFn () = struct
   let () = Uterm.declare_const "f" {| \i -> \i |}
   let () = Uterm.declare_const "j" {| \i |}
   let () = Uterm.declare_const "k" {| \i |}
@@ -933,3 +965,4 @@ module Test = struct
 
   let () = Uterm.clear_declarations ()
 end
+(* module Test = TestFn () *)
