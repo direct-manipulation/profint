@@ -267,6 +267,22 @@ let accept_form = with_context ~fn:Uterm.form_of_string
 type crumb = L | R | D
 type trail = crumb list
 
+type position = {
+  trail : crumb list ;
+  has_src : bool ;
+}
+
+let trail_to_string trail =
+  let trail = List.map begin function
+    | L -> "L" | R -> "R" | D -> "D"
+    end trail in
+  String.concat " " trail
+
+let position_to_string pos =
+  Printf.sprintf "{%s ; %s}"
+    (trail_to_string pos.trail)
+    (if pos.has_src then "src" else "dest")
+
 let go form trail =
   let rec follow context trail =
     match trail with
@@ -287,12 +303,13 @@ let rec prefix_split3 ?(common = []) src dest =
       let common = cs :: common in
       prefix_split3 ~common src dest
   | _ ->
-      (List.rev common, src, dest)
-
-let _dprintf _msg _context = ()
-let dprintf msg context =
-  Format.printf "%s:@.  %a@." msg pp_context context ;
-  context
+      let src = { trail = src ; has_src = true } in
+      let dest = { trail = dest ; has_src = false } in
+      let lf, rt = match src.trail, dest.trail with
+        | (L :: _), _ -> (src, dest)
+        | _ -> (dest, src)
+      in
+      (List.rev common, lf, rt)
 
 exception Inapplicable
 let abort_if cond : unit = if cond then raise Inapplicable
@@ -316,54 +333,68 @@ let rec make_eqs ts1 ts2 ty =
 
 type rule_finish =
   | Ordinary of context
-  | Continue of {context : context ; src : trail ; dest : trail}
+  | Continue of conclusion
 
-let r_pos_init ~src ~dest context =
-  abort_unless context.pos ;
-  abort_unless begin
-    (src = [L] && dest = [R]) ||
-    (src = [R] && dest = [L])
-  end ;
-  match expose context.form with
+and conclusion = {
+  context : context ;
+  lf : position ;
+  rt : position
+}
+
+let dprintf msg fin =
+  let () = match fin with
+    | Ordinary context ->
+        Format.printf "%s:@.  %a@."
+          msg pp_context context
+    | Continue concl ->
+        Format.printf "%s: %s -- %s@.  %a@."
+          msg (position_to_string concl.lf) (position_to_string concl.rt)
+          pp_context concl.context
+  in
+  fin
+
+let r_pos_init concl =
+  abort_unless concl.context.pos ;
+  abort_unless (concl.lf.trail = [L]) ;
+  abort_unless (concl.rt.trail = [R]) ;
+  match expose concl.context.form with
   | Pos_int (App {head = Const (a1, ty) ; spine = ts1},
              App {head = Const (a2, _)  ; spine = ts2})
       when a1 = a2 && not (IdMap.mem a1 global_sig) ->
-        let context = dprintf "pos_init"
-            {context with form = make_eqs ts1 ts2 ty} in
-        Ordinary context
+        Ordinary {concl.context with form = make_eqs ts1 ts2 ty}
+        |> dprintf "pos_init"
   | _ -> abort()
 
-let r_pos_rel ~src ~dest context =
-  abort_unless context.pos ;
-  abort_unless begin
-    (src = [L] && dest = [R]) ||
-    (src = [R] && dest = [L])
-  end ;
-  match expose context.form with
+let r_pos_rel concl =
+  abort_unless concl.context.pos ;
+  abort_unless (concl.lf.trail = [L]) ;
+  abort_unless (concl.rt.trail = [R]) ;
+  match expose concl.context.form with
   | Pos_int (fa, fb) ->
       let form = Imp (fa, fb) |> reform0 in
-      let context = dprintf "pos_rel"
-          {context with form} in
-      Ordinary context
+      Ordinary {concl.context with form}
+      |> dprintf "pos_rel"
   | _ -> abort()
 
-let r_pos_andr ~src ~dest context =
-  abort_unless context.pos ;
-  match expose context.form, dest with
-  | Pos_int (fa, fb), (R :: dest) -> begin
-      match expose fb, dest with
-      | And (fb, ff), (L :: dest) ->
+let r_pos_andr concl =
+  abort_unless concl.context.pos ;
+  match expose concl.context.form, concl.rt.trail with
+  | Pos_int (fa, fb), (R :: trail) -> begin
+      match expose fb, trail with
+      | And (fb, ff), (L :: trail) ->
           let f_int = Pos_int (fa, fb) |> reform0 in
           let form = And (f_int, ff) |> reform0 in
-          let context = go_left {context with form} in
-          Continue {context = dprintf "pos_andr_1" context ;
-                    src ; dest = R :: dest}
-      | And (ff, fb), (R :: dest) ->
+          let context = go_left {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "pos_andr_1"
+      | And (ff, fb), (R :: trail) ->
           let f_int = Pos_int (fa, fb) |> reform0 in
           let form = And (ff, f_int) |> reform0 in
-          let context = go_right {context with form} in
-          Continue {context = dprintf "pos_andr_2" context ;
-                    src ; dest = R :: dest}
+          let context = go_right {concl.context with form} in
+          let rt = {concl.rt with trail = R :: trail} in
+          Continue {concl with context ; rt}
+          |> dprintf "pos_andr_2"
       | _ -> abort()
     end
   | _ -> abort ()
@@ -374,55 +405,62 @@ let all_rules = [
   r_pos_andr ;
 ]
 
-let rec spin_rules ~src ~dest context =
-  let rec try_all ~src ~dest ~context rs =
-    match rs with
+let rec spin_rules concl =
+  let rec try_all concl rules =
+    match rules with
     | [] ->
         (* tried all the rules, and now it's stuck *)
-        dprintf "stuck" context
-    | r :: rs -> begin
-        match r ~src ~dest context with
+        concl.context
+    | rule :: rules -> begin
+        match rule concl with
         | Ordinary context -> context
-        | Continue {context ; src ; dest} ->
-            spin_rules ~src ~dest context
+        | Continue concl -> spin_rules concl
         | exception Inapplicable ->
-            try_all ~src ~dest ~context rs
+            try_all concl rules
       end
   in
-  try_all ~src ~dest ~context all_rules
+  try_all concl all_rules
 
-let pos_interaction ~src ~dest context =
-  match context.form with
+let pos_interaction concl =
+  match concl.context.form with
   | App {head = Const (k, kty) ; spine}
     when k = Types.k_imp ->
-      let context = dprintf "pos_int" {
-        context with
-        form = App {head = Const (Types.k_pos_int, kty) ; spine}
+      let concl = {
+        concl with
+        context = {concl.context with
+                   form = App {head = Const (Types.k_pos_int, kty) ;
+                               spine}} ;
       } in
-      spin_rules ~src ~dest context
+      dprintf "pos_int" (Continue concl) |> ignore ;
+      spin_rules concl
   | _ ->
-      traversal_failure ~context
+      traversal_failure ~context:concl.context
         "not an implication"
 
-let neg_interaction ~src ~dest context =
-  match context.form with
+let neg_interaction concl =
+  match concl.context.form with
   | App {head = Const (k, kty) ; spine}
     when k = Types.k_and ->
-      let context = dprintf "neg_int" {
-        context with
-        form = App {head = Const (Types.k_neg_int, kty) ; spine}
+      let concl = {
+        concl with
+        context = {concl.context with
+                   form = App {head = Const (Types.k_neg_int, kty) ;
+                               spine}} ;
       } in
-      spin_rules ~src ~dest context
+      dprintf "neg_int" (Continue concl) |> ignore ;
+      spin_rules concl
   | _ ->
-      traversal_failure ~context
+      traversal_failure ~context:concl.context
         "not a conjunction"
 
 let resolve form src dest =
-  let common, src, dest = prefix_split3 src dest in
-  let context = dprintf "start" @@ go form common in
+  let common, lf, rt = prefix_split3 src dest in
+  let context = go form common in
+  let concl = {context ; lf ; rt} in
+  dprintf "start" (Continue concl) |> ignore ;
   if context.pos
-  then pos_interaction ~src ~dest context
-  else neg_interaction ~src ~dest context
+  then pos_interaction concl
+  else neg_interaction concl
 
 module Test = struct
   let () = Uterm.declare_const "f" {| \i -> \i |}
