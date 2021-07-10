@@ -8,12 +8,10 @@
 (** Untyped terms and types with free variables *)
 
 open! Util
-open! Utypes
+open! Types
 
 (* The constructors of uty need to be in the same order as in Term.ty;
    otherwise we will not get the O(1) transformations. *)
-
-external uty_of_ty : Term.ty -> uty = "%identity"
 
 let fresh_tyvar =
   let count = ref 0 in
@@ -21,10 +19,10 @@ let fresh_tyvar =
     incr count ;
     Tyvar {id = !count ; subst = None}
 
-let rec subst tab uty =
+let rec map_on_tyvars tab uty =
   match uty with
   | Arrow (utya, utyb) ->
-      Arrow (subst tab utya, subst tab utyb)
+      Arrow (map_on_tyvars tab utya, map_on_tyvars tab utyb)
   | Basic _ -> uty
   | Tyvar v -> begin
       match ITab.find tab v.id with
@@ -36,21 +34,12 @@ let freshen pty =
   let tab = ITab.create pty.nvars in
   range 0 pty.nvars
   |> Seq.iter (fun k -> ITab.replace tab k (fresh_tyvar ())) ;
-  subst tab pty.uty
+  map_on_tyvars tab pty.ty
 
-exception TypeError of {ty : uty option ; msg : string}
+exception TypeError of {ty : ty option ; msg : string}
 
 let ty_error ?ty fmt =
   Printf.ksprintf (fun msg -> raise (TypeError {ty ; msg})) fmt
-
-type uterm =
-  | Idx of int
-  | Var of ident
-  | Kon of ident * uty option
-  | App of uterm * uterm
-  | Abs of ident * uty option * uterm
-
-type cx = (ident * uty) list
 
 let rec tygen ~emit (cx : cx) tm ty_expected =
   match tm with
@@ -65,12 +54,15 @@ let rec tygen ~emit (cx : cx) tm ty_expected =
       emit ty ty_expected ;
       Kon (k, Some ty)
   | Kon (k, None) -> begin
-      match Hashtbl.find gsig k with
+      match IdMap.find k gsig with
       | pty ->
           emit (freshen pty) ty_expected ;
           Kon (k, Some ty_expected)
       | exception Not_found ->
-          ty_error "unknown constant %s" k
+          (* ty_error "unknown constant %s" k *)
+          let ty = fresh_tyvar () in
+          emit ty ty_expected ;
+          Kon (k, Some ty)
     end
   | App (tm, tn) ->
       let tyarg = fresh_tyvar () in
@@ -137,8 +129,8 @@ let solve eqns =
 
 let rec norm_ty ty =
   match ty with
-  | Basic a -> Term.Basic a
-  | Arrow (tya, tyb) -> Term.Arrow (norm_ty tya, norm_ty tyb)
+  | Basic a -> Basic a
+  | Arrow (tya, tyb) -> Arrow (norm_ty tya, norm_ty tyb)
   | Tyvar v -> begin
       match v.subst with
       | None -> ty_error ~ty "non-normalized tyvar %d" v.id
@@ -149,8 +141,8 @@ let rec norm_term tm =
   match tm with
   | Idx n ->
       Term.(App {head = Index n ; spine = []})
-  | Kon (k, Some uty) ->
-      Term.(App {head = Const (k, norm_ty uty) ; spine = []})
+  | Kon (k, Some ty) ->
+      Term.(App {head = Const (k, norm_ty ty) ; spine = []})
   | App (tm, tn) ->
       Term.(do_app (norm_term tm) [norm_term tn])
   | Abs (x, _, tm) ->
@@ -158,13 +150,11 @@ let rec norm_term tm =
   | Var _ | Kon (_, None) ->
       assert false
 
-external ucx_of_cx : (ident * Term.ty) list -> cx = "%identity"
-
 let ty_check cx term =
   let ty = fresh_tyvar () in
   let eqns = ref [] in
   let emit tya tyb = eqns := (tya, tyb) :: !eqns in
-  let term = tygen ~emit (ucx_of_cx cx) term ty in
+  let term = tygen ~emit cx term ty in
   solve !eqns ;
   (norm_term term, norm_ty ty)
 
@@ -178,6 +168,17 @@ let thing_of_string prs str =
   with
   | Proprs.Error -> raise (Parsing "")
 
-let term_of_string str = thing_of_string Proprs.one_term str
-let ty_of_string str = thing_of_string Proprs.one_ty str
-let form_of_string str = thing_of_string Proprs.one_form str
+let term_of_string ?(cx = []) str =
+  thing_of_string Proprs.one_term str
+  |> ty_check cx
+
+let ty_of_string str =
+  thing_of_string Proprs.one_ty str
+  |> norm_ty
+
+let form_of_string ?(cx = []) str =
+  let t = thing_of_string Proprs.one_form str in
+  let f, ty = ty_check cx t in
+  if ty <> ty_o then
+    ty_error "form must have type \\o" ;
+  f

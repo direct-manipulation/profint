@@ -8,20 +8,20 @@
 %{
   let make_quant q vs bod =
     List.fold_right
-      (fun (x, ty) f -> Utypes.(App (Kon (q, None), Abs (x, ty, f))))
+      (fun (x, ty) f -> Types.(App (Kon (q, None), Abs (x, ty, f))))
       vs bod
 
   let rec make_app ts =
     match ts with
     | [] -> assert false
     | [t] -> t
-    | f :: t :: ts -> make_app (Utypes.App (f, t) :: ts)
+    | f :: t :: ts -> make_app (Types.App (f, t) :: ts)
 %}
 
 %token  EOS PREC_MIN PREC_MAX
 %token  <Util.ident> IDENT
 %token  LPAREN RPAREN LBRACK RBRACK COMMA COLON
-%token  ARROW
+%token  ARROW OMICRON IOTA
 %token  EQ NEQ
 %token  AND OR TO FROM BOT TOP
 %token  FORALL EXISTS
@@ -33,9 +33,9 @@
 %left     AND
 %nonassoc PREC_MAX
 
-%start  <Utypes.uterm> one_term
-%start  <Utypes.uty>   one_ty
-%start  <Utypes.uterm> one_form
+%start  <Types.uterm> one_term
+%start  <Types.ty>   one_ty
+%start  <Types.uterm> one_form
 
 %%
 
@@ -53,7 +53,7 @@ one_form:
 
 term:
 | vs=lambda bod=app_term
-  { List.fold_right (fun (x, ty) t -> Utypes.Abs (x, ty, t)) vs bod }
+  { List.fold_right (fun (x, ty) t -> Types.Abs (x, ty, t)) vs bod }
 
 %inline app_term:
 | ts=nonempty_list(wrapped_term)
@@ -72,36 +72,40 @@ ids_ty:
 
 wrapped_term:
 | v=IDENT
-  { Utypes.Var v }
+  { Types.Var v }
 | LPAREN t=term RPAREN
   { t }
 
 form:
 | TOP
-  { Utypes.(Kon (Consts.k_top, None)) }
+  { Types.(Kon (k_top, None)) }
 | BOT
-  { Utypes.(Kon (Consts.k_bot, None)) }
+  { Types.(Kon (k_bot, None)) }
 | fa=form AND fb=form
-  { Utypes.(App (App (Kon (Consts.k_and, None), fa), fb)) }
+  { Types.(App (App (Kon (k_and, None), fa), fb)) }
 | fa=form OR fb=form
-  { Utypes.(App (App (Kon (Consts.k_or, None), fa), fb)) }
+  { Types.(App (App (Kon (k_or, None), fa), fb)) }
 | fa=form TO fb=form
-  { Utypes.(App (App (Kon (Consts.k_imp, None), fa), fb)) }
+  { Types.(App (App (Kon (k_imp, None), fa), fb)) }
 | fa=form FROM fb=form
-  { Utypes.(App (App (Kon (Consts.k_imp, None), fb), fa)) }
+  { Types.(App (App (Kon (k_imp, None), fb), fa)) }
 | FORALL vs=lambda bod=form %prec PREC_MIN
-  { make_quant Utypes.Consts.k_all vs bod }
+  { make_quant Types.k_all vs bod }
 | EXISTS vs=lambda bod=form %prec PREC_MIN
-  { make_quant Utypes.Consts.k_ex vs bod }
+  { make_quant Types.k_ex vs bod }
 | a=IDENT ts=list(wrapped_term)
-  { make_app (Utypes.Kon (a, None) :: ts) }
+  { make_app (Types.Kon (a, None) :: ts) }
 | LPAREN f=form RPAREN
   { f }
 
 ty:
+| OMICRON
+  { Types.ty_o }
+| IOTA
+  { Types.ty_i }
 | b=IDENT
-  { Utypes.Basic b }
+  { Types.Basic b }
 | a=ty ARROW b=ty
-  { Utypes.Arrow (a, b) }
+  { Types.Arrow (a, b) }
 | LPAREN ty=ty RPAREN
   { ty }

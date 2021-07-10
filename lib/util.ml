@@ -21,6 +21,20 @@ module ITab : Stdlib.Hashtbl.S with type key := int =
 
 type ident = string
 
+module IdHashEq = struct
+  type t = ident
+  let equal : t -> t -> bool = String.equal
+  let compare : t -> t -> int = String.compare
+  let hash (x : t) = Hashtbl.hash x
+end
+
+module IdSet : Stdlib.Set.S with type elt := ident =
+  Stdlib.Set.Make(IdHashEq)
+module IdMap : Stdlib.Map.S with type key := ident =
+  Stdlib.Map.Make(IdHashEq)
+module IdTab : Stdlib.Hashtbl.S with type key := ident =
+  Stdlib.Hashtbl.Make(IdHashEq)
+
 let failwith_s fmt   = Printf.ksprintf failwith fmt
 let failwith_fmt fmt = Format.ksprintf failwith fmt
 

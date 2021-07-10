@@ -6,10 +6,7 @@
  *)
 
 open! Util
-
-type ty =
-  | Basic of ident
-  | Arrow of ty * ty
+open Types
 
 type term =
   | Abs of {var : ident ; body : term}
