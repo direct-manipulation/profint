@@ -8,14 +8,14 @@
 %{
   let make_quant q vs bod =
     List.fold_right
-      (fun (x, ty) f -> Uterm.(App (Kon (q, None), Abs (x, ty, f))))
+      (fun (x, ty) f -> Utypes.(App (Kon (q, None), Abs (x, ty, f))))
       vs bod
 
   let rec make_app ts =
     match ts with
     | [] -> assert false
     | [t] -> t
-    | f :: t :: ts -> make_app (Uterm.App (f, t) :: ts)
+    | f :: t :: ts -> make_app (Utypes.App (f, t) :: ts)
 %}
 
 %token  EOS PREC_MIN PREC_MAX
@@ -33,9 +33,9 @@
 %left     AND
 %nonassoc PREC_MAX
 
-%start  <Uterm.uterm> one_term
-%start  <Uterm.uty>   one_ty
-%start  <Uterm.uterm> one_form
+%start  <Utypes.uterm> one_term
+%start  <Utypes.uty>   one_ty
+%start  <Utypes.uterm> one_form
 
 %%
 
@@ -53,7 +53,7 @@ one_form:
 
 term:
 | vs=lambda bod=app_term
-  { List.fold_right (fun (x, ty) t -> Uterm.Abs (x, ty, t)) vs bod }
+  { List.fold_right (fun (x, ty) t -> Utypes.Abs (x, ty, t)) vs bod }
 
 %inline app_term:
 | ts=nonempty_list(wrapped_term)
@@ -72,36 +72,36 @@ ids_ty:
 
 wrapped_term:
 | v=IDENT
-  { Uterm.Var v }
+  { Utypes.Var v }
 | LPAREN t=term RPAREN
   { t }
 
 form:
 | TOP
-  { Uterm.(Kon (k_top, None)) }
+  { Utypes.(Kon (Consts.k_top, None)) }
 | BOT
-  { Uterm.(Kon (k_bot, None)) }
+  { Utypes.(Kon (Consts.k_bot, None)) }
 | fa=form AND fb=form
-  { Uterm.(App (App (Kon (k_and, None), fa), fb)) }
+  { Utypes.(App (App (Kon (Consts.k_and, None), fa), fb)) }
 | fa=form OR fb=form
-  { Uterm.(App (App (Kon (k_or, None), fa), fb)) }
+  { Utypes.(App (App (Kon (Consts.k_or, None), fa), fb)) }
 | fa=form TO fb=form
-  { Uterm.(App (App (Kon (k_imp, None), fa), fb)) }
+  { Utypes.(App (App (Kon (Consts.k_imp, None), fa), fb)) }
 | fa=form FROM fb=form
-  { Uterm.(App (App (Kon (k_imp, None), fb), fa)) }
+  { Utypes.(App (App (Kon (Consts.k_imp, None), fb), fa)) }
 | FORALL vs=lambda bod=form %prec PREC_MIN
-  { make_quant Uterm.k_all vs bod }
+  { make_quant Utypes.Consts.k_all vs bod }
 | EXISTS vs=lambda bod=form %prec PREC_MIN
-  { make_quant Uterm.k_ex vs bod }
+  { make_quant Utypes.Consts.k_ex vs bod }
 | a=IDENT ts=list(wrapped_term)
-  { make_app (Uterm.Kon (a, None) :: ts) }
+  { make_app (Utypes.Kon (a, None) :: ts) }
 | LPAREN f=form RPAREN
   { f }
 
 ty:
 | b=IDENT
-  { Uterm.Basic b }
+  { Utypes.Basic b }
 | a=ty ARROW b=ty
-  { Uterm.Arrow (a, b) }
+  { Utypes.Arrow (a, b) }
 | LPAREN ty=ty RPAREN
   { ty }

@@ -8,18 +8,12 @@
 (** Untyped terms and types with free variables *)
 
 open! Util
+open! Utypes
 
 (* The constructors of uty need to be in the same order as in Term.ty;
    otherwise we will not get the O(1) transformations. *)
 
-type uty =
-  | Basic of ident
-  | Arrow of uty * uty
-  | Tyvar of {id : int ; mutable subst : uty option}
-
 external uty_of_ty : Term.ty -> uty = "%identity"
-
-type poly_uty = {nvars : int ; uty : uty}
 
 let fresh_tyvar =
   let count = ref 0 in
@@ -48,31 +42,6 @@ exception TypeError of {ty : uty option ; msg : string}
 
 let ty_error ?ty fmt =
   Printf.ksprintf (fun msg -> raise (TypeError {ty ; msg})) fmt
-
-let gsig : (ident, poly_uty) Hashtbl.t = Hashtbl.create 19
-let k_all = "\\A"
-let k_ex  = "\\E"
-let k_and = "\\and"
-let k_top = "\\top"
-let k_or  = "\\or"
-let k_bot = "\\bot"
-let k_imp = "\\imp"
-let ty_o  = Basic "\\o"
-let ty_i  = Basic "\\i"
-let () =
-  let open Hashtbl in
-  let vnum n = Tyvar {id = n ; subst = None} in
-  replace gsig k_all {nvars = 1 ;
-                              uty = Arrow (Arrow (vnum 0, ty_o), ty_o)} ;
-  replace gsig k_ex {nvars = 1 ;
-                     uty = Arrow (Arrow (vnum 0, ty_o), ty_o)} ;
-  replace gsig k_and {nvars = 0 ; uty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
-  replace gsig k_top {nvars = 0 ; uty = ty_o} ;
-  replace gsig k_or  {nvars = 0 ; uty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
-  replace gsig k_bot {nvars = 0 ; uty = ty_o} ;
-  replace gsig k_imp {nvars = 0 ; uty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
-  replace gsig "p" {nvars = 0 ;
-                    uty = Arrow (Basic "a", Arrow (Basic "b", ty_o))}
 
 type uterm =
   | Idx of int
@@ -198,3 +167,17 @@ let ty_check cx term =
   let term = tygen ~emit (ucx_of_cx cx) term ty in
   solve !eqns ;
   (norm_term term, norm_ty ty)
+
+exception Parsing of string
+
+let thing_of_string prs str =
+  let lb = Lexing.from_string str in
+  try
+    let t = prs Prolex.token lb in
+    t
+  with
+  | Proprs.Error -> raise (Parsing "")
+
+let term_of_string str = thing_of_string Proprs.one_term str
+let ty_of_string str = thing_of_string Proprs.one_ty str
+let form_of_string str = thing_of_string Proprs.one_form str
