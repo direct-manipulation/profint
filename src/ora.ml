@@ -39,20 +39,49 @@ let to_trail str =
       | _   -> invalid_arg ("to_trail: " ^ str)
   end |> List.of_seq
 
+let prompt msg =
+  Js.Opt.get
+    (Dom_html.window##prompt (Js.string msg) (Js.string ""))
+    (fun () -> Js.string "")
+  |> Js.to_string
+
+let change_formula text =
+  try
+    state.goal <- Uterm.form_of_string text ;
+    state.history <- [] ;
+    state.future <- [] ;
+    true
+  with _ -> false
+
+let dump () = [
+  (* {| a => a |} ; *)
+  (* {| a => b => a |} ; *)
+  (* {| a => a & a |} ; *)
+  (* {| (a => b => c) => (a => b) => a => c |} ; *)
+  (* {| p j => \E [x] p x |} ; *)
+  (* {| (\A [x] p x) => p j |} ; *)
+  (* {| (\A [x] \E [y] r x y) => \E [y] \A [x] r x y |} ; *)
+  (* {| (\E [x] \A [y] r x y) => (\A [w] \E [z] r z w) |} ; *)
+] |> List.iter begin fun fstr ->
+    Printf.printf "%s\n%!" (Url.urlencode fstr)
+  end
+let () = dump ()
+
 let () =
   Js.export "profint" begin
     object%js
+      method startup =
+        let pmap = Url.Current.arguments |> List.to_seq |> IdMap.of_seq in
+        match IdMap.find "f" pmap with
+        | str ->
+            change_formula @@ Url.urldecode str
+        | exception Not_found -> false
+
       method signatureChange text =
         sig_change text
 
       method formulaChange text =
-        let text = Js.to_string text in
-        try
-          state.goal <- Uterm.form_of_string text ;
-          state.history <- [] ;
-          state.future <- [] ;
-          true
-        with _ -> false
+        change_formula @@ Js.to_string text
 
       method formulaHTML =
         Form3.form_to_html state.goal |> Js.string
@@ -61,7 +90,7 @@ let () =
         let contents =
           state.history
           |> List.map Form3.form_to_html
-          |> String.concat {| \\ \hline |}
+          |> String.concat {| \mathstrut \\ \hline |}
         in
         {| \begin{array}{l} \hline |} ^ contents ^ {| \end{array} |}
         |> Js.string
@@ -76,7 +105,7 @@ let () =
               let contents =
                 state.future
                 |> List.rev_map Form3.form_to_html
-                |> String.concat {| \\ \hline |}
+                |> String.concat {| \mathstrut \\ \hline |}
               in
               {| \begin{array}{l} |} ^ contents ^ {| \\ \hline \end{array} |}
         in
@@ -118,8 +147,21 @@ let () =
       method doWeakening src =
         let src = Js.to_string src |> to_trail in
         try
-          Form3.weaken state.goal src |> push_goal ;
+          Form3.weaken ~prompt state.goal src |> push_goal ;
           true
         with _ -> false
+
+      (* method doWitness src =
+       *   let src = Js.to_string src |> to_trail in
+       *   let text =
+       *     Js.Opt.get
+       *       (Dom_html.window##prompt
+       *          (Js.string "Enter a term") (Js.string ""))
+       *       (fun () -> Js.string "")
+       *     |> Js.to_string in
+       *   try
+       *     Form3.witness state.goal src text |> push_goal ;
+       *     true
+       *   with _ -> false *)
     end
   end

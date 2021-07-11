@@ -145,7 +145,10 @@ let rec term_to_exp ?(cx = []) term =
 and head_to_exp ?(cx = []) head =
   let open Doc in
   match head with
-  | Index n -> Atom (String (fst (List.nth cx n)))
+  | Index n ->
+      (* let vstr = Printf.sprintf "%s_{%d}" (fst (List.nth cx n)) n in *)
+      let vstr = fst (List.nth cx n) in
+      Atom (String vstr)
   | Const (k, _) -> Atom (String k)
 
 let rec term_to_exp_html ?(cx = []) term =

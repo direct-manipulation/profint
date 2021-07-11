@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Some test cases</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.css" integrity="sha384-Um5gpz1odJg5Z4HAmzPtgZKdTBHZdw8S29IecapCSB31ligYPhHQZMIlWLYQGVoc" crossorigin="anonymous">
+    <!-- The loading of KaTeX is deferred to speed up page rendering -->
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.js" integrity="sha384-YNHdsYkH6gMx9y3mRkmcJ2mFUjTd0qNQQvY9VYZgQd7DcN7env35GzlmFaZ23JGp" crossorigin="anonymous"></script>
+    <!-- To automatically render math in text elements, include the auto-render extension: -->
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous"
+        onload="renderMathInElement(document.body);"></script>
+    <style>
+      body {
+          padding-left: 40px;
+          padding-top: 40px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Some tests for Profint</h1>
+
+    <ul>
+      <li><a href="test2.html?f=a%20%3D%3E%20a">\(a \supset a\)</a></li>
+      <li><a href="test2.html?f=a%20%3D%3E%20b%20%3D%3E%20a">\(a \supset b \supset a\)</a></li>
+      <li><a href="test2.html?f=a%20%3D%3E%20a%20%26%20a">\(a \supset a \wedge a\)</a></li>
+      <li><a href="test2.html?f=%28a%20%3D%3E%20b%20%3D%3E%20c%29%20%3D%3E%20%28a%20%3D%3E%20b%29%20%3D%3E%20a%20%3D%3E%20c">\((a \supset b \supset c) \supset (a \supset b) \supset a \supset c\)</a></li>
+      <li><a href="test2.html?f=p%20j%20%3D%3E%20%5CE%20%5Bx%5D%20p%20x">\(p\ j \supset \exists x.\, p\ x\)</a></li>
+      <li><a href="test2.html?f=%28%5CA%20%5Bx%5D%20p%20x%29%20%3D%3E%20p%20j">\((\forall x.\, p\ x) \supset p\ j\)</a></li>
+      <li><a href="test2.html?f=%28%5CA%20%5Bx%5D%20%5CE%20%5By%5D%20r%20x%20y%29%20%3D%3E%20%5CE%20%5Bw%5D%20%5CA%20%5Bz%5D%20r%20z%20w">\((\forall x.\, \exists y.\, r\ x\ y) \supset (\exists w.\, \forall z.\, r\ z\ w)\)</a></li>
+      <li><a href="test2.html?f=%28%5CE%20%5Bx%5D%20%5CA%20%5By%5D%20r%20x%20y%29%20%3D%3E%20%28%5CA%20%5Bw%5D%20%5CE%20%5Bz%5D%20r%20z%20w%29">\((\exists w.\, \forall z.\, r\ z\ w) \supset (\forall x.\, \exists y.\, r\ x\ y)\)</a></li>
+    </ul>
+
+  </body>
+</html>

@@ -106,6 +106,11 @@ let reform fsk pol =
       | Top, true -> reform0 Top
       | _ -> reform0 fsk
     end
+  | Eq (ta, tb, _) -> begin
+      if Term.eq_term ta tb
+      then reform0 Top
+      else reform0 fsk
+    end
   | _ -> reform0 fsk
 
 type frame =
@@ -282,7 +287,8 @@ let rec form_to_exp_html ?(cx = []) form =
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Eq (t1, t2, _) ->
         Appl (10, Infix (StringAs (1, " \\doteq "), Non,
-                         [Term.term_to_exp ~cx t1 ; Term.term_to_exp ~cx t2]))
+                         [Term.term_to_exp_html ~cx t1 ;
+                          Term.term_to_exp_html ~cx t2]))
     | Neg_int (fa, fb) ->
         Appl (30, Infix (StringAs (1, " \\circ "), Non,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
@@ -411,7 +417,7 @@ and conclusion = {
   rt : position
 }
 
-let dprintf msg fin =
+let _dprintf msg fin =
   let () = match fin with
     | Ordinary context ->
         Format.printf "%s:@.  %a@."
@@ -422,6 +428,8 @@ let dprintf msg fin =
           pp_context concl.context
   in
   fin
+
+let dprintf _msg fin = fin
 
 let r_pos_init concl =
   abort_unless concl.context.pos ;
@@ -1005,16 +1013,43 @@ let contract form src =
   | _ ->
       traversal_failure ~context "cannot contract a non-implication"
 
-let weaken form src =
+let weaken ~prompt form src =
   let context = go form src in
-  if context.pos then
-    traversal_failure ~context "cannot weaken on the right" ;
-  let context = go_up context in
-  match expose context.form with
-  | Imp (_, form) ->
+  match expose context.form, context.pos with
+  | _, false -> begin
+      let context = go_up context in
+      match expose context.form, context.pos with
+      | Imp (_, form), true ->
+          leave {context with form}
+      | _ ->
+          traversal_failure ~context "cannot weaken here"
+    end
+  | Exists (var, vty, body), true ->
+      let msg = Printf.sprintf "Enter a witness for %s" var in
+      let term_str = prompt msg in
+      let term, ty = accept_term context term_str in
+      if ty <> vty then failwith "invalid type" ;
+      let form = Term.sub_term (Dot (Shift 0, term)) body in
+      leave {context with form}
+  | Eq (t1, t2, _), _ when Term.eq_term t1 t2 ->
+      let form = reform0 Top in
       leave {context with form}
   | _ ->
-      traversal_failure ~context "cannot weaken a non-implication"
+      traversal_failure ~context "cannot simplify here"
+
+(* let witness form src term =
+ *   let context = go form src in
+ *   if not context.pos then
+ *     traversal_failure ~context "cannot substitute in negative context" ;
+ *   match expose context.form with
+ *   | Exists (_, vty, body) ->
+ *       let term, ty = accept_term context term in
+ *       if ty <> vty then failwith "invalid type" ;
+ *       let form = Term.sub_term (Dot (Shift 0, term)) body in
+ *       leave {context with form}
+ *   | _ ->
+ *       traversal_failure ~context
+ *         "not an existential" *)
 
 module TestFn () = struct
   let () = Uterm.declare_const "f" {| \i -> \i |}
