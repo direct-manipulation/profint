@@ -417,7 +417,7 @@ and conclusion = {
   rt : position
 }
 
-let _dprintf msg fin =
+let dprintf0 msg fin =
   let () = match fin with
     | Ordinary context ->
         Format.printf "%s:@.  %a@."
@@ -1021,8 +1021,7 @@ let weaken ~prompt form src =
       match expose context.form, context.pos with
       | Imp (_, form), true ->
           leave {context with form}
-      | _ ->
-          traversal_failure ~context "cannot weaken here"
+      | _ -> leave context
     end
   | Exists (var, vty, body), true ->
       let msg = Printf.sprintf "Enter a witness for %s" var in

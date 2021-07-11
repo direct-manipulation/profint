@@ -16,7 +16,8 @@
       // var initial_form = "(a => b => c) => (a => b) => a => c" ;
       // var initial_form = "(\\A [x] p x) => (\\E [y] p y)" ;
       // var initial_form = "(\\A [x1] \\E [y1] r x1 y1) => (\\E [y2] \\A [x2] r x2 y2)";
-      var initial_form = "(\\E [y2] \\A [x2] r x2 y2) => (\\A [x1] \\E [y1] r x1 y1)";
+      // var initial_form = "(\\E [y2] \\A [x2] r x2 y2) => (\\A [x1] \\E [y1] r x1 y1)";
+      var initial_form = "((a | (a => #f)) => #f) => #f";
 
       const katex_options = {
           trust: true,
@@ -176,13 +177,13 @@
           left: 0;
           right: 0;
       }
-      #output {margin-top: 10px; font-size: 200%;}
+      #output {margin-top: 10px; font-size: 300%;}
       #output .enclosing {border-bottom: 0;}
       #output .hl-range {border-bottom: 3px solid red;}
       .f-src {background-color: #f2bf88;}
       .f-dest {background-color: #9cc3f0;}
-      #history { margin-top: 10px; font-size: 100%; }
-      #future { margin-top: 10px; margin-bottom: 10px; font-size: 100%; }
+      #history { margin-top: 10px; font-size: 150%; }
+      #future { margin-top: 10px; margin-bottom: 10px; font-size: 150%; }
     </style>
   </head>
   <body>
