@@ -113,6 +113,37 @@ let reform fsk pol =
     end
   | _ -> reform0 fsk
 
+let rec recursive_reform f pol =
+  match expose f with
+  | And (fa, fb) ->
+      let fa = recursive_reform fa pol in
+      let fb = recursive_reform fb pol in
+      reform (And (fa, fb)) pol
+  | Or (fa, fb) ->
+      let fa = recursive_reform fa pol in
+      let fb = recursive_reform fb pol in
+      reform (Or (fa, fb)) pol
+  | Imp (fa, fb) ->
+      let fa = recursive_reform fa (not pol) in
+      let fb = recursive_reform fb pol in
+      reform (Imp (fa, fb)) pol
+  | Pos_int (fa, fb) ->
+      let fa = recursive_reform fa (not pol) in
+      let fb = recursive_reform fb pol in
+      reform (Pos_int (fa, fb)) pol
+  | Neg_int (fa, fb) ->
+      let fa = recursive_reform fa pol in
+      let fb = recursive_reform fb pol in
+      reform (Neg_int (fa, fb)) pol
+  | Forall (var, ty, body) ->
+      let body = recursive_reform body pol in
+      reform (Forall (var, ty, body)) pol
+  | Exists (var, ty, body) ->
+      let body = recursive_reform body pol in
+      reform (Exists (var, ty, body)) pol
+  | fsk ->
+      reform fsk pol
+
 type frame =
   | Left of {conn : head ; right : form}
   | Right of {left : form ; conn : head}
@@ -174,13 +205,13 @@ let go_up context =
         | _ -> context.pos
       in
       let form = App {head = ff.conn ; spine = [context.form ; ff.right]} in
-      let form = reform (expose form) pos in
+      (* let form = reform (expose form) pos in *)
       { frames ; pos ; form }
   | Down ff :: frames ->
       let form = App {head = ff.quant ;
                       spine = [Abs {var = ff.var ;
                                     body = context.form}]} in
-      let form = reform (expose form) context.pos in
+      (* let form = reform (expose form) context.pos in *)
       {context with frames ; form}
   | [] ->
       traversal_failure ~context
@@ -191,7 +222,7 @@ let rec leave context =
   | [] ->
       if not context.pos then
         traversal_failure ~context "parity mismatch" ;
-      context.form
+      recursive_reform context.form true
   | _ ->
       go_up context |> leave
 

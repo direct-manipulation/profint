@@ -19,15 +19,18 @@
     <h1>Some tests for Profint</h1>
 
     <ul>
-      <li><a href="test2.html?f=a%3D%3E%23t">\(a \supset \top\)</a></li>
+      <!-- <li><a href="test2.html?f=a%3D%3E%23t">\(a \supset \top\)</a></li> -->
       <li><a href="test2.html?f=a%20%3D%3E%20a">\(a \supset a\)</a></li>
       <li><a href="test2.html?f=a%20%3D%3E%20b%20%3D%3E%20a">\(a \supset b \supset a\)</a></li>
       <li><a href="test2.html?f=a%20%3D%3E%20a%20%26%20a">\(a \supset a \wedge a\)</a></li>
       <li><a href="test2.html?f=%28a%20%3D%3E%20b%20%3D%3E%20c%29%20%3D%3E%20%28a%20%3D%3E%20b%29%20%3D%3E%20a%20%3D%3E%20c">\((a \supset b \supset c) \supset (a \supset b) \supset a \supset c\)</a></li>
+      <li><a href="test2.html?f=%28%28a%20%7C%20%28a%20%3D%3E%20%23f%29%29%20%3D%3E%20%23f%29%20%3D%3E%20%23f">\(\lnot \lnot (a \vee \lnot a)\)</a></li>
       <li><a href="test2.html?f=p%20j%20%3D%3E%20%5CE%20%5Bx%5D%20p%20x">\(p\ j \supset \exists x.\, p\ x\)</a></li>
       <li><a href="test2.html?f=%28%5CA%20%5Bx%5D%20p%20x%29%20%3D%3E%20p%20j">\((\forall x.\, p\ x) \supset p\ j\)</a></li>
       <li><a href="test2.html?f=%28%5CA%20%5Bx%5D%20%5CE%20%5By%5D%20r%20x%20y%29%20%3D%3E%20%5CE%20%5Bw%5D%20%5CA%20%5Bz%5D%20r%20z%20w">\((\forall x.\, \exists y.\, r\ x\ y) \supset (\exists w.\, \forall z.\, r\ z\ w)\)</a></li>
       <li><a href="test2.html?f=%28%5CE%20%5Bx%5D%20%5CA%20%5By%5D%20r%20x%20y%29%20%3D%3E%20%28%5CA%20%5Bw%5D%20%5CE%20%5Bz%5D%20r%20z%20w%29">\((\exists w.\, \forall z.\, r\ z\ w) \supset (\forall x.\, \exists y.\, r\ x\ y)\)</a></li>
+      <li><a href="test2.html?f=%28%5CA%20%5Bx%5D%20p%20x%29%20%3D%3E%20%28%5CE%20%5By%5D%20p%20y%29">\((\forall x.\, p\ x) \supset (\exists y.\, p\ y)\)</a></li>
+      <li><a href="test2.html?f=%28%5CA%20%5Bx%5D%20p%20x%29%20%3D%3E%20%28%5CA%20%5By%5D%20p%20y%29">\((\forall x.\, p\ x) \supset (\forall y.\, p\ y)\)</a></li>
     </ul>
 
   </body>

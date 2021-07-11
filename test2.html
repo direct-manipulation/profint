@@ -72,6 +72,12 @@
                   if (res) renderFormula();
                   else {
                       console.log('link failed');
+                      clearLinks();
+                      $('#output').css({
+                          'background-color': 'red'
+                      }).animate({
+                          'background-color': 'white'
+                      }, 'fast');
                   }
               }
           } else {
@@ -119,11 +125,6 @@
               else if (ev.altKey) weakenSubformula(this);
               else if (ev.shiftKey) substituteWitness(this);
               else linkSubformula(this);
-              ev.stopPropagation();
-          });
-          $('#output .enclosing').on("dblclick", function(ev){
-              // console.log('clicked: ' + $(this).attr('id'));
-              dblClickSubformula($(this));
               ev.stopPropagation();
           });
           $("#output .enclosing").mouseover(function(ev) {
