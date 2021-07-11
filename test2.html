@@ -86,6 +86,14 @@
           }
       }
 
+      function weakenSubformula(elem) {
+          var res = profint.doWeakening(findPath(elem));
+          if (res) renderFormula();
+          else {
+              console.log('contaction failed');
+          }
+      }
+
       function renderFormula() {
           clearLinks();
           $('#output').html(function(){
@@ -96,6 +104,7 @@
           $('#output .enclosing').on("click", function(ev){
               // console.log('clicked: ' + $(this).attr('id'));
               if (ev.ctrlKey) contractSubformula(this);
+              else if (ev.altKey) weakenSubformula(this);
               else linkSubformula(this);
               ev.stopPropagation();
           });
@@ -119,6 +128,12 @@
               const expr = profint.historyHTML();
               return katex.renderToString(expr, katex_options);
           });
+          $('#doUndo').prop('disabled', profint.countHistory() <= 0);
+          $('#future').html(function(){
+              const expr = profint.futureHTML();
+              return katex.renderToString(expr, katex_options);
+          });
+          $('#doRedo').prop('disabled', profint.countFuture() <= 0);
       }
       
       function changeFormula(text) {
@@ -154,6 +169,7 @@
       .f-src {background-color: #f2bf88;}
       .f-dest {background-color: #9cc3f0;}
       #history { margin-top: 10px; font-size: 100%; }
+      #future { margin-top: 10px; margin-bottom: 10px; font-size: 100%; }
     </style>
   </head>
   <body>
@@ -191,15 +207,29 @@ r : \i -> \i -> \o.</pre>
     </script>
 
     <button id="changeFormula">Change Formula</button>
-    <button id="doUndo" disabled>◁</button>
-    <button id="doRedo" disabled>▷</button>
+    <button id="doUndo">◁</button>
+    <button id="doRedo">▷</button>
 
     <script>
       $('#changeFormula').click(function(){
           var text = prompt('Enter the new formula');
           changeFormula(text);
       });
+      $('#doUndo').click(function(){
+          var res = profint.doUndo();
+          if (res) renderFormula();
+          else console.log('undo failed');
+      });
+      $('#doRedo').click(function(){
+          var res = profint.doRedo();
+          if (res) renderFormula();
+          else console.log('redo failed');
+      });
     </script>
+
+    <div id="future">
+      ...
+    </div>
 
     <div id="output">
       ...

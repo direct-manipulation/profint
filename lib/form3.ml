@@ -268,26 +268,26 @@ let rec form_to_exp_html ?(cx = []) form =
   let open Doc in
   let e = match expose form with
     | Top ->
-        Atom (StringAs (1, "\\top"))
+        Atom (StringAs (1, "{\\top}"))
     | Bot ->
-        Atom (StringAs (1, "\\bot"))
+        Atom (StringAs (1, "{\\bot}"))
     | And (fa, fb) ->
-        Appl (30, Infix (StringAs (1, "\\wedge"), Left,
+        Appl (30, Infix (StringAs (1, " \\wedge "), Left,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Or (fa, fb) ->
-        Appl (20, Infix (StringAs (1, "\\vee"), Left,
+        Appl (20, Infix (StringAs (1, " \\vee "), Left,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Imp (fa, fb) ->
-        Appl (10, Infix (StringAs (1, "\\supset"), Right,
+        Appl (10, Infix (StringAs (1, " \\supset "), Right,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Eq (t1, t2, _) ->
-        Appl (10, Infix (StringAs (1, "\\doteq"), Non,
+        Appl (10, Infix (StringAs (1, " \\doteq "), Non,
                          [Term.term_to_exp ~cx t1 ; Term.term_to_exp ~cx t2]))
     | Neg_int (fa, fb) ->
-        Appl (30, Infix (StringAs (1, "{\\circ}"), Non,
+        Appl (30, Infix (StringAs (1, " \\circ "), Non,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Pos_int (fa, fb) ->
-        Appl (10, Infix (StringAs (1, "{\\rhd}"), Non,
+        Appl (10, Infix (StringAs (1, " \\rhd "), Non,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Forall (var, ty, body) ->
         let qstr = Printf.sprintf "\\forall{%s{:}%s}.\\," var (ty_to_string ty) in
@@ -1004,6 +1004,17 @@ let contract form src =
       leave {context with form}
   | _ ->
       traversal_failure ~context "cannot contract a non-implication"
+
+let weaken form src =
+  let context = go form src in
+  if context.pos then
+    traversal_failure ~context "cannot weaken on the right" ;
+  let context = go_up context in
+  match expose context.form with
+  | Imp (_, form) ->
+      leave {context with form}
+  | _ ->
+      traversal_failure ~context "cannot weaken a non-implication"
 
 module TestFn () = struct
   let () = Uterm.declare_const "f" {| \i -> \i |}
