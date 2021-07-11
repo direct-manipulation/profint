@@ -3,6 +3,7 @@
   <head>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/color/jquery.color-2.2.0.min.js" integrity="sha256-aSe2ZC5QeunlL/w/7PsVKmV+fa0eDbmybn/ptsKHR6I=" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="katex-dist/katex.min.css">
     <script src="katex-dist/katex.min.js"></script>
     <script src="_build/default/src/ora.bc.js"></script>
@@ -12,34 +13,124 @@
           "\\i": "\\mathsf{i}",
       };
 
-      var form_string = "\\top";
+      var form_string = "(a => b => c) => (a => b) => a => c";
 
       const katex_options = {
           trust: true,
           output: 'html',
           strict: false,
           macros
-      }          
+      }
+
+      const formLink = {
+          src: null,
+          dest: null
+      };
+
+      function findPath(elem) {
+          var path = [];
+          var outputDiv = $('#output');
+          while (elem && !$(elem).is(outputDiv)) {
+              if ($(elem).attr('id')) {
+                  var beforeCount = $(elem).prevAll('.enclosing').length;
+                  var afterCount  = $(elem).nextAll('.enclosing').length;
+                  if (beforeCount === 0)
+                      path.unshift(afterCount === 0 ? 'D' : 'L');
+                  else
+                      path.unshift('R');
+                  console.log(path);
+              }
+              elem = $(elem).parent();
+          }
+          path.shift(); // remove the last 'D'
+          console.log(path);
+          return path.join('');
+      }
+
+      function clearLinks() {
+          formLink.src = null;
+          formLink.dest = null;
+          $('#output .enclosing').removeClass('f-src');
+          $('#output .enclosing').removeClass('f-dest');
+      }
+
+      function clickSubformula(elem) {
+          if (formLink.src) {
+              if (formLink.dest) {
+                  // do nothing
+              } else {
+                  formLink.dest = elem;
+                  $(elem).addClass('f-dest');
+                  console.log('dest: ' + findPath(elem));
+                  // $('#destId').text(findPath(elem));
+                  var res = profint.makeLink(findPath(formLink.src),
+                                             findPath(formLink.dest));
+                  if (res) renderFormula();
+                  else {
+                      console.log('link failed');
+                  }
+              }
+          } else {
+              formLink.src = elem;
+              $(elem).addClass('f-src');
+              console.log('src: ' + findPath(elem));
+              // $('#srcId').text(findPath(elem));
+          }
+      }
+
+      function renderFormula() {
+          clearLinks();
+          $('#output').html(function(){
+              const expr = profint.formulaHTML();
+              // console.log(expr);
+              return katex.renderToString(expr, katex_options);
+          });
+          $('#output .enclosing').on("click", function(ev){
+              console.log('clicked: ' + $(this).attr('id'));
+              clickSubformula($(this));
+              ev.stopPropagation();
+          });
+          $("#output .enclosing").mouseover(function(ev) {
+              $('#output .enclosing').removeClass('hl-range');
+              $(this).addClass('hl-range');
+              // $("span.enclosing").css({"border-bottom": "0"});
+              // $(this).css({"border-bottom": "3px solid red"});
+              ev.stopPropagation();
+          });
+          $("#output .enclosing").mouseout(function(ev) {
+              $(this).removeClass('hl-range');
+              // $("span.enclosing").css({"border-bottom": "0"});
+          });
+      }
       
       function changeFormula(text) {
-          var res = profint.formChange(text);
-          if (res)
-              $('#output').html(function(){
-                  const expr = profint.formUpdate();
-                  console.log(expr);
-                  return katex.renderToString(expr, katex_options);
-              });
-          else console.log('formChange() failed');
+          var res = profint.formulaChange(text);
+          if (res) renderFormula();
+          else {
+              // console.log('formChange() failed');
+              $('#output').css({'background-color': 'red'});
+              $('#output').animate({'background-color': 'white'}, 'slow');
+          }
       }
 
       $(document).ready(function(){
-          profint.sigChange(document.sigEditor.getValue());
-          changeFormula("\\top");
+          profint.signatureChange(document.sigEditor.getValue());
+          changeFormula(form_string);
       });
     </script>
     <style>
-      #signature {margin: 0;}
-      #output {margin-top: 10px;}
+      #signature {
+          margin: 0;
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+      }
+      #output {margin-top: 10px; font-size: 200%;}
+      #output .enclosing {border-bottom: 0;}
+      #output .hl-range {border-bottom: 3px solid red;}
+      .f-src {background-color: #f2bf88;}
+      .f-dest {background-color: #9cc3f0;}
     </style>
   </head>
   <body>
@@ -65,11 +156,11 @@ r : \i -> \i -> \o.</pre>
           minLines: 5,
           maxLines: 20,
           showLineNumbers: false,
-          showGutter: false,
+          showGutter: true,
       });
       document.sigEditor = sigEditor;
       sigEditor.on("change", function(e) {
-          var res = profint.sigChange(sigEditor.getValue());
+          var res = profint.signatureChange(sigEditor.getValue());
           if (!res)
               $('#signature').css({'border': '2px solid red'});
           else

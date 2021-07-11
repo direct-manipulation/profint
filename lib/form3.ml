@@ -98,7 +98,7 @@ let reform fsk pol =
       match expose fa, expose fb, pol with
       | ( _, Top, true | Bot, _, true ) ->
           reform0 Top
-      | Top, _, true -> fb
+      | Top, _, _ -> fb
       | _ -> reform0 fsk
     end
   | Forall (_, _, body) -> begin
@@ -287,7 +287,7 @@ let rec form_to_exp_html ?(cx = []) form =
         Appl (30, Infix (StringAs (1, "{\\circ}"), Non,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Pos_int (fa, fb) ->
-        Appl (10, Infix (StringAs (1, "{\rhd}"), Non,
+        Appl (10, Infix (StringAs (1, "{\\rhd}"), Non,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Forall (var, ty, body) ->
         let qstr = Printf.sprintf "\\forall{%s{:}%s}.\\," var (ty_to_string ty) in
@@ -793,7 +793,7 @@ let r_neg_imp concl =
           let f_int = Neg_int (fa, fb) |> reform0 in
           let form = Imp (ff, f_int) |> reform0 in
           let context = go_right {concl.context with form} in
-          let lf = {concl.lf with trail = R :: trail} in
+          let lf = {concl.lf with trail = L :: trail} in
           Continue {concl with context ; lf}
           |> dprintf "neg_imp_l2"
       | _ -> abort ()
@@ -1007,7 +1007,8 @@ module TestFn () = struct
   let aa1 = Uterm.form_of_string {| a => a |}
   let aa2 = Uterm.form_of_string {| p j => p k |}
   let aa3 = Uterm.form_of_string {| c => a => a |}
-  let aaa = Uterm.form_of_string {| (\A [y:\i] p y) => (\E [x:\i] p x) => c |}
+  let _aaa = Uterm.form_of_string {| (\A [y:\i] p y) => (\E [x:\i] p x) => c |}
+  let aaa = Uterm.form_of_string {| (a => b => c) => (a => b) => a => c |}
 
   let p1 = Uterm.form_of_string {| a => (b => c) => d |}
   let p1s = form_to_string p1
