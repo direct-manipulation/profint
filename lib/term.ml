@@ -151,6 +151,13 @@ and head_to_exp ?(cx = []) head =
       Atom (String vstr)
   | Const (k, _) -> Atom (String k)
 
+(* let sym_spine_left = Doc.String "[" *)
+(* let sym_spine_right = Doc.String "]" *)
+(* let sym_app = Doc.StringAs (1, "{\\cdot}") *)
+let sym_spine_left = Doc.String "("
+let sym_spine_right = Doc.String ")"
+let sym_app = Doc.StringAs (0, "")
+
 let rec term_to_exp_html ?(cx = []) term =
   let open Doc in
   match term with
@@ -163,15 +170,17 @@ let rec term_to_exp_html ?(cx = []) term =
       let left = head_to_exp ~cx head in
       let right = match spine with
         | [t] ->
-            Wrap (Opaque, String "[", term_to_exp_html ~cx t, String "]")
+            Wrap (Opaque, sym_spine_left,
+                  term_to_exp_html ~cx t,
+                  sym_spine_right)
         | _ ->
             Wrap (Opaque,
-                  String "[",
+                  sym_spine_left,
                   Appl (0, Infix (String ",", Left,
                                   List.map (term_to_exp_html ~cx) spine)),
-                  String "]")
+                  sym_spine_right)
       in
-      Appl (200, Infix (StringAs (1, "{\\cdot}"), Non, [left ; right]))
+      Appl (200, Infix (sym_app, Non, [left ; right]))
 
 let pp_term ?cx out term =
   term_to_exp ?cx term

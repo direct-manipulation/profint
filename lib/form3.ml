@@ -76,6 +76,40 @@ let reform0 fsk =
       App {head = Const (k_ex, Arrow (Arrow (ty, ty_o), ty_o)) ;
            spine = [Abs {var ; body}]}
 
+let reform_equations eqns =
+  let solns = ref [] in
+  let rec spin eqns =
+    match eqns with
+    | (t1, t2, ty) :: eqns ->
+        spin (spin1 t1 t2 ty @ eqns)
+    | [] -> ()
+  and spin1 ta tb ty =
+    match ta, tb, ty with
+    | App {head = Const (_, spty) as h1 ; spine = sp1},
+      App {head = h2 ; spine = sp2}, _
+      when h1 = h2 ->
+        spin_spine sp1 sp2 spty
+    | _ ->
+        let q = Eq (ta, tb, ty) |> reform0 in
+        let () = solns := q :: !solns in
+        []
+  and spin_spine sp1 sp2 spty =
+    match sp1, sp2, spty with
+    | [], [], _ -> []
+    | (ta :: sp1), (tb :: sp2), Arrow (ty, spty) ->
+        (ta, tb, ty) ::
+        spin_spine sp1 sp2 spty
+    | _ -> assert false
+  in
+  let () = spin eqns in
+  let rec gather solns =
+    match solns with
+    | [] -> reform0 Top
+    | [s] -> s
+    | s :: solns -> And (gather solns, s) |> reform0
+  in
+  gather (List.rev !solns)
+
 let reform fsk pol =
   match fsk with
   | And (fa, fb) -> begin
@@ -106,11 +140,10 @@ let reform fsk pol =
       | Top, true -> reform0 Top
       | _ -> reform0 fsk
     end
-  | Eq (ta, tb, _) -> begin
-      if Term.eq_term ta tb
-      then reform0 Top
-      else reform0 fsk
-    end
+  | Eq (ta, tb, ty) when pol ->
+      reform_equations [ta, tb, ty]
+  | Eq (ta, tb, _) when Term.eq_term ta tb ->
+      reform0 Top
   | _ -> reform0 fsk
 
 let rec recursive_reform f pol =
@@ -317,7 +350,7 @@ let rec form_to_exp_html ?(cx = []) form =
         Appl (10, Infix (StringAs (1, " \\supset "), Right,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Eq (t1, t2, _) ->
-        Appl (10, Infix (StringAs (1, " \\doteq "), Non,
+        Appl (50, Infix (StringAs (1, " \\doteq "), Non,
                          [Term.term_to_exp_html ~cx t1 ;
                           Term.term_to_exp_html ~cx t2]))
     | Neg_int (fa, fb) ->

@@ -63,8 +63,8 @@ let dump () = [
   (* {| (\A [x] \E [y] r x y) => \E [y] \A [x] r x y |} ; *)
   (* {| (\E [x] \A [y] r x y) => (\A [w] \E [z] r z w) |} ; *)
   (* {| ((a | (a => #f)) => #f) => #f |} ; *)
-  {| (\A [x] p x) => (\E [y] p y) |} ;
-  {| (\A [x] p x) => (\A [y] p y) |} ;
+  (* {| (\A [x] p x) => (\E [y] p y) |} ; *)
+  (* {| (\A [x] p x) => (\A [y] p y) |} ; *)
 ] |> List.iter begin fun fstr ->
     Printf.printf "%s\n%!" (Url.urlencode fstr)
   end
