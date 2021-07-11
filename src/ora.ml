@@ -52,5 +52,12 @@ let () =
           (* Printf.printf "makeLink() worked!\n%!" ; *)
           true
         with _ -> false
+
+      method doContraction src =
+        let src = Js.to_string src |> to_trail in
+        try
+          form := Form3.contract !form src ;
+          true
+        with _ -> false
     end
   end

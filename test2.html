@@ -38,12 +38,12 @@
                       path.unshift(afterCount === 0 ? 'D' : 'L');
                   else
                       path.unshift('R');
-                  console.log(path);
+                  // console.log(path);
               }
               elem = $(elem).parent();
           }
           path.shift(); // remove the last 'D'
-          console.log(path);
+          // console.log(path);
           return path.join('');
       }
 
@@ -54,9 +54,9 @@
           $('#output .enclosing').removeClass('f-dest');
       }
 
-      function clickSubformula(elem) {
+      function linkSubformula(elem) {
           if (formLink.src) {
-              if (formLink.dest) {
+              if (formLink.dest || $(elem).is(formLink.src)) {
                   // do nothing
               } else {
                   formLink.dest = elem;
@@ -78,6 +78,14 @@
           }
       }
 
+      function contractSubformula(elem) {
+          var res = profint.doContraction(findPath(elem));
+          if (res) renderFormula();
+          else {
+              console.log('contaction failed');
+          }
+      }
+
       function renderFormula() {
           clearLinks();
           $('#output').html(function(){
@@ -86,8 +94,14 @@
               return katex.renderToString(expr, katex_options);
           });
           $('#output .enclosing').on("click", function(ev){
-              console.log('clicked: ' + $(this).attr('id'));
-              clickSubformula($(this));
+              // console.log('clicked: ' + $(this).attr('id'));
+              if (ev.ctrlKey) contractSubformula(this);
+              else linkSubformula(this);
+              ev.stopPropagation();
+          });
+          $('#output .enclosing').on("dblclick", function(ev){
+              // console.log('clicked: ' + $(this).attr('id'));
+              dblClickSubformula($(this));
               ev.stopPropagation();
           });
           $("#output .enclosing").mouseover(function(ev) {

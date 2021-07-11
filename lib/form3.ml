@@ -437,8 +437,8 @@ let r_pos_init concl =
 
 let r_pos_rel concl =
   abort_unless concl.context.pos ;
-  abort_unless (concl.lf.trail = [L]) ;
-  abort_unless (concl.rt.trail = [R]) ;
+  (* abort_unless (concl.lf.trail = [L]) ;
+   * abort_unless (concl.rt.trail = [R]) ; *)
   match expose concl.context.form with
   | Pos_int (fa, fb) ->
       let form = Imp (fa, fb) |> reform0 in
@@ -783,8 +783,10 @@ let r_neg_imp concl =
           let f_int = Pos_int (fb, fa) (* OK *) |> reform0 in
           let form = Imp (f_int, ff) |> reform0 in
           let context = go_left {concl.context with form} in
-          let lf = {concl.lf with trail = L :: trail} in
-          Continue {concl with context ; lf}
+          (* note: fb, fa switch sides! *)
+          let rt = {concl.lf with trail = R :: trail} in
+          let lf = {concl.rt with trail = L :: List.tl concl.rt.trail} in
+          Continue {context ; lf ; rt}
           |> dprintf "neg_imp_l1"
       | Imp (ff, fa), (R :: trail) ->
           (* A{ ff => (fa @ fb) }
@@ -896,8 +898,8 @@ let r_neg_ex concl =
 
 let r_neg_rel concl =
   abort_if concl.context.pos ;
-  abort_unless (concl.lf.trail = [L]) ;
-  abort_unless (concl.rt.trail = [R]) ;
+  (* abort_unless (concl.lf.trail = [L]) ;
+   * abort_unless (concl.rt.trail = [R]) ; *)
   match expose concl.context.form with
   | Neg_int (fa, fb) ->
       let form = And (fa, fb) |> reform0 in
@@ -909,8 +911,6 @@ let r_neg_rel concl =
 let all_rules = [
   (* conclusive context *)
   r_pos_init ;                  (* async *)
-  r_pos_rel ;                   (* async *)
-  r_neg_rel ;                   (* async *)
   r_pos_andr ;                  (* async *)
   r_pos_orl ;                   (* async *)
   r_pos_impr ;                  (* async *)
@@ -928,6 +928,8 @@ let all_rules = [
   r_neg_imp ;
   r_neg_all ;
   (* r_neg_ex ; *)
+  r_pos_rel ;
+  r_neg_rel ;
 ]
 
 let rec spin_rules concl =
@@ -991,6 +993,18 @@ let resolve form src dest =
   in
   leave context
 
+let contract form src =
+  let context = go form src in
+  if context.pos then
+    traversal_failure ~context "cannot contract on the right" ;
+  let context = go_up context in
+  match expose context.form with
+  | Imp (fa, _) ->
+      let form = Imp (fa, context.form) |> reform0 in
+      leave {context with form}
+  | _ ->
+      traversal_failure ~context "cannot contract a non-implication"
+
 module TestFn () = struct
   let () = Uterm.declare_const "f" {| \i -> \i |}
   let () = Uterm.declare_const "j" {| \i |}
@@ -1026,4 +1040,4 @@ module TestFn () = struct
 
   let () = Uterm.clear_declarations ()
 end
-(* module Test = TestFn () *)
+module Test = TestFn ()
