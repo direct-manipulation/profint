@@ -15,29 +15,60 @@
     </style>
     <script>
       const formLink = {
-          source: null,
-          sink: null
+          src: null,
+          dest: null
       };
+      function findPath(elem) {
+          var path = [];
+          var outputDiv = $('#output');
+          while (elem && $(elem).attr('id') && !$(elem).is(outputDiv)) {
+              var parent = $(elem).parent();
+              var beforeCount = $(elem).prevAll('.enclosing').length;
+              var afterCount  = $(elem).nextAll('.enclosing').length;
+              if (beforeCount === 0)
+                  path.unshift(afterCount === 0 ? 'D' : 'L');
+              else
+                  path.unshift('R');
+              // console.log(path);
+              elem = $(elem).parent();
+          }
+          path.shift(); // remove the last 'D'
+          return path;
+      }
+      function clearLinks() {
+          formLink.src = null;
+          formLink.dest = null;
+          $('#output span.enclosing').removeClass('formSink');
+          $('#output span.enclosing').removeClass('formSource');
+          $('#srcId').text('...');
+          $('#destId').text('...');
+      }
       function clickSubformula(elem) {
-          if (formLink.source && !elem.hasClass("formSource")) {
-              $("span.form").removeClass("formSink");
-              elem.addClass("formSink");
-              formLink.sink = elem;
-              $("#destId").text($(elem).attr('id'));
+          if (formLink.src) {
+              if (formLink.dest) {
+                  // do nothing
+              } else {
+                  formLink.dest = elem;
+                  $(elem).addClass('formSink');
+                  $('#destId').text(findPath(elem));
+              }
           } else {
-              $("span.form").removeClass("formSource");
-              elem.addClass("formSource");
-              formLink.source = elem;
-              $("#srcId").text($(elem).attr('id'));
+              formLink.src = elem;
+              $(elem).addClass('formSource');
+              $('#srcId').text(findPath(elem));
           }
       }
+      $(document).ready(function(){
+          $('#clearLinks').click(clearLinks);
+      });
     </script>
   </head>
   <body>
     <div id='output'>...</div>
     <table>
-      <tr><td>Source:</td><td id='srcId'>...</td></tr>
-      <tr><td>Dest:</td><td id='destId'>...</td></tr>
+      <tr><td colspan="2"><button id="clearLinks">clear links</button></td></tr>
+      <tr><td>Source:&nbsp;</td><td id='srcId'>...</td></tr>
+      <tr><td>Destination:&nbsp;</td><td id='destId'>...</td></tr>
     </table>
 
     <script>

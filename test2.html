@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="katex-dist/katex.min.css">
+    <script src="katex-dist/katex.min.js"></script>
+    <script src="_build/default/src/ora.bc.js"></script>
+    <script>
+      const macros = {
+          "\\o": "\\mathsf{o}",
+          "\\i": "\\mathsf{i}",
+      };
+
+      var form_string = "\\top";
+
+      const katex_options = {
+          trust: true,
+          output: 'html',
+          strict: false,
+          macros
+      }          
+      
+      function changeFormula(text) {
+          var res = profint.formChange(text);
+          if (res)
+              $('#output').html(function(){
+                  const expr = profint.formUpdate();
+                  console.log(expr);
+                  return katex.renderToString(expr, katex_options);
+              });
+          else console.log('formChange() failed');
+      }
+
+      $(document).ready(function(){
+          profint.sigChange(document.sigEditor.getValue());
+          changeFormula("\\top");
+      });
+    </script>
+    <style>
+      #signature {margin: 0;}
+      #output {margin-top: 10px;}
+    </style>
+  </head>
+  <body>
+    <h2>Signature</h2>
+
+    <pre id="signature">p : \i -> \o.
+q : \i -> \i -> \o.
+
+f : \i -> \i.
+g : \i -> \i -> \i.
+
+j, k : \i.
+
+a, b, c : \o.
+
+p, q : \i -> \o.
+r : \i -> \i -> \o.</pre>
+    <script src="dist-ace/src-noconflict/ace.js"></script>
+    <script>
+      var sigEditor = ace.edit("signature");
+      sigEditor.setTheme("ace/theme/twilight");
+      sigEditor.setOptions({
+          minLines: 5,
+          maxLines: 20,
+          showLineNumbers: false,
+          showGutter: false,
+      });
+      document.sigEditor = sigEditor;
+      sigEditor.on("change", function(e) {
+          var res = profint.sigChange(sigEditor.getValue());
+          if (!res)
+              $('#signature').css({'border': '2px solid red'});
+          else
+              $('#signature').css({'border': 'none'});
+      });
+      // sigEditor.session.setMode("ace/mode/javascript");
+    </script>
+
+    <h2>Formula</h2>
+
+    <button id="changeFormula">Change</button>
+
+    <script>
+      $('#changeFormula').click(function(){
+          var text = prompt('Enter the new formula');
+          changeFormula(text);
+      });
+    </script>
+
+    <div id="output">
+      ...
+    </div>
+  </body>
+</html>

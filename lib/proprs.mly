@@ -23,7 +23,7 @@
 %token  EOS PREC_MIN
 (* %token  PREC_MAX *)
 %token  <Util.ident> IDENT
-%token  LPAREN RPAREN LBRACK RBRACK COMMA COLON
+%token  LPAREN RPAREN LBRACK RBRACK COMMA COLON DOT
 %token  ARROW OMICRON IOTA
 (* %token  EQ NEQ *)
 %token  AND OR TO FROM BOT TOP
@@ -36,9 +36,10 @@
 %left     AND
 (* %nonassoc PREC_MAX *)
 
-%start  <U.term> one_term
-%start  <ty> one_ty
-%start  <U.term> one_form
+%start <U.term> one_term
+%start <ty> one_ty
+%start <U.term> one_form
+%start <(string * ty) list> signature
 
 %%
 
@@ -112,3 +113,11 @@ ty:
   { Arrow (a, b) }
 | LPAREN ty=ty RPAREN
   { ty }
+
+signature:
+| vtyss=list(signature_one) EOS
+  { List.concat vtyss }
+
+signature_one:
+| vs=separated_nonempty_list(COMMA, IDENT) COLON ty=ty DOT
+  { List.map (fun v -> (v, ty)) vs }

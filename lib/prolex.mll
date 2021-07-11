@@ -61,6 +61,7 @@ rule token = parse
 | ')'              { P.RPAREN }
 | '['              { P.LBRACK }
 | ']'              { P.RBRACK }
+| '.'              { P.DOT }
 
 | eof              { P.EOS }
 | _                { raise P.Error }

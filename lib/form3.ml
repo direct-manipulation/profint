@@ -1025,4 +1025,4 @@ module TestFn () = struct
 
   let () = Uterm.clear_declarations ()
 end
-module Test = TestFn ()
+(* module Test = TestFn () *)
