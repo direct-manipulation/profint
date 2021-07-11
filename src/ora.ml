@@ -2,7 +2,12 @@ open Profint
 open Util
 open Js_of_ocaml
 
-let form : Form3.form ref = ref Form3.(reform0 Top)
+type state = {
+  mutable goal : Form3.form ;
+  mutable history : Form3.form list ;
+}
+
+let state = { goal = Form3.(reform0 Top) ; history = [] }
 
 let sig_change text =
   Uterm.local_sig := IdMap.empty ;
@@ -35,28 +40,40 @@ let () =
 
       method formulaChange text =
         let text = Js.to_string text in
-        try form := Uterm.form_of_string text ; true
+        try
+          state.goal <- Uterm.form_of_string text ;
+          state.history <- [] ;
+          true
         with _ -> false
 
       method formulaHTML =
-        Form3.form_to_html !form |> Js.string
+        Form3.form_to_html state.goal |> Js.string
 
-      method formulaSource =
-        Form3.form_to_string !form |> Js.string
+      method historyHTML =
+        let contents =
+          state.history
+          |> List.map Form3.form_to_html
+          |> String.concat {| \\ \hline |}
+        in
+        {| \begin{array}{l} \hline |} ^ contents ^ {| \end{array} |}
+        |> Js.string
 
       method makeLink src dest =
         let src = Js.to_string src |> to_trail in
         let dest = Js.to_string dest |> to_trail in
         try
-          form := Form3.resolve !form src dest ;
-          (* Printf.printf "makeLink() worked!\n%!" ; *)
+          let new_goal = Form3.resolve state.goal src dest in
+          state.history <- state.goal :: state.history ;
+          state.goal <- new_goal ;
           true
         with _ -> false
 
       method doContraction src =
         let src = Js.to_string src |> to_trail in
         try
-          form := Form3.contract !form src ;
+          let new_goal = Form3.contract state.goal src in
+          state.history <- state.goal :: state.history ;
+          state.goal <- new_goal ;
           true
         with _ -> false
     end

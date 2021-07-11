@@ -115,6 +115,10 @@
               $(this).removeClass('hl-range');
               // $("span.enclosing").css({"border-bottom": "0"});
           });
+          $('#history').html(function(){
+              const expr = profint.historyHTML();
+              return katex.renderToString(expr, katex_options);
+          });
       }
       
       function changeFormula(text) {
@@ -133,6 +137,10 @@
       });
     </script>
     <style>
+      body {
+          padding-left: 40px;
+          padding-top: 40px;
+      }
       #signature {
           margin: 0;
           position: fixed;
@@ -145,11 +153,10 @@
       #output .hl-range {border-bottom: 3px solid red;}
       .f-src {background-color: #f2bf88;}
       .f-dest {background-color: #9cc3f0;}
+      #history { margin-top: 10px; font-size: 100%; }
     </style>
   </head>
   <body>
-    <h2>Signature</h2>
-
     <pre id="signature">p : \i -> \o.
 q : \i -> \i -> \o.
 
@@ -183,9 +190,9 @@ r : \i -> \i -> \o.</pre>
       // sigEditor.session.setMode("ace/mode/javascript");
     </script>
 
-    <h2>Formula</h2>
-
-    <button id="changeFormula">Change</button>
+    <button id="changeFormula">Change Formula</button>
+    <button id="doUndo" disabled>◁</button>
+    <button id="doRedo" disabled>▷</button>
 
     <script>
       $('#changeFormula').click(function(){
@@ -195,6 +202,10 @@ r : \i -> \i -> \o.</pre>
     </script>
 
     <div id="output">
+      ...
+    </div>
+
+    <div id="history">
       ...
     </div>
   </body>
