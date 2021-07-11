@@ -86,6 +86,9 @@ let () =
       method formulaChange text =
         change_formula @@ Js.to_string text
 
+      method formulaOrd =
+        Form3.form_to_string state.goal |> Js.string
+
       method formulaHTML =
         Form3.form_to_html state.goal |> Js.string
 

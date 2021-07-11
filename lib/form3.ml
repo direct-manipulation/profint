@@ -76,6 +76,14 @@ let reform0 fsk =
       App {head = Const (k_ex, Arrow (Arrow (ty, ty_o), ty_o)) ;
            spine = [Abs {var ; body}]}
 
+let rec big_and fs =
+  match fs with
+  | [] -> reform0 Top
+  | [f] -> f
+  | f :: g :: fs ->
+      let fg = And (f, g) |> reform0 in
+      big_and (fg :: fs)
+
 let reform_equations eqns =
   let solns = ref [] in
   let rec spin eqns =
@@ -102,13 +110,7 @@ let reform_equations eqns =
     | _ -> assert false
   in
   let () = spin eqns in
-  let rec gather solns =
-    match solns with
-    | [] -> reform0 Top
-    | [s] -> s
-    | s :: solns -> And (gather solns, s) |> reform0
-  in
-  gather (List.rev !solns)
+  big_and !solns
 
 let reform fsk pol =
   match fsk with
@@ -140,10 +142,10 @@ let reform fsk pol =
       | Top, true -> reform0 Top
       | _ -> reform0 fsk
     end
-  | Eq (ta, tb, ty) when pol ->
-      reform_equations [ta, tb, ty]
   | Eq (ta, tb, _) when Term.eq_term ta tb ->
       reform0 Top
+  | Eq (ta, tb, ty) when pol ->
+      reform_equations [ta, tb, ty]
   | _ -> reform0 fsk
 
 let rec recursive_reform f pol =
@@ -459,16 +461,10 @@ let abort () = raise Inapplicable
 let rec make_eqs ts1 ts2 ty =
   match ts1, ts2, ty with
   | [], [], _ ->
-      App {head = Const (k_top, ty_o) ; spine = []}
-  | [t1], [t2], Arrow (ty, _) ->
-      App {head = Const (k_eq, Arrow (ty, Arrow (ty, ty_o))) ;
-           spine = [t1 ; t2]}
+      []
   | (t1 :: ts1), (t2 :: ts2), Arrow (ty, tys) ->
-      let eq1 = App {head = Const (k_eq, Arrow (ty, Arrow (ty, ty_o))) ;
-                     spine = [t1 ; t2]} in
-      let eq2 = make_eqs ts1 ts2 tys in
-      App {head = Const (k_and, Arrow (ty_o, Arrow (ty_o, ty_o))) ;
-           spine = [eq1 ; eq2]}
+      (reform0 @@ Eq (t1, t2, ty)) ::
+      make_eqs ts1 ts2 tys
   | _ -> assert false
 
 type rule_finish =
@@ -503,7 +499,8 @@ let r_pos_init concl =
   | Pos_int (App {head = Const (a1, ty) ; spine = ts1},
              App {head = Const (a2, _)  ; spine = ts2})
       when a1 = a2 && not (IdMap.mem a1 global_sig) ->
-        Ordinary {concl.context with form = make_eqs ts1 ts2 ty}
+        let form = big_and @@ make_eqs ts1 ts2 ty in
+        Ordinary {concl.context with form}
         |> dprintf "pos_init"
   | _ -> abort()
 

@@ -13,11 +13,8 @@
           "\\i": "\\mathsf{i}",
       };
 
-      // var initial_form = "(a => b => c) => (a => b) => a => c" ;
-      // var initial_form = "(\\A [x] p x) => (\\E [y] p y)" ;
-      // var initial_form = "(\\A [x1] \\E [y1] r x1 y1) => (\\E [y2] \\A [x2] r x2 y2)";
-      // var initial_form = "(\\E [y2] \\A [x2] r x2 y2) => (\\A [x1] \\E [y1] r x1 y1)";
-      var initial_form = "(\\A [x] \\E [y] r (f x) y) & (\\A [z] r (f (f j)) z => p z) => \\E [u] p (f u)";
+      var initial_form = "(\\A [x] \\E [y] r (f x) y) & (\\A [z] r (f j) z => p (f z)) => \\E [u] p (f u)";
+      // var initial_form = "\\E [x, y, z] r (f x) (g x z) => r (f (f y)) (g (f y) (g x z))";
 
       const katex_options = {
           trust: true,
