@@ -11,6 +11,7 @@
          onload="renderMathInElement(document.body);"></script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js" integrity="sha384-UXw3wi5BiYWZhzAanFWIr5Y05huSNCRyCeO9MFq9Z7TErfqx+G/jttCrEdjyLxK4" crossorigin="anonymous"></script>
     <script src="ora.bc.js"></script>
+    <script src="https://unpkg.com/hotkeys-js/dist/hotkeys.min.js" integrity="sha384-a9EmIZ/DK+uZtwt6PYXWQnJ5HVwJ9a8klNTM9UizXmEdYbVAfuhoERwcC9MDTrLU" crossorigin="anonymous"></script>
     <script>
       var initial_form = "(\\A [x] \\E [y] r (f x) y) & (\\A [z] r (f j) z => p (f z)) => \\E [u] p (f u)";
 
@@ -112,6 +113,24 @@
           }
       }
 
+      function changeFormula() {
+          var text = window.prompt('Enter the new formula');
+          setFormula(text);
+          return false;
+      }
+
+      function doUndo() {
+          var res = profint.doUndo();
+          if (res) renderFormula();
+          else console.log('undo failed');
+      }
+
+      function doRedo() {
+          var res = profint.doRedo();
+          if (res) renderFormula();
+          else console.log('redo failed');
+      }
+
       function renderFormula() {
           clearLinks();
           $('#output').html(function(){
@@ -150,7 +169,7 @@
           $('#doRedo').prop('disabled', profint.countFuture() <= 0);
       }
       
-      function changeFormula(text) {
+      function setFormula(text) {
           var res = profint.formulaChange(text);
           if (res) renderFormula();
           else {
@@ -161,9 +180,15 @@
       }
 
       $(document).ready(function(){
+          hotkeys('ctrl+up,ctrl+down', function (event, handler){
+              switch (handler.key) {
+              case 'ctrl+down': doUndo(); break;
+              case 'ctrl+up': doRedo(); break;
+              }
+          });
           profint.signatureChange(document.sigEditor.getValue());
           if (profint.startup()) renderFormula();
-          else changeFormula(initial_form);
+          else setFormula(initial_form);
       });
     </script>
     <style>
@@ -185,6 +210,14 @@
       .f-dest {background-color: #9cc3f0;}
       #history { margin-top: 10px; font-size: 150%; }
       #future { margin-top: 10px; margin-bottom: 10px; font-size: 150%; }
+      .center-screen {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          text-align: center;
+          min-height: 50vh;
+      }
     </style>
   </head>
   <body>
@@ -220,37 +253,22 @@ r : \i -> \i -> \o.</pre>
       // sigEditor.session.setMode("ace/mode/javascript");
     </script>
 
-    <button id="changeFormula">Change Formula</button>
-    <button id="doUndo">&nbsp;◁&nbsp;</button>
-    <button id="doRedo">&nbsp;▷&nbsp;</button>
+    <button onclick="changeFormula()">Change Formula</button>
+    <button id="doUndo" onclick="doUndo()">&nbsp;◁&nbsp;</button>
+    <button id="doRedo" onclick="doRedo()">&nbsp;▷&nbsp;</button>
 
-    <script>
-      $('#changeFormula').click(function(){
-          var text = prompt('Enter the new formula');
-          changeFormula(text);
-      });
-      $('#doUndo').click(function(){
-          var res = profint.doUndo();
-          if (res) renderFormula();
-          else console.log('undo failed');
-      });
-      $('#doRedo').click(function(){
-          var res = profint.doRedo();
-          if (res) renderFormula();
-          else console.log('redo failed');
-      });
-    </script>
+    <div class="center-screen">
+      <div id="future">
+        ...
+      </div>
 
-    <div id="future">
-      ...
-    </div>
+      <div id="output">
+        ...
+      </div>
 
-    <div id="output">
-      ...
-    </div>
-
-    <div id="history">
-      ...
+      <div id="history">
+        ...
+      </div>
     </div>
   </body>
 </html>
