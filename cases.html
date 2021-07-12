@@ -2,36 +2,117 @@
 <html>
   <head>
     <title>Some test cases</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.css" integrity="sha384-Um5gpz1odJg5Z4HAmzPtgZKdTBHZdw8S29IecapCSB31ligYPhHQZMIlWLYQGVoc" crossorigin="anonymous">
-    <!-- The loading of KaTeX is deferred to speed up page rendering -->
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.js" integrity="sha384-YNHdsYkH6gMx9y3mRkmcJ2mFUjTd0qNQQvY9VYZgQd7DcN7env35GzlmFaZ23JGp" crossorigin="anonymous"></script>
-    <!-- To automatically render math in text elements, include the auto-render extension: -->
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous"
-        onload="renderMathInElement(document.body);"></script>
-    <style>
-      body {
-          padding-left: 40px;
-          padding-top: 40px;
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="katex-dist/katex.min.css">
+    <script src="katex-dist/katex.min.js"></script>
+    <!-- <\!-- To automatically render math in text elements, include the auto-render extension: -\-> -->
+    <!-- <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous" -->
+    <!--     onload="renderMathInElement(document.body);"></script> -->
+    <script src="_build/default/src/ora.bc.js"></script>
+    <script>
+      const macros = {
+          "\\o": "\\mathsf{o}",
+          "\\i": "\\mathsf{i}",
+      };
+
+      const katex_options = {
+          trust: true,
+          output: 'html',
+          strict: false,
+          macros
       }
+
+      $(document).ready(function(){
+          profint.signatureChange(document.sigEditor.getValue());
+          $('li').each(function(){
+              const txt = $(this).text().trim();
+              let anc =
+                  $('<a>')
+                  .attr('href', 'test2.html?f=' + encodeURIComponent(txt))
+                  .html(function(){
+                      var expr = profint.convertToHTML(txt);
+                      return katex.renderToString(expr, katex_options);
+                  });
+              $(this).empty().append(anc);
+          });
+      });
+    </script>
+    <style>
+      body {padding-left: 40px; padding-top: 40px;}
+      #signature {margin: 0; position: fixed; bottom: 0; left: 0; right: 0;}
     </style>
   </head>
   <body>
     <h1>Some tests for Profint</h1>
 
+    <h4>Propositional</h4>
+
     <ul>
-      <!-- <li><a href="test2.html?f=a%3D%3E%23t">\(a \supset \top\)</a></li> -->
-      <li><a href="test2.html?f=a%20%3D%3E%20a">\(a \supset a\)</a></li>
-      <li><a href="test2.html?f=a%20%3D%3E%20b%20%3D%3E%20a">\(a \supset b \supset a\)</a></li>
-      <li><a href="test2.html?f=a%20%3D%3E%20a%20%26%20a">\(a \supset a \wedge a\)</a></li>
-      <li><a href="test2.html?f=%28a%20%3D%3E%20b%20%3D%3E%20c%29%20%3D%3E%20%28a%20%3D%3E%20b%29%20%3D%3E%20a%20%3D%3E%20c">\((a \supset b \supset c) \supset (a \supset b) \supset a \supset c\)</a></li>
-      <li><a href="test2.html?f=%28%28a%20%7C%20%28a%20%3D%3E%20%23f%29%29%20%3D%3E%20%23f%29%20%3D%3E%20%23f">\(\lnot \lnot (a \vee \lnot a)\)</a></li>
-      <li><a href="test2.html?f=p%20j%20%3D%3E%20%5CE%20%5Bx%5D%20p%20x">\(p\ j \supset \exists x.\, p\ x\)</a></li>
-      <li><a href="test2.html?f=%28%5CA%20%5Bx%5D%20p%20x%29%20%3D%3E%20p%20j">\((\forall x.\, p\ x) \supset p\ j\)</a></li>
-      <li><a href="test2.html?f=%28%5CA%20%5Bx%5D%20%5CE%20%5By%5D%20r%20x%20y%29%20%3D%3E%20%5CE%20%5Bw%5D%20%5CA%20%5Bz%5D%20r%20z%20w">\((\forall x.\, \exists y.\, r\ x\ y) \supset (\exists w.\, \forall z.\, r\ z\ w)\)</a></li>
-      <li><a href="test2.html?f=%28%5CE%20%5Bx%5D%20%5CA%20%5By%5D%20r%20x%20y%29%20%3D%3E%20%28%5CA%20%5Bw%5D%20%5CE%20%5Bz%5D%20r%20z%20w%29">\((\exists w.\, \forall z.\, r\ z\ w) \supset (\forall x.\, \exists y.\, r\ x\ y)\)</a></li>
-      <li><a href="test2.html?f=%28%5CA%20%5Bx%5D%20p%20x%29%20%3D%3E%20%28%5CE%20%5By%5D%20p%20y%29">\((\forall x.\, p\ x) \supset (\exists y.\, p\ y)\)</a></li>
-      <li><a href="test2.html?f=%28%5CA%20%5Bx%5D%20p%20x%29%20%3D%3E%20%28%5CA%20%5By%5D%20p%20y%29">\((\forall x.\, p\ x) \supset (\forall y.\, p\ y)\)</a></li>
+      <li>a \to \top</li>
+      <li>a \to a</li>
+      <li>a \to b \to a</li>
+      <li>a \to a \and a</li>
+      <li>(a \to b \to c) \to (a \to b) \to a \to c</li>
     </ul>
+
+    <h4>Classical theorems (and their double negations)</h4>
+
+    <ul>
+      <li>a \or (a \to \bot)</li>
+      <li>((a \or (a \to \bot)) \to \bot) \to \bot</li>
+      <li>((a \to b) \to a) \to a</li>
+      <li>((((a \to b) \to a) \to a) \to \bot) \to \bot</li>
+    </ul>
+
+    <h4>Instantiation</h4>
+
+    <ul>
+      <li>\A [x, y] p (g x y) \to p (g x x)</li>
+      <li>p j \to \E [x] p x</li>
+      <li>(\A [x] p x) \to p k</li>
+    </ul>
+
+    <h4>Corner cases</h4>
+
+    <ul>
+      <li>(\A [x] \E [y] r x y) \to (\E [w] \A [z] r z w)</li>
+      <li>(\E [w] \A [z] r z w) \to (\A [x] \E [y] r x y)</li>
+      <li>(\A [x] p x) \to \E [y] p y</li>
+      <li>(\A [x] p x) \to \A [y] p y</li>
+    </ul>
+
+    <pre id="signature">p : \i -> \o.
+q : \i -> \i -> \o.
+
+f : \i -> \i.
+g : \i -> \i -> \i.
+
+j, k : \i.
+
+a, b, c : \o.
+
+p, q : \i -> \o.
+r : \i -> \i -> \o.</pre>
+    <script src="dist-ace/src-noconflict/ace.js"></script>
+    <script>
+      var sigEditor = ace.edit("signature");
+      sigEditor.setTheme("ace/theme/twilight");
+      sigEditor.setOptions({
+          minLines: 5,
+          maxLines: 20,
+          showLineNumbers: false,
+          showGutter: true,
+      });
+      document.sigEditor = sigEditor;
+      sigEditor.on("change", function(e) {
+          var res = profint.signatureChange(sigEditor.getValue());
+          if (!res)
+              $('#signature').css({'border': '2px solid red'});
+          else
+              $('#signature').css({'border': 'none'});
+      });
+      // sigEditor.session.setMode("ace/mode/javascript");
+    </script>
 
   </body>
 </html>

@@ -53,23 +53,6 @@ let change_formula text =
     true
   with _ -> false
 
-let dump () = [
-  (* {| a => a |} ; *)
-  (* {| a => b => a |} ; *)
-  (* {| a => a & a |} ; *)
-  (* {| (a => b => c) => (a => b) => a => c |} ; *)
-  (* {| p j => \E [x] p x |} ; *)
-  (* {| (\A [x] p x) => p j |} ; *)
-  (* {| (\A [x] \E [y] r x y) => \E [y] \A [x] r x y |} ; *)
-  (* {| (\E [x] \A [y] r x y) => (\A [w] \E [z] r z w) |} ; *)
-  (* {| ((a | (a => #f)) => #f) => #f |} ; *)
-  (* {| (\A [x] p x) => (\E [y] p y) |} ; *)
-  (* {| (\A [x] p x) => (\A [y] p y) |} ; *)
-] |> List.iter begin fun fstr ->
-    Printf.printf "%s\n%!" (Url.urlencode fstr)
-  end
-let () = dump ()
-
 let () =
   Js.export "profint" begin
     object%js
@@ -91,6 +74,12 @@ let () =
 
       method formulaHTML =
         Form3.form_to_html state.goal |> Js.string
+
+      method convertToHTML text =
+        try
+          let f = Uterm.form_of_string @@ Js.to_string text in
+          Js.string @@ Form3.form_to_html f
+        with _ -> Js.string "!!ERROR!!"
 
       method historyHTML =
         let contents =

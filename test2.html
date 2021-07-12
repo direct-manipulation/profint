@@ -8,13 +8,13 @@
     <script src="katex-dist/katex.min.js"></script>
     <script src="_build/default/src/ora.bc.js"></script>
     <script>
+      var initial_form = "(\\A [x] \\E [y] r (f x) y) & (\\A [z] r (f j) z => p (f z)) => \\E [u] p (f u)";
+      // var initial_form = "\\E [x, y, z] r (f x) (g x z) => r (f (f y)) (g (f y) (g x z))";
+
       const macros = {
           "\\o": "\\mathsf{o}",
           "\\i": "\\mathsf{i}",
       };
-
-      var initial_form = "(\\A [x] \\E [y] r (f x) y) & (\\A [z] r (f j) z => p (f z)) => \\E [u] p (f u)";
-      // var initial_form = "\\E [x, y, z] r (f x) (g x z) => r (f (f y)) (g (f y) (g x z))";
 
       const katex_options = {
           trust: true,
