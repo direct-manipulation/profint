@@ -145,18 +145,5 @@ let () =
           Form3.weaken ~prompt state.goal src |> push_goal ;
           true
         with _ -> false
-
-      (* method doWitness src =
-       *   let src = Js.to_string src |> to_trail in
-       *   let text =
-       *     Js.Opt.get
-       *       (Dom_html.window##prompt
-       *          (Js.string "Enter a term") (Js.string ""))
-       *       (fun () -> Js.string "")
-       *     |> Js.to_string in
-       *   try
-       *     Form3.witness state.goal src text |> push_goal ;
-       *     true
-       *   with _ -> false *)
     end
   end
