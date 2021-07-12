@@ -97,6 +97,10 @@ let reform_equations eqns =
       App {head = h2 ; spine = sp2}, _
       when h1 = h2 ->
         spin_spine sp1 sp2 spty
+    | App {head = Index j ; spine = []},
+      App {head = Index k ; spine = []}, _
+      when j = k ->
+        []
     | _ ->
         let q = Eq (ta, tb, ty) |> reform0 in
         let () = solns := q :: !solns in
@@ -1097,20 +1101,6 @@ let weaken ~prompt form src =
   | _ ->
       traversal_failure ~context "cannot simplify here"
 
-(* let witness form src term =
- *   let context = go form src in
- *   if not context.pos then
- *     traversal_failure ~context "cannot substitute in negative context" ;
- *   match expose context.form with
- *   | Exists (_, vty, body) ->
- *       let term, ty = accept_term context term in
- *       if ty <> vty then failwith "invalid type" ;
- *       let form = Term.sub_term (Dot (Shift 0, term)) body in
- *       leave {context with form}
- *   | _ ->
- *       traversal_failure ~context
- *         "not an existential" *)
-
 module TestFn () = struct
   let () = Uterm.declare_const "f" {| \i -> \i |}
   let () = Uterm.declare_const "j" {| \i |}
@@ -1146,4 +1136,4 @@ module TestFn () = struct
 
   let () = Uterm.clear_declarations ()
 end
-module Test = TestFn ()
+(* module Test = TestFn () *)
