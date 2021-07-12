@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="utf-8">
     <title>Some test cases</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.css" integrity="sha384-Um5gpz1odJg5Z4HAmzPtgZKdTBHZdw8S29IecapCSB31ligYPhHQZMIlWLYQGVoc" crossorigin="anonymous">
@@ -8,7 +9,7 @@
     <!-- <script src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous"
          onload="renderMathInElement(document.body);"></script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js" integrity="sha384-UXw3wi5BiYWZhzAanFWIr5Y05huSNCRyCeO9MFq9Z7TErfqx+G/jttCrEdjyLxK4" crossorigin="anonymous"></script>
-    <script src="_build/default/src/ora.bc.js"></script>
+    <script src="ora.bc.js"></script>
     <script>
       const macros = {
           "\\o": "\\mathsf{o}",
@@ -22,13 +23,22 @@
           macros
       }
 
+      const interfaceUrl = 'go.html';
+
       $(document).ready(function(){
           profint.signatureChange(document.sigEditor.getValue());
+          $('#interfacelink').html(function(){
+              const txt = $(this).text();
+              $(this).empty().append(
+                  $('<a>').attr('href', interfaceUrl).text(txt)
+                      .css({'text-decoration': 'none'})
+              );
+          });
           $('li').each(function(){
               const txt = $(this).text().trim();
               let anc =
                   $('<a>')
-                  .attr('href', 'test2.html?f=' + encodeURIComponent(txt))
+                  .attr('href', interfaceUrl + '?f=' + encodeURIComponent(txt))
                   .html(function(){
                       var expr = profint.convertToHTML(txt);
                       return katex.renderToString(expr, katex_options);
@@ -39,11 +49,19 @@
     </script>
     <style>
       body {padding-left: 40px; padding-top: 40px;}
+      a {text-decoration: none;}
       #signature {margin: 0; position: fixed; bottom: 0; left: 0; right: 0;}
     </style>
   </head>
   <body>
-    <h1>Profint: pedagogic examples</h1>
+    <h1>Profint: illustrative examples</h1>
+    <p>
+      <strong><a href="https://chaudhuri.info">Kaustuv Chaudhuri</a></strong><br>
+      <a href="http://cade-28.info">CADE-28</a>,
+      Cyber Pittsburgh, 2021-07-12
+    </p>
+
+    <h4 id="interfacelink">Default interface</h4>
 
     <h4>Propositional</h4>
 

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="utf-8">
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <script src="https://code.jquery.com/color/jquery.color-2.2.0.min.js" integrity="sha256-aSe2ZC5QeunlL/w/7PsVKmV+fa0eDbmybn/ptsKHR6I=" crossorigin="anonymous"></script>
@@ -9,11 +10,9 @@
     <!-- <script src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous"
          onload="renderMathInElement(document.body);"></script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js" integrity="sha384-UXw3wi5BiYWZhzAanFWIr5Y05huSNCRyCeO9MFq9Z7TErfqx+G/jttCrEdjyLxK4" crossorigin="anonymous"></script>
-  </head>
-    <script src="_build/default/src/ora.bc.js"></script>
+    <script src="ora.bc.js"></script>
     <script>
       var initial_form = "(\\A [x] \\E [y] r (f x) y) & (\\A [z] r (f j) z => p (f z)) => \\E [u] p (f u)";
-      // var initial_form = "\\E [x, y, z] r (f x) (g x z) => r (f (f y)) (g (f y) (g x z))";
 
       const macros = {
           "\\o": "\\mathsf{o}",
