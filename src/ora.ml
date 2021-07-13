@@ -30,6 +30,7 @@ let sig_change text =
   end with _ -> false
 
 let to_trail str =
+  let str = Js.to_string str in
   range 0 (String.length str)
   |> Seq.map begin fun i ->
     match str.[i] with
@@ -39,12 +40,6 @@ let to_trail str =
       | _   -> invalid_arg ("to_trail: " ^ str)
   end |> List.of_seq
 
-let prompt msg =
-  Js.Opt.get
-    (Dom_html.window##prompt (Js.string msg) (Js.string ""))
-    (fun () -> Js.string "")
-  |> Js.to_string
-
 let change_formula text =
   try
     state.goal <- Uterm.form_of_string text ;
@@ -53,97 +48,117 @@ let change_formula text =
     true
   with _ -> false
 
-let () =
-  Js.export "profint" begin
-    object%js
-      method startup =
-        let pmap = Url.Current.arguments |> List.to_seq |> IdMap.of_seq in
-        match IdMap.find "f" pmap with
-        | str ->
-            change_formula @@ Url.urldecode str
-        | exception Not_found -> false
+let profint_object =
+  object%js
+    method startup =
+      let pmap = Url.Current.arguments |> List.to_seq |> IdMap.of_seq in
+      match IdMap.find "f" pmap with
+      | str ->
+          change_formula @@ Url.urldecode str
+      | exception Not_found -> false
 
-      method signatureChange text =
-        sig_change text
+    method signatureChange text =
+      sig_change text
 
-      method formulaChange text =
-        change_formula @@ Js.to_string text
+    method formulaChange text =
+      change_formula @@ Js.to_string text
 
-      method formulaOrd =
-        Form3.form_to_string state.goal |> Js.string
+    method formulaOrd =
+      Form3.form_to_string state.goal |> Js.string
 
-      method formulaHTML =
-        Form3.form_to_html state.goal |> Js.string
+    method formulaHTML =
+      Form3.form_to_html state.goal |> Js.string
 
-      method convertToHTML text =
-        try
-          let f = Uterm.form_of_string @@ Js.to_string text in
-          Js.string @@ Form3.form_to_html f
-        with _ -> Js.string "!!ERROR!!"
+    method convertToHTML text =
+      try
+        let f = Uterm.form_of_string @@ Js.to_string text in
+        Js.string @@ Form3.form_to_html f
+      with _ -> Js.string "!!ERROR!!"
 
-      method historyHTML =
-        let contents =
-          state.history
-          |> List.map Form3.form_to_html
-          |> String.concat {| \mathstrut \\ \hline |}
-        in
-        {| \begin{array}{l} \hline |} ^ contents ^ {| \end{array} |}
-        |> Js.string
+    method historyHTML =
+      let contents =
+        state.history
+        |> List.map Form3.form_to_html
+        |> String.concat {| \mathstrut \\ \hline |}
+      in
+      {| \begin{array}{c} \hline |} ^ contents ^ {| \end{array} |}
+      |> Js.string
 
-      method countHistory = List.length state.history
-      method countFuture = List.length state.future
+    method countHistory = List.length state.history
+    method countFuture = List.length state.future
 
-      method futureHTML =
-        let str = match state.future with
-          | [] -> ""
-          | _ ->
-              let contents =
-                state.future
-                |> List.rev_map Form3.form_to_html
-                |> String.concat {| \mathstrut \\ \hline |}
-              in
-              {| \begin{array}{l} |} ^ contents ^ {| \\ \hline \end{array} |}
-        in
-        Js.string str
+    method futureHTML =
+      let str = match state.future with
+        | [] -> ""
+        | _ ->
+            let contents =
+              state.future
+              |> List.rev_map Form3.form_to_html
+              |> String.concat {| \mathstrut \\ \hline |}
+            in
+            {| \begin{array}{c} |} ^ contents ^ {| \\ \hline \end{array} |}
+      in
+      Js.string str
 
-      method doUndo =
-        match state.history with
-        | f :: rest ->
-            state.future <- state.goal :: state.future ;
-            state.goal <- f ;
-            state.history <- rest ;
-            true
-        | _ -> false
-
-      method doRedo =
-        match state.future with
-        | f :: rest ->
-            state.history <- state.goal :: state.history ;
-            state.goal <- f ;
-            state.future <- rest ;
-            true
-        | _ -> false
-
-      method makeLink src dest =
-        let src = Js.to_string src |> to_trail in
-        let dest = Js.to_string dest |> to_trail in
-        try
-          Form3.resolve state.goal src dest |> push_goal ;
+    method doUndo =
+      match state.history with
+      | f :: rest ->
+          state.future <- state.goal :: state.future ;
+          state.goal <- f ;
+          state.history <- rest ;
           true
-        with _ -> false
+      | _ -> false
 
-      method doContraction src =
-        let src = Js.to_string src |> to_trail in
-        try
-          Form3.contract state.goal src |> push_goal ;
+    method doRedo =
+      match state.future with
+      | f :: rest ->
+          state.history <- state.goal :: state.history ;
+          state.goal <- f ;
+          state.future <- rest ;
           true
-        with _ -> false
+      | _ -> false
 
-      method doWeakening src =
-        let src = Js.to_string src |> to_trail in
-        try
-          Form3.weaken ~prompt state.goal src |> push_goal ;
-          true
-        with _ -> false
-    end
+    method makeLink src dest =
+      let src = to_trail src in
+      let dest = to_trail dest in
+      try
+        Form3.resolve state.goal src dest |> push_goal ;
+        true
+      with _ -> false
+
+    method doContraction src =
+      let src = to_trail src in
+      try
+        Form3.contract state.goal src |> push_goal ;
+        true
+      with _ -> false
+
+    method doWeakening src =
+      let src = to_trail src in
+      try
+        Form3.weaken state.goal src |> push_goal ;
+        true
+      with _ -> false
+
+    method testWitness trail =
+      let trail = to_trail trail in
+      let open Form3 in
+      match go state.goal trail with
+      | context when context.pos -> begin
+          match expose context.form with
+          | Exists (v, _, _) -> Js.some @@ Js.string v
+          | _ -> Js.null
+        end
+      | _
+      | exception _ -> Js.null
+
+    method doWitness trail text =
+      try
+        let trail = to_trail trail in
+        let text = Js.to_string text in
+        push_goal @@ Form3.witness state.goal trail text ;
+        true
+      with _ -> false
   end
+
+let () = Js.export "profint" profint_object

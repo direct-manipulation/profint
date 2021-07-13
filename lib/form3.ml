@@ -1078,7 +1078,7 @@ let contract form src =
   | _ ->
       traversal_failure ~context "cannot contract a non-implication"
 
-let weaken ~prompt form src =
+let weaken form src =
   let context = go form src in
   match expose context.form, context.pos with
   | _, false -> begin
@@ -1088,18 +1088,22 @@ let weaken ~prompt form src =
           leave {context with form}
       | _ -> leave context
     end
-  | Exists (var, vty, body), true ->
-      let msg = Printf.sprintf "Enter a witness for %s" var in
-      let term_str = prompt msg in
-      let term, ty = accept_term context term_str in
-      if ty <> vty then failwith "invalid type" ;
-      let form = Term.sub_term (Dot (Shift 0, term)) body in
-      leave {context with form}
   | Eq (t1, t2, _), _ when Term.eq_term t1 t2 ->
       let form = reform0 Top in
       leave {context with form}
   | _ ->
       traversal_failure ~context "cannot simplify here"
+
+let witness form src str =
+  let context = go form src in
+  match expose context.form, context.pos with
+  | Exists (_, vty, body), true ->
+      let term, ty = accept_term context str in
+      if ty <> vty then failwith "invalid type" ;
+      let form = Term.sub_term (Dot (Shift 0, term)) body in
+      leave {context with form}
+  | _ -> traversal_failure ~context "not an existential"
+
 
 module TestFn () = struct
   let () = Uterm.declare_const "f" {| \i -> \i |}

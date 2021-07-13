@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6" integrity="sha384-bF2gXog8EbftpjuWQY8G0T7aeq+FvNU9YWvxSRHybqv2F/lvV5msKMHvRgoukeQP" crossorigin="anonymous"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <script src="https://code.jquery.com/color/jquery.color-2.2.0.min.js" integrity="sha256-aSe2ZC5QeunlL/w/7PsVKmV+fa0eDbmybn/ptsKHR6I=" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.css" integrity="sha384-Um5gpz1odJg5Z4HAmzPtgZKdTBHZdw8S29IecapCSB31ligYPhHQZMIlWLYQGVoc" crossorigin="anonymous">
@@ -25,7 +25,7 @@
           output: 'html',
           strict: false,
           macros
-      }
+      };
 
       const formLink = {
           src: null,
@@ -59,7 +59,60 @@
           $('#output .enclosing').removeClass('f-dest');
       }
 
+      var witnessBox = null;
+
+      function makeWitnessBox(ev) {
+          if (witnessBox) {
+              console.log('there is already a witness box');
+              return;
+          }
+          var hlForm = $('.hl-range');
+          if (hlForm.length != 1) {
+              console.log('there is more than one hl!');
+              return;
+          }
+          const path = findPath(hlForm);
+          const txt = profint.testWitness(path);
+          if (txt) {
+              witnessBox = $('<input>')
+                  .attr('placeholder', txt)
+                  .attr('value', '')
+                  .attr('size', Math.max(txt.length, 1))
+                  .data('path', path)
+                  .css({'font-family': 'monospace',
+                        'font-size': 'inherit'})
+                  .on('input', function(ev){
+                      $(this).attr('size', Math.max(ev.target.value.length, 1));
+                  })
+                  .on('change', function(ev){
+                      console.log('path: ' + $(ev.target).data('path'));
+                      console.log('new witness: ' + ev.target.value);
+                      const res = profint.doWitness($(ev.target).data('path'),
+                                                    ev.target.value);
+                      if (res) {
+                          witnessBox = null;
+                          renderFormula();
+                      } else {
+                          console.log('witness was not accepted');
+                          witnessBox.css({'background-color': 'red'})
+                              .animate({'background-color': 'inherit'}, 'slow');
+                      }
+                  })
+                  .on('keyup', function(ev){
+                      if (ev.key === 'Escape') {
+                          witnessBox = null;
+                          renderFormula();
+                          ev.stopPropagation();
+                      }
+                  });
+              $('.hl-range > span:nth-child(2) > span:first-child')
+                  .replaceWith(witnessBox);
+              witnessBox.focus();
+          }
+      }
+
       function linkSubformula(elem) {
+          if (witnessBox) return;
           if (formLink.src) {
               if (formLink.dest || $(elem).is(formLink.src)) {
                   // do nothing
@@ -180,10 +233,11 @@
       }
 
       $(document).ready(function(){
-          hotkeys('ctrl+up,ctrl+down', function (event, handler){
+          hotkeys('ctrl+up,ctrl+down,w', function (event, handler){
               switch (handler.key) {
               case 'ctrl+down': doUndo(); break;
               case 'ctrl+up': doRedo(); break;
+              case 'w': makeWitnessBox(event); return false;
               }
           });
           profint.signatureChange(document.sigEditor.getValue());
