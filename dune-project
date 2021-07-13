@@ -2,7 +2,7 @@
 
 (name profint)
 
-(version 0.8.1-cade28)
+(version 0.8.1)
 
 (license CECILL-B)
 
