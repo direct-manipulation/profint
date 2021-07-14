@@ -1,50 +1,51 @@
 open OUnit2
 open Profint
-open Term
+open Types
+open T
 
-module Types = struct
-  let basic a = {args = [] ; result = a}
-  let arrow ty1 ty2 = {ty2 with args = ty1 :: ty2.args}
+module Ord = struct
+  let index n = App {head = Index n ; spine = []}
+  let app1 f t = Term.do_app f [t]
+  let app = Term.do_app
+  let abs x t = Abs {var = x ; body = t}
 end
 
 module Terms = struct
-  let ti = Abs {var = "x" ; body = index 0}
-  let tk = Abs {var = "x" ;
-                body = Abs {var = "y" ;
-                            body = index 1}}
-  let ts = Abs {var = "x" ;
-                body = Abs {var = "y" ;
-                            body = Abs {var = "z" ;
-                                        body = App {head = Index 2 ;
-                                                    spine = [index 0 ;
-                                                             App {head = Index 1 ;
-                                                                  spine = [index 0]}]}}}}
-  let tdelta = Abs {var = "x" ;
-                    body = App {head = Index 0 ;
-                                spine = [index 0]}}
+  let ti = Ord.(abs "x" (index 0))
+  let tk = Ord.(abs "x"
+                  (abs "y"
+                     (index 1)))
+  let ts = Ord.(abs "x"
+                  (abs "y"
+                     (abs "z"
+                        (app1 (app1 (index 2) (index 0))
+                           (app1 (index 1) (index 0))))))
+
+  let tdelta = Ord.(abs "x"
+                      (app1 (index 0) (index 0)))
 end
 
-let test_type_check term ty _test_cx = assert_equal (ty_check [] term ty) ()
+let test_type_check term ty _test_cx = assert_equal (Term.ty_check [] term ty) ()
 
 let tests =
   "Term" >::: [
     "type_check(i)" >::
-    test_type_check Terms.ti Types.(arrow (basic "a") (basic "a")) ;
+    test_type_check Terms.ti Types.(Arrow (Basic "a", Basic "a")) ;
     "type_check(k)" >::
-    test_type_check Terms.tk Types.(arrow (basic "a") (arrow (basic "b") (basic "a"))) ;
+    test_type_check Terms.tk Types.(Arrow (Basic "a", Arrow (Basic "b", Basic "a"))) ;
     "type_check(s)" >:: begin
       let open Types in
-      let a = basic "a" in
-      let b = basic "b" in
-      let c = basic "c" in
-      let tyx = arrow a (arrow b c) in
-      let tyy = arrow a b in
-      let ty = arrow tyx (arrow tyy (arrow a c)) in
+      let a = Basic "a" in
+      let b = Basic "b" in
+      let c = Basic "c" in
+      let tyx = Arrow (a, Arrow (b, c)) in
+      let tyy = Arrow (a, b) in
+      let ty = Arrow (tyx, Arrow (tyy, Arrow (a, c))) in
       test_type_check Terms.ts ty
     end ;
     "ii = i" >:: Terms.(fun _cx ->
-        assert_equal (do_app ti [ti]) ti) ;
+        assert_equal (Term.do_app ti [ti]) ti) ;
     "skk = i" >:: Terms.(fun _cx ->
-        assert_equal ~cmp:eq_term
-          (do_app ts [tk ; tk]) ti) ;
+        assert_equal ~cmp:Term.eq_term
+          (Term.do_app ts [tk ; tk]) ti) ;
   ]
