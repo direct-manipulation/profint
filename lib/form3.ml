@@ -265,7 +265,7 @@ let rec leave context =
   | _ ->
       go_up context |> leave
 
-let get_cx context : cx =
+let get_cx context : tycx =
   let rec spin cx frames =
     match frames with
     | [] -> List.rev cx
@@ -276,7 +276,7 @@ let get_cx context : cx =
           | Const (_, Arrow (Arrow (ty, _), _)) -> ty
           | _ -> traversal_failure ~context "recovering typing context"
         in
-        let cx = (ff.var, ty) :: cx in
+        let cx = {var = ff.var ; ty = ty} :: cx in
         spin cx frames
   in
   spin [] context.frames
@@ -403,7 +403,7 @@ let marked_leave context =
 let pp_context out context = pp_form out (marked_leave context)
 let context_to_string context = form_to_string (marked_leave context)
 
-let with_context ~(fn: ?cx:cx -> _) context arg =
+let with_context ~(fn: ?cx:tycx -> _) context arg =
   let cx = get_cx context in
   fn ~cx arg
 

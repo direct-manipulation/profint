@@ -65,19 +65,19 @@ let type_error fmt =
 
 let rec ty_infer cx head =
   match head with
-  | Index n -> snd (ty_lookup cx n)
+  | Index n -> (ty_lookup cx n).ty
   | Const (_, ty) -> ty
 
 and ty_lookup cx n =
   match cx, n with
-  | ty :: _, 0 -> ty
+  | tvar :: _, 0 -> tvar
   | _ :: cx, n -> ty_lookup cx (n - 1)
   | [], _ -> type_error "invalid variable"
 
 let rec ty_check cx term ty =
   match term, ty with
   | Abs f, Arrow (tya, tyb) ->
-      let cx = (f.var, tya) :: cx in
+      let cx = {var = f.var ; ty = tya} :: cx in
       ty_check cx f.body tyb
   | Abs _, _ ->
       type_error "ty_check: abs"

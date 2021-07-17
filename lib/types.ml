@@ -14,7 +14,8 @@ type ty =
 
 type poly_ty = {nvars : int ; ty : ty}
 
-type cx = (ident * ty) list
+type typed_var = {var : ident ; ty : ty}
+type tycx = typed_var list
 
 let rec ty_to_exp ty =
   match ty with

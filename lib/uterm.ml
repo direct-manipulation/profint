@@ -32,6 +32,7 @@ let rec map_on_tyvars tab uty =
     end
 
 let freshen pty =
+  if pty.nvars = 0 then pty.ty else
   let tab = ITab.create pty.nvars in
   range 0 pty.nvars
   |> Seq.iter (fun k -> ITab.replace tab k (fresh_tyvar ())) ;
@@ -44,10 +45,10 @@ let ty_error ?ty fmt =
 
 let local_sig : poly_ty IdMap.t ref = ref IdMap.empty
 
-let rec tygen ~emit (cx : cx) tm ty_expected =
+let rec tygen ~emit (cx : tycx) tm ty_expected =
   match tm with
   | Idx n ->
-      emit (snd (List.nth cx n)) ty_expected ;
+      emit (List.nth cx n).ty ty_expected ;
       Idx n
   | Var x -> begin
       match tyget cx x with
@@ -84,13 +85,13 @@ let rec tygen ~emit (cx : cx) tm ty_expected =
         | None -> fresh_tyvar ()
       in
       let tyres = fresh_tyvar () in
-      let bod = tygen ~emit ((x, tyarg) :: cx) bod tyres in
+      let bod = tygen ~emit ({var = x ; ty = tyarg} :: cx) bod tyres in
       emit (Arrow (tyarg, tyres)) ty_expected ;
       Abs (x, xty, bod)
 
 and tyget ?(depth = 0) cx x =
   match cx with
-  | (y, ty) :: _ when x = y -> (depth, ty)
+  | tvar :: _ when x = tvar.var -> (depth, tvar.ty)
   | _ :: cx -> tyget ~depth:(depth + 1) cx x
   | [] -> raise Not_found
 
