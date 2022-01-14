@@ -118,11 +118,11 @@ let profint_object =
           true
       | _ -> false
 
-    method makeLink src dest =
+    method makeLink src dest contr =
       let src = to_trail src in
       let dest = to_trail dest in
       try
-        Form3.resolve state.goal src dest |> push_goal ;
+        Form3.resolve state.goal src dest contr |> push_goal ;
         true
       with _ -> false
 

@@ -111,7 +111,7 @@
           }
       }
 
-      function linkSubformula(elem) {
+      function linkSubformula(elem, doContract) {
           if (witnessBox) return;
           if (formLink.src) {
               if (formLink.dest || $(elem).is(formLink.src)) {
@@ -122,7 +122,8 @@
                   // console.log('dest: ' + findPath(elem));
                   // $('#destId').text(findPath(elem));
                   var res = profint.makeLink(findPath(formLink.src),
-                                             findPath(formLink.dest));
+                                             findPath(formLink.dest),
+                                             doContract);
                   if (res) renderFormula();
                   else {
                       console.log('link failed');
@@ -193,10 +194,15 @@
           });
           $('#output .enclosing').on("click", function(ev){
               // console.log('clicked: ' + $(this).attr('id'));
-              if (ev.ctrlKey) contractSubformula(this);
+              if (ev.ctrlKey) {
+                  if (formLink.src)
+                      linkSubformula(this, true);
+                  else
+                      contractSubformula(this);
+              }
               else if (ev.altKey) weakenSubformula(this);
               else if (ev.shiftKey) substituteWitness(this);
-              else linkSubformula(this);
+              else linkSubformula(this, false);
               ev.stopPropagation();
           });
           $("#output .enclosing").mouseover(function(ev) {

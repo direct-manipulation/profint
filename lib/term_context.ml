@@ -65,7 +65,7 @@ let down n context =
         | t :: right ->
             get_spine_frame (t :: left) right (k + 1)
         | _ ->
-            traversal_failure ~context "down %d" n
+            traversal_failure ~context "down.get_spine_frame %d" n
       in
       let term, frame = get_spine_frame [] spine 1 in
       {context with

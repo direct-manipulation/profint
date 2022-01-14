@@ -353,7 +353,7 @@ let rec form_to_exp_html ?(cx = []) form =
         Appl (20, Infix (StringAs (1, " \\vee "), Left,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Imp (fa, fb) ->
-        Appl (10, Infix (StringAs (1, " \\supset "), Right,
+        Appl (10, Infix (StringAs (1, " \\mathbin{\\Rightarrow} "), Right,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Eq (t1, t2, _) ->
         Appl (50, Infix (StringAs (1, " \\doteq "), Non,
@@ -1054,14 +1054,45 @@ let neg_interaction concl =
       traversal_failure ~context:concl.context
         "not a conjunction"
 
-let resolve form src dest =
+let pos_interaction_contr concl contr =
+  let concl = if not contr then concl else begin
+      if concl.lf.has_src then begin
+        match expose concl.context.form with
+        | Imp (fa, _) ->
+          let form = Imp (fa, concl.context.form) |> reform0 in
+          let context = {concl.context with form} in
+          let rt = {concl.rt with trail = R :: concl.rt.trail} in
+          {concl with context ; rt}
+        | _ ->
+          dprintf "User indicated a contraction, but none is possible" (Continue concl) |> ignore ;
+          concl
+      end else begin
+        let rcontext = go concl.context.form concl.rt.trail |> go_up in
+        match expose rcontext.form with
+        | Imp (fa, _) ->
+          let form = Imp (fa, rcontext.form) |> reform0 in
+          let context = {concl.context with form = leave {rcontext with form}} in
+          let trail = match List.rev concl.rt.trail with
+            | L :: tr -> List.rev (L :: R :: tr)
+            | _ -> traversal_failure ~context:concl.context "cannot contract here"
+          in
+          let rt = {concl.rt with trail} in
+          {concl with context ; rt}
+        | _ ->
+          dprintf "User indicated a contraction, but none is possible" (Continue concl) |> ignore ;
+          concl
+      end
+    end in
+  pos_interaction concl
+
+let resolve form src dest contr =
   let common, lf, rt = prefix_split3 src dest in
   let context = go form common in
   let concl = {context ; lf ; rt} in
   dprintf "start" (Continue concl) |> ignore ;
   let context =
     if context.pos
-    then pos_interaction concl
+    then pos_interaction_contr concl contr
     else neg_interaction concl
   in
   leave context
