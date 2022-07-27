@@ -236,7 +236,7 @@ let go_up context =
   match context.frames with
   | Right ff :: frames ->
       let form = App {head = ff.conn ; spine = [ff.left ; context.form]} in
-      let form = reform (expose form) context.pos in
+      (* let form = reform (expose form) context.pos in *)
       {context with frames ; form}
   | Left ff :: frames ->
       let pos = match ff.conn with
@@ -262,6 +262,7 @@ let rec leave context =
       if not context.pos then
         traversal_failure ~context "parity mismatch" ;
       recursive_reform context.form true
+      (* context.form *)
   | _ ->
       go_up context |> leave
 
@@ -481,7 +482,7 @@ and conclusion = {
   rt : position
 }
 
-let dprintf0 msg fin =
+let dprintf msg fin =
   let () = match fin with
     | Ordinary context ->
         Format.printf "%s:@.  %a@."
@@ -493,7 +494,7 @@ let dprintf0 msg fin =
   in
   fin
 
-let dprintf _msg fin = fin
+(* let dprintf _msg fin = fin *)
 
 let r_pos_init concl =
   abort_unless concl.context.pos ;

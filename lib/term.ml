@@ -50,8 +50,8 @@ and seq sub1 sub2 =
   | _, Shift k ->
       let rec peel sub1 k =
         match sub1, k with
-        | Shift j, _ -> Shift (j + k)
         | _, 0 -> sub1
+        | Shift j, _ -> Shift (j + k)
         | Dot (sub1, _), _ -> peel sub1 (k - 1)
       in
       peel sub1 k
