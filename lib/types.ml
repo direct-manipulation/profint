@@ -120,12 +120,12 @@ let empty = {
 let[@inline] salt v k =
   if k = 0 then v else v ^ "_" ^ string_of_int k
 
-let with_var tycx tv go =
+let with_var ?(fresh = false) tycx tv go =
   let rec freshen v k =
     let vk = salt v k in
     if IdSet.mem vk tycx.used then freshen v (k + 1) else vk
   in
-  let var = freshen tv.var 0 in
+  let var = if fresh then freshen tv.var 0 else tv.var in
   let used = IdSet.add var tycx.used in
   let linear = { tv with var } :: tycx.linear in
   go {linear ; used}
