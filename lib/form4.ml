@@ -727,17 +727,144 @@ let try_goal_ts_and ~emit concl =
   | Imp (a, f), (`r :: rpath) -> begin
       match expose f, rpath with
       | And (b, f), (`l :: rpath) ->
-          emit { name = Goal_ts_and `l ; path = List.rev concl.rpath } ;
+          emit { name = Goal_ts_and `l ; path = List.rev concl.cpath } ;
           let fx = mk_and (mk_imp a b) f |@ concl.fx in
           let cpath = `l :: concl.cpath in
           let rpath = `r :: rpath in
           Continue { concl with fx ; cpath ; rpath }
       | And (f, b), (`r :: rpath) ->
-          emit { name = Goal_ts_and `r ; path = List.rev concl.rpath } ;
+          emit { name = Goal_ts_and `r ; path = List.rev concl.cpath } ;
           let fx = mk_and f (mk_imp a b) |@ concl.fx in
           let cpath = `r :: concl.cpath in
           let rpath = `r :: rpath in
           Continue { concl with fx ; cpath ; rpath }
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let try_goal_and_ts ~emit concl =
+  abort_unless (concl.side = `r) ;
+  match expose concl.fx.data, concl.lpath with
+  | Imp (f, b), (`l :: lpath) -> begin
+      match expose f, lpath with
+      | And (a, _), (`l as dir :: lpath)
+      | And (_, a), (`r as dir :: lpath) ->
+          emit { name = Goal_and_ts dir ; path = List.rev concl.cpath } ;
+          let fx = mk_imp a b |@ concl.fx in
+          let cpath = `l :: concl.cpath in
+          let lpath = `l :: lpath in
+          Continue { concl with fx ; cpath ; lpath }
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let try_goal_ts_or ~emit concl =
+  abort_unless (concl.side = `r) ;
+  match expose concl.fx.data, concl.rpath with
+  | Imp (a, f), (`r :: rpath) -> begin
+      match expose f, rpath with
+      | Or (b, _), (`l as dir :: rpath)
+      | Or (_, b), (`r as dir :: rpath) ->
+          emit { name = Goal_ts_or dir ; path = List.rev concl.cpath } ;
+          let fx = mk_imp a b |@ concl.fx in
+          let cpath = `r :: concl.cpath in
+          let rpath = `r :: rpath in
+          Continue { concl with fx ; cpath ; rpath }
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let try_goal_or_ts ~emit concl =
+  abort_unless (concl.side = `r) ;
+  match expose concl.fx.data, concl.lpath with
+  | Imp (f, b), (`l :: lpath) -> begin
+      match expose f, lpath with
+      | Or (a, _), (`l as dir :: lpath)
+      | Or (_, a), (`r as dir :: lpath) ->
+          emit { name = Goal_or_ts ; path = List.rev concl.cpath } ;
+          let fx = (mk_imp a b) |@ concl.fx in
+          let cpath = dir :: concl.cpath in
+          let lpath = `l :: lpath in
+          Continue { concl with fx ; cpath ; lpath }
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let try_goal_ts_imp ~emit concl =
+  abort_unless (concl.side = `r) ;
+  match expose concl.fx.data, concl.rpath with
+  | Imp (a, f), (`r :: rpath) -> begin
+      match expose f, rpath with
+      | Imp (b, _), (`l :: rpath) ->
+          emit { name = Goal_ts_imp `l ; path = List.rev concl.cpath } ;
+          let fx = mk_and a b |@ concl.fx in
+          let side = flip concl.side in
+          let cpath = `l :: concl.cpath in
+          let rpath = `r :: rpath in
+          Continue { concl with fx ; side ; cpath ; rpath }
+      | Imp (_, b), (`r :: rpath) ->
+          emit { name = Goal_ts_imp `r ; path = List.rev concl.cpath } ;
+          let fx = mk_imp a b |@ concl.fx in
+          let cpath = `r :: concl.cpath in
+          let rpath = `r :: rpath in
+          Continue { concl with fx ; cpath ; rpath }
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let try_goal_imp_ts ~emit concl =
+  abort_unless (concl.side = `r) ;
+  match expose concl.fx.data, concl.lpath with
+  | Imp (f, b), (`l :: lpath) -> begin
+      match expose f, lpath with
+      | Imp (_, a), (`r :: lpath) ->
+          emit { name = Goal_imp_ts ; path = List.rev concl.cpath } ;
+          let fx = mk_imp a b |@ concl.fx in
+          let cpath = `r :: concl.cpath in
+          let lpath = `l :: lpath in
+          Continue { concl with fx ; cpath ; lpath }
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let try_goal_ts_allex ~emit concl =
+  abort_unless (concl.side = `r) ;
+  match expose concl.fx.data, concl.rpath with
+  | Imp (a, f), (`r :: rpath) -> begin
+      match expose f, rpath with
+      | (Forall (var, ty, b) as fexp), (`d :: rpath)
+      | (Exists (var, ty, b) as fexp), (`d :: rpath) ->
+          with_var concl.fx.tycx { var ; ty } begin fun tycx ->
+            let name = match fexp with
+              | Forall _ -> Goal_ts_all
+              | _ -> Goal_ts_ex in
+            emit { name ; path = List.rev concl.cpath } ;
+            let fx = { data = mk_imp (shift 1 a) b ; tycx } in
+            let cpath = `d :: concl.cpath in
+            let rpath = `r :: rpath in
+            Continue { concl with fx ; cpath ; rpath }
+          end
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+let try_goal_allex_ts ~emit concl =
+  abort_unless (concl.side = `r) ;
+  match expose concl.fx.data, concl.lpath with
+  | Imp (f, b), (`l :: lpath) -> begin
+      match expose f, lpath with
+      | (Forall (var, ty, a) as fexp), (`d :: lpath)
+      | (Exists (var, ty, a) as fexp), (`d :: lpath) ->
+          with_var concl.fx.tycx { var ; ty } begin fun tycx ->
+            let name = match fexp with
+              | Forall _ -> Goal_all_ts
+              | _ -> Goal_ex_ts in
+            emit { name ; path = List.rev concl.cpath } ;
+            let fx = { data = mk_imp a (shift 1 b) ; tycx } in
+            let cpath = `d :: concl.cpath in
+            let lpath = `l :: lpath in
+            Continue { concl with fx ; cpath ; lpath }
+          end
       | _ -> abort ()
     end
   | _ -> abort ()
