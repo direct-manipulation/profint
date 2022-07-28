@@ -30,8 +30,6 @@ type fskel =
   | Imp of form * form
   | Forall of ident * ty * form
   | Exists of ident * ty * form
-  | Pos_int of form * form
-  | Neg_int of form * form
 
 let expose (form : form) =
   match form with
@@ -47,10 +45,6 @@ let expose (form : form) =
       Imp (fa, fb)
   | App { head = Const (k, Arrow (ty, _)) ; spine = [t1 ; t2] } when k = k_eq ->
       Eq (t1, t2, ty)
-  | App { head = Const (k, _) ; spine = [fa ; fb] } when k = k_neg_int ->
-      Neg_int (fa, fb)
-  | App { head = Const (k, _) ; spine = [fa ; fb] } when k = k_pos_int ->
-      Pos_int (fa, fb)
   | App { head = Const (k, Arrow (Arrow (ty, _), _)) ;
          spine = [Abs { var ; body }] } when k = k_all ->
       Forall (var, ty, body)
@@ -62,30 +56,35 @@ let expose (form : form) =
 
 let ty_ooo = Arrow (ty_o, Arrow (ty_o, ty_o))
 
-let hide fsk =
-  match fsk with
-  | Atom f -> f
-  | Eq (t1, t2, ty) ->
-      App { head = Const (k_eq, Arrow (ty, Arrow (ty, ty_o))) ;
-           spine = [t1 ; t2] }
-  | And (fa, fb) ->
-      App { head = Const (k_and, ty_ooo) ; spine = [fa ; fb] }
-  | Top -> App { head = Const (k_top, ty_o) ; spine = [] }
-  | Neg_int (fa, fb) ->
-      App { head = Const (k_neg_int, ty_ooo) ; spine = [fa ; fb] }
-  | Or (fa, fb) ->
-      App { head = Const (k_or, ty_ooo) ; spine = [fa ; fb] }
-  | Bot -> App { head = Const (k_bot, ty_o) ; spine = [] }
-  | Imp (fa, fb) ->
-      App { head = Const (k_imp, ty_ooo) ; spine = [fa ; fb] }
-  | Pos_int (fa, fb) ->
-      App { head = Const (k_pos_int, ty_ooo) ; spine = [fa ; fb] }
-  | Forall (var, ty, body) ->
-      App { head = Const (k_all, Arrow (Arrow (ty, ty_o), ty_o)) ;
-           spine = [Abs { var ; body }] }
-  | Exists (var, ty, body) ->
-      App { head = Const (k_ex, Arrow (Arrow (ty, ty_o), ty_o)) ;
-           spine = [Abs { var ; body }] }
+let mk_eq t1 t2 ty =
+  App { head = Const (k_eq, Arrow (ty, Arrow (ty, ty_o))) ;
+        spine = [t1 ; t2] }
+let mk_and fa fb =
+  App { head = Const (k_and, ty_ooo) ; spine = [fa ; fb] }
+let mk_top = App { head = Const (k_top, ty_o) ; spine = [] }
+let mk_or fa fb =
+  App { head = Const (k_or, ty_ooo) ; spine = [fa ; fb] }
+let mk_bot = App { head = Const (k_bot, ty_o) ; spine = [] }
+let mk_imp fa fb =
+  App { head = Const (k_imp, ty_ooo) ; spine = [fa ; fb] }
+let mk_all var ty body =
+  App { head = Const (k_all, Arrow (Arrow (ty, ty_o), ty_o)) ;
+        spine = [Abs { var ; body }] }
+let mk_ex var ty body =
+  App { head = Const (k_ex, Arrow (Arrow (ty, ty_o), ty_o)) ;
+        spine = [Abs { var ; body }] }
+
+(* let hide__ fsk = *)
+(*   match fsk with *)
+(*   | Atom f -> f *)
+(*   | Eq (t1, t2, ty) -> mk_eq t1 t2 ty *)
+(*   | And (fa, fb) -> mk_and fa fb *)
+(*   | Top -> mk_top *)
+(*   | Or (fa, fb) -> mk_or fa fb *)
+(*   | Bot -> mk_bot *)
+(*   | Imp (fa, fb) -> mk_imp fa fb *)
+(*   | Forall (var, ty, body) -> mk_all var ty body *)
+(*   | Exists (var, ty, body) -> mk_ex var ty body *)
 
 (******************************************************************************)
 (* paths *)
@@ -136,21 +135,21 @@ let rec replace_at (src : form) (path : path) (repl : form) : form =
   | [] -> repl
   | dir :: path -> begin
       match expose src, dir with
-      | And (a, b), `l -> And (replace_at a path repl, b)
-      | And (a, b), `r -> And (a, replace_at b path repl)
-      | Or (a, b), `l -> Or (replace_at a path repl, b)
-      | Or (a, b), `r -> Or (a, replace_at b path repl)
-      | Imp (a, b), `l -> Imp (replace_at a path repl, b)
-      | Imp (a, b), `r -> Imp (a, replace_at b path repl)
+      | And (a, b), `l -> mk_and (replace_at a path repl) b
+      | And (a, b), `r -> mk_and a (replace_at b path repl)
+      | Or (a, b), `l -> mk_or (replace_at a path repl) b
+      | Or (a, b), `r -> mk_or a (replace_at b path repl)
+      | Imp (a, b), `l -> mk_imp (replace_at a path repl) b
+      | Imp (a, b), `r -> mk_imp a (replace_at b path repl)
       | Forall (_, ty, a), `i x
       | Forall (x, ty, a), `d ->
-          Forall (x, ty, replace_at a path repl)
+          mk_all x ty (replace_at a path repl)
       | Exists (_, ty, a), `i x
       | Exists (x, ty, a), `d ->
-          Exists (x, ty, replace_at a path repl)
+          mk_ex x ty (replace_at a path repl)
       | _ ->
           raise @@ Bad_direction { tycx = None ; form = src ; dir }
-    end |> hide
+    end
 
 (******************************************************************************)
 (* CoS rules *)
@@ -283,13 +282,12 @@ let rec compute_spine_congruence (ty : ty) (ss : spine) (ts : spine) : form =
   | Arrow (tya, ty), (s :: ss), (t :: tt) -> begin
       match ss, tt with
       | [], [] ->
-          Eq (s, t, tya) |> hide
+          mk_eq s t tya
       | _ ->
-          And (Eq (s, t, tya) |> hide,
-               compute_spine_congruence ty ss tt) |> hide
+          mk_and (mk_eq s t tya) (compute_spine_congruence ty ss tt)
     end
   | _, [], [] ->
-      hide Top
+      mk_top
   | _ ->
       raise @@ Bad_spines {ty ; ss ; ts}
 
@@ -305,68 +303,67 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
     | `r, Imp (a, f), Goal_ts_imp sel -> begin
         match expose f, sel with
         | Imp (b, f), `l ->
-            Imp (And (a, b) |> hide, f) |> hide
+            mk_imp (mk_and a b) f
         | Imp (f, b), `r ->
-            Imp (f, Imp (a, b) |> hide) |> hide
+            mk_imp f (mk_imp a b)
         | _ -> bad_match ()
       end
     | `r, Imp (f, b), Goal_imp_ts -> begin
         match expose f with
         | Imp (f, a) ->
-            And (f, Imp (a, b) |> hide) |> hide
+            mk_and f (mk_imp a b)
         | _ -> bad_match ()
       end
     | `r, Imp (a, f), Goal_ts_and sel -> begin
         match expose f, sel with
         | And (b, f), `l ->
-            And (Imp (a, b) |> hide, f) |> hide
+            mk_and (mk_imp a b) f
         | And (f, b), `r ->
-            And (f, Imp (a, b) |> hide) |> hide
+            mk_and f (mk_imp a b)
         | _ -> bad_match ()
       end
     | `r, Imp (f, b), Goal_and_ts sel -> begin
         match expose f, sel with
         | And (a, _), `l
         | And (_, a), `r ->
-            Imp (a, b) |> hide
+            mk_imp a b
         | _ -> bad_match ()
       end
     | `r, Imp (a, f), Goal_ts_or sel -> begin
         match expose f, sel with
         | Or (b, _), `l
         | Or (_, b), `r ->
-            Imp (a, b) |> hide
+            mk_imp a b
         | _ -> bad_match ()
       end
     | `r, Imp (f, b), Goal_or_ts -> begin
         match expose f with
         | Or (a1, a2) ->
-            And (Imp (a1, b) |> hide,
-                 Imp (a2, b) |> hide) |> hide
+            mk_and (mk_imp a1 b) (mk_imp a2 b)
         | _ -> bad_match ()
       end
     | `r, Imp (a, f), Goal_ts_all -> begin
         match expose f with
         | Forall (x, ty, b) ->
-            Forall (x, ty, Imp (shift 1 a, b) |> hide) |> hide
+            mk_all x ty (mk_imp (shift 1 a) b)
         | _ -> bad_match ()
       end
     | `r, Imp (f, b), Goal_all_ts -> begin
         match expose f with
         | Forall (x, ty, a) ->
-            Exists (x, ty, Imp (a, shift 1 b) |> hide) |> hide
+            mk_ex x ty (mk_imp a (shift 1 b))
         | _ -> bad_match ()
       end
     | `r, Imp (a, f), Goal_ts_ex -> begin
         match expose f with
         | Exists (x, ty, b) ->
-            Exists (x, ty, Imp (shift 1 a, b) |> hide) |> hide
+            mk_ex x ty (mk_imp (shift 1 a) b)
         | _ -> bad_match ()
       end
     | `r, Imp (f, b), Goal_ex_ts -> begin
         match expose f with
         | Exists (x, ty, a) ->
-            Forall (x, ty, Imp (a, shift 1 b) |> hide) |> hide
+            mk_all x ty (mk_imp a (shift 1 b))
         | _ -> bad_match ()
       end
     (* assumptions *)
@@ -374,70 +371,70 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
         match expose f, sel with
         | And (b, _), `l
         | And (_, b), `r ->
-            And (a, b) |> hide
+            mk_and a b
         | _ -> bad_match ()
       end
     | `l, And (f, b), Asms_and { minor = `r ; pick = sel } -> begin
         match expose f, sel with
         | And (a, _), `l
         | And (_, a), `r ->
-            And (a, b) |> hide
+            mk_and a b
         | _ -> bad_match ()
       end
     | `l, And (a, f), Asms_or { minor = `l ; pick = sel } -> begin
         match expose f, sel with
         | Or (b, f), `l ->
-            Or (And (a, b) |> hide, f) |> hide
+            mk_or (mk_and a b) f
         | Or (f, b), `r ->
-            Or (f, And (a, b) |> hide) |> hide
+            mk_or f (mk_and a b)
         | _ -> bad_match ()
       end
     | `l, And (f, b), Asms_or { minor = `r ; pick = sel } -> begin
         match expose f, sel with
         | Or (a, f), `l ->
-            Or (And (a, b) |> hide, f) |> hide
+            mk_or (mk_and a b) f
         | Or (f, a), `r ->
-            Or (f, And (a, b) |> hide) |> hide
+            mk_or f (mk_and a b)
         | _ -> bad_match ()
       end
     | `l, And (a, f), Asms_imp { minor = `l ; pick = sel } -> begin
         match expose f, sel with
         | Imp (b, f), `l ->
-            Imp (Imp (a, b) |> hide, f) |> hide
+            mk_imp (mk_imp a b) f
         | Imp (f, b), `r ->
-            Imp (f, And (a, b) |> hide) |> hide
+            mk_imp f (mk_and a b)
         | _ -> bad_match ()
       end
     | `l, And (f, b), Asms_imp { minor = `r ; pick = sel } -> begin
         match expose f, sel with
         | Imp (a, f), `l ->
-            Imp (Imp (b, a) |> hide, f) |> hide
+            mk_imp (mk_imp b a) f
         | Imp (f, a), `r ->
-            Imp (f, And (a, b) |> hide) |> hide
+            mk_imp f (mk_and a b)
         | _ -> bad_match ()
       end
     | `l, And (a, f), Asms_all { minor = `l } -> begin
         match expose f with
         | Forall (x, ty, b) ->
-            Forall (x, ty, And (shift 1 a, b) |> hide) |> hide
+            mk_all x ty (mk_and (shift 1 a) b)
         | _ -> bad_match ()
       end
     | `l, And (f, b), Asms_all { minor = `r } -> begin
         match expose f with
         | Forall (x, ty, a) ->
-            Forall (x, ty, And (a, shift 1 b) |> hide) |> hide
+            mk_all x ty (mk_and a (shift 1 b))
         | _ -> bad_match ()
       end
     | `l, And (a, f), Asms_ex { minor = `l } -> begin
         match expose f with
         | Exists (x, ty, b) ->
-            Exists (x, ty, And (shift 1 a, b) |> hide) |> hide
+            mk_ex x ty (mk_and (shift 1 a) b)
         | _ -> bad_match ()
       end
     | `l, And (f, b), Asms_ex { minor = `r } -> begin
         match expose f with
         | Exists (x, ty, a) ->
-            Exists (x, ty, And (a, shift 1 b) |> hide) |> hide
+            mk_ex x ty (mk_and a (shift 1 b))
         | _ -> bad_match ()
       end
     (* simplification *)
@@ -448,7 +445,7 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
       end
     | `r, Imp (f, _), Simp_false_imp -> begin
         match expose f with
-        | Bot -> hide Top
+        | Bot -> mk_top
         | _ -> bad_match ()
       end
     | `r, And (a, f), Simp_and_true `l
@@ -484,9 +481,9 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
         | _ -> bad_match ()
       end
     | `r, Imp (a, b), Contract ->
-        Imp (a, Imp (a, b) |> hide) |> hide
+        mk_imp a (mk_imp a b)
     | `l, _, Contract ->
-        And (fx.data, fx.data) |> hide
+        mk_and fx.data fx.data
     | `r, Imp (_, b), Weaken ->
         b
     | `r, Exists (x, ty, b), Inst wt ->
@@ -516,7 +513,7 @@ let rec recursive_simplify (fx : formx) (rpath : path) (side : side) emit =
       let a = recursive_simplify (a |@ fx) (`l :: rpath) side emit in
       let b = recursive_simplify (b |@ fx) (`r :: rpath) side emit in
       match side with
-      | `l -> And (a.data, b.data) |> hide |@ fx
+      | `l -> mk_and a.data b.data |@ fx
       | `r -> begin
           match expose a.data, expose b.data with
           | _, Top ->
@@ -524,14 +521,14 @@ let rec recursive_simplify (fx : formx) (rpath : path) (side : side) emit =
           | Top, _ ->
               emit { name = Simp_and_true `r ; path = List.rev rpath } ; b
           | _ ->
-              And (a.data, b.data) |> hide |@ fx
+              mk_and a.data b.data |@ fx
         end
     end
   | Or (a, b) -> begin
       let a = recursive_simplify (a |@ fx) (`l :: rpath) side emit in
       let b = recursive_simplify (b |@ fx) (`r :: rpath) side emit in
       match side with
-      | `l -> Or (a.data, b.data) |> hide |@ fx
+      | `l -> mk_or a.data b.data |@ fx
       | `r -> begin
           match expose a.data, expose b.data with
           | _, Top ->
@@ -539,23 +536,23 @@ let rec recursive_simplify (fx : formx) (rpath : path) (side : side) emit =
           | Top, _ ->
               emit { name = Simp_or_true `r ; path = List.rev rpath } ; a
           | _ ->
-              Or (a.data, b.data) |> hide |@ fx
+              mk_or a.data b.data |@ fx
         end
     end
   | Imp (a, b) -> begin
       let a = recursive_simplify (a |@ fx) (`l :: rpath) (flip side) emit in
       let b = recursive_simplify (b |@ fx) (`r :: rpath) side emit in
       match side with
-      | `l -> Imp (a.data, b.data) |> hide |@ fx
+      | `l -> mk_imp a.data b.data |@ fx
       | `r -> begin
           match expose a.data, expose b.data with
           | _, Top ->
               emit { name = Simp_imp_true ; path = List.rev rpath } ; b
           | Bot, _ ->
               emit { name = Simp_imp_true ; path = List.rev rpath } ;
-              Top |> hide |@ fx
+              mk_top |@ fx
           | _ ->
-              Imp (a.data, b.data) |> hide |@ fx
+              mk_imp a.data b.data |@ fx
         end
     end
   | Forall (x, ty, b) ->
@@ -563,25 +560,22 @@ let rec recursive_simplify (fx : formx) (rpath : path) (side : side) emit =
         let b = { tycx ; data = b } in
         let b = recursive_simplify b (`d :: rpath) side emit in
         match side with
-        | `l -> Forall (x, ty, b.data) |> hide |@ fx
+        | `l -> mk_all x ty b.data |@ fx
         | `r -> begin
             match expose b.data with
             | Top ->
                 emit { name = Simp_all_true ; path = List.rev rpath } ; b
             | _ ->
-                Forall (x, ty, b.data) |> hide |@ fx
+                mk_all x ty b.data |@ fx
           end
       end
   | Exists (x, ty, b) ->
       with_var ~fresh:true fx.tycx { var = x ; ty } begin fun tycx ->
         let b = { tycx ; data = b } in
         let b = recursive_simplify b (`d :: rpath) side emit in
-        Exists (x, ty, b.data) |> hide |@ fx
+        mk_ex x ty b.data |@ fx
       end
   | Atom _ | Eq _ | Top | Bot -> fx
-  | Pos_int _ | Neg_int _ ->
-      Printf.sprintf "Cannot simplify forms with interactions!\n%s"
-        (Term.term_to_string ~cx:fx.tycx fx.data) |> failwith
 
 (******************************************************************************)
 (* Testing *)
@@ -591,13 +585,6 @@ module Test = struct
   let a = App { head = Const ("a", ty_o) ; spine = [] }
   let b = App { head = Const ("b", ty_o) ; spine = [] }
   let c = App { head = Const ("c", ty_o) ; spine = [] }
-  let imp f g = Imp (f, g) |> hide
-  let conj f g = And (f, g) |> hide
-  let disj f g = Or (f, g) |> hide
-  let top = hide Top
-  let bot = hide Bot
-  let all x ty f = Forall (x, ty, f) |> hide
-  let ex x ty f = Exists (x, ty, f) |> hide
 
   let formx_to_string fx = Term.term_to_string ~cx:fx.tycx fx.data
 
@@ -624,7 +611,7 @@ module Test = struct
         compute_forms_simp simp_prem deriv ~hist:!hist
 
   let t1 () =
-    let kcomb = { tycx = empty ; data = imp a (imp b a) } in
+    let kcomb = { tycx = empty ; data = mk_imp a (mk_imp b a) } in
     let kderiv = [
       { name = Goal_ts_imp `r ; path = []   } ;
       { name = Init           ; path = [`r] } ;
@@ -632,7 +619,7 @@ module Test = struct
     compute_forms_simp kcomb kderiv
 
   let t2 () =
-    let s = imp (imp a (imp b c)) (imp (imp a b) (imp a c)) in
+    let s = mk_imp (mk_imp a (mk_imp b c)) (mk_imp (mk_imp a b) (mk_imp a c)) in
     let scomb = { tycx = empty ; data = s } in
     let sderiv = [
       { name = Contract ; path = [`r ; `r] } ;
@@ -657,10 +644,11 @@ module Test = struct
     let r x y = App { head = Const ("r", Arrow (ty_i, Arrow (ty_i, ty_o))) ;
                       spine = [x ; y] } in
     let dbx n = App { head = Index n ; spine = [] } in
-    let f = Imp (Exists ("x", ty_i,
-                         Forall ("y", ty_i, r (dbx 1) (dbx 0)) |> hide) |> hide,
-                 Forall ("y", ty_i,
-                         Exists ("x", ty_i, r (dbx 0) (dbx 1)) |> hide) |> hide) |> hide in
+    let f = mk_imp
+        (mk_ex "x" ty_i
+           (mk_all "y" ty_i (r (dbx 1) (dbx 0))))
+        (mk_all "y" ty_i
+           (mk_ex "x" ty_i (r (dbx 0) (dbx 1)))) in
     let fx = { tycx = empty ; data = f } in
     let deriv = [
       { name = Goal_ts_all ; path = [] } ;
@@ -681,13 +669,106 @@ type dmanip_rule =
   | Pristine
   | Point_form of path
   | Point_term of path
-  | Link_form of { parent : path ;
-                   src    : path ;
-                   dest   : path ;
-                   side   : side }
-  | Link_eq   of { parent : path ;
-                   src : path ;
+  | Link_form of { src    : path ;
+                   dest   : path }
+  | Link_eq   of { src : path ;
                    dest : path ;
                    side : side }
-  | Contract  of { where : path }
-  | Weaken    of { where : path }
+  | Contract  of path
+  | Weaken    of path
+
+exception Bad_pair of { src : path ; dest : path }
+
+let rec common_prefix ?(common = []) src dest =
+  match src, dest with
+  | d1 :: src, d2 :: dest when d1 = d2 ->
+      common_prefix ~common:(d1 :: common) src dest
+  | `l :: _, `r :: _ ->
+      (List.rev common, src, dest, `r)
+  | `r :: _, `l :: _ ->
+      (List.rev common, dest, src, `l)
+  | _ ->
+      raise @@ Bad_pair { src ; dest }
+
+type concl = {
+  (* goal : formx ;                (\* overall goal *\) *)
+  cpath : path ;                (* REVERSED path to fx *)
+  side : side ;                 (* which side is fx *)
+  fx : formx ;                  (* scrutinee *)
+  lpath : path ;                (* where to go in left subformula *)
+  rpath : path ;                (* where to go in right subformula *)
+  link_dir : side ;             (* `r : l->r, `l : r->l *)
+}
+
+type rule_result =
+  | Done
+  | Continue of concl
+
+exception Inapplicable
+let abort_if cond : unit = if cond then raise Inapplicable
+let abort_unless cond : unit = abort_if (not cond)
+let abort () = raise Inapplicable
+
+let try_goal_init ~emit concl =
+  abort_unless (concl.side = `r) ;
+  abort_unless (concl.lpath = [`l]) ;
+  abort_unless (concl.rpath = [`r]) ;
+  match expose concl.fx.data with
+  | Imp (App {head = Const (a1, _) ; spine = _},
+         App {head = Const (a2, _) ; spine = _})
+      when a1 = a2 && not (IdMap.mem a1 global_sig) ->
+        emit { name = Init ; path = List.rev concl.cpath } ;
+        Done
+  | _ -> abort ()
+
+let try_goal_ts_and ~emit concl =
+  abort_unless (concl.side = `r) ;
+  match expose concl.fx.data, concl.rpath with
+  | Imp (a, f), (`r :: rpath) -> begin
+      match expose f, rpath with
+      | And (b, f), (`l :: rpath) ->
+          emit { name = Goal_ts_and `l ; path = List.rev concl.rpath } ;
+          let fx = mk_and (mk_imp a b) f |@ concl.fx in
+          let cpath = `l :: concl.cpath in
+          let rpath = `r :: rpath in
+          Continue { concl with fx ; cpath ; rpath }
+      | And (f, b), (`r :: rpath) ->
+          emit { name = Goal_ts_and `r ; path = List.rev concl.rpath } ;
+          let fx = mk_and f (mk_imp a b) |@ concl.fx in
+          let cpath = `r :: concl.cpath in
+          let rpath = `r :: rpath in
+          Continue { concl with fx ; cpath ; rpath }
+      | _ -> abort ()
+    end
+  | _ -> abort ()
+
+(*
+
+exception Bad_link of { goal : formx ; mrule : dmanip_rule }
+
+let compute_derivation goal mrule emit =
+  let fail () = raise @@ Bad_link { goal ; mrule } in
+  match mrule with
+  | Pristine
+  | Point_form _
+  | Point_term _ ->
+      ()
+  | Contract path ->
+      emit { name = Contract ; path }
+  | Weaken path ->
+      emit { name = Weaken ; path }
+  | Link_eq _ ->
+      failwith "unfinished"
+  | Link_form { src ; dest } -> begin
+      let (common, src, dest) = common_prefix src dest in
+      let (fx, side) = formx_at goal common in
+      let (fx, side) = bring_together fx side src dest
+          (fun rule -> emit { rule with path = common @ rule.path }) in
+      match expose fx.data, side with
+      | Imp (a, b), `r ->
+          failwith "need to try init"
+      | _, `r -> fail ()
+      | _, `l -> ()
+    end
+
+*)
