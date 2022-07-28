@@ -12,6 +12,10 @@ type ty =
   | Arrow of ty * ty
   | Tyvar of {id : int ; mutable subst : ty option}
 
+let rec ty_norm = function
+  | Tyvar { subst = Some ty ; _ } -> ty_norm ty
+  | ty -> ty
+
 type poly_ty = {nvars : int ; ty : ty}
 
 type typed_var = {var : ident ; ty : ty}
