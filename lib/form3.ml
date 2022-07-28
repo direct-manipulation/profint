@@ -269,7 +269,7 @@ let rec leave context =
 let get_cx context : tycx =
   let rec spin cx frames =
     match frames with
-    | [] -> List.rev cx
+    | [] -> { cx with linear = List.rev cx.linear }
     | ( Left _ | Right _ ) :: frames ->
         spin cx frames
     | Down ff :: frames ->
@@ -277,14 +277,13 @@ let get_cx context : tycx =
           | Const (_, Arrow (Arrow (ty, _), _)) -> ty
           | _ -> traversal_failure ~context "recovering typing context"
         in
-        let cx = {var = ff.var ; ty = ty} :: cx in
-        spin cx frames
+        with_var cx { var = ff.var ; ty } (fun cx -> spin cx frames)
   in
-  spin [] context.frames
+  spin empty context.frames
 
 let k_cx = "\\cx"
 
-let rec form_to_exp ?(cx = []) form =
+let rec form_to_exp ?(cx = empty) form =
   let open Doc in
   match expose form with
   | Top ->
@@ -311,12 +310,14 @@ let rec form_to_exp ?(cx = []) form =
                        [form_to_exp ~cx fa ; form_to_exp ~cx fb]))
   | Forall (var, ty, body) ->
       let qstr = Printf.sprintf "\\A [%s:%s] " var (ty_to_string ty) in
-      Appl (5, Prefix (String qstr,
-                       form_to_exp ~cx:((var, ty) :: cx) body))
+      with_var cx { var ; ty } begin fun cx ->
+        Appl (5, Prefix (String qstr, form_to_exp ~cx body))
+      end
   | Exists (var, ty, body) ->
       let qstr = Printf.sprintf "\\E [%s:%s] " var (ty_to_string ty) in
-      Appl (5, Prefix (String qstr,
-                       form_to_exp ~cx:((var, ty) :: cx) body))
+      with_var cx { var ; ty } begin fun cx ->
+        Appl (5, Prefix (String qstr, form_to_exp ~cx body))
+      end
   | Atom f -> begin
       match f with
       | App {head = Const (k, _) ; spine = [f]} when k = k_cx ->
@@ -340,7 +341,7 @@ let fresh_id =
   let count = ref 0 in
   fun () -> incr count ; string_of_int !count
 
-let rec form_to_exp_html ?(cx = []) form =
+let rec form_to_exp_html ?(cx = empty) form =
   let open Doc in
   let e = match expose form with
     | Top ->
@@ -368,12 +369,14 @@ let rec form_to_exp_html ?(cx = []) form =
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Forall (var, ty, body) ->
         let qstr = Printf.sprintf "\\forall{%s{:}%s}.\\," var (ty_to_string ty) in
-        Appl (5, Prefix (StringAs (1, qstr),
-                         form_to_exp_html ~cx:((var, ty) :: cx) body))
+        with_var cx { var ; ty } begin fun cx ->
+          Appl (5, Prefix (StringAs (1, qstr), form_to_exp_html ~cx body))
+        end
     | Exists (var, ty, body) ->
         let qstr = Printf.sprintf "\\exists{%s{:}%s}.\\," var (ty_to_string ty) in
-        Appl (5, Prefix (StringAs (1, qstr),
-                         form_to_exp_html ~cx:((var, ty) :: cx) body))
+        with_var cx { var ; ty } begin fun cx ->
+          Appl (5, Prefix (StringAs (1, qstr), form_to_exp_html ~cx body))
+        end
     | Atom f -> begin
         match f with
         | App {head = Const (k, _) ; spine = [f]} when k = k_cx ->

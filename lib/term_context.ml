@@ -34,9 +34,11 @@ let down n context =
   | Abs {var ; body = term} when n = 0 -> begin
       match context.at.ty with
       | Arrow (var_ty, body_ty) ->
-          {tycx = {var ; ty = var_ty} :: context.tycx ;
-           at = {term ; ty = body_ty} ;
-           frames = Abs_frame :: context.frames}
+          with_var context.tycx {var ; ty = var_ty} begin fun tycx ->
+            {tycx ;
+             at = {term ; ty = body_ty} ;
+             frames = Abs_frame :: context.frames}
+          end
       | _ ->
           traversal_failure ~context "unknown type"
     end
@@ -108,13 +110,13 @@ let up context =
   in
   match context.frames with
   | Abs_frame :: frames -> begin
-      match context.tycx with
-      | {var ; ty} :: tycx ->
+      match last context.tycx with
+      | {var ; ty}, tycx ->
           let term = Abs {var ; body = context.at.term} in
           let ty = Arrow (ty, context.at.ty) in
           let at = {term ; ty} in
           {at ; tycx ; frames}
-      | _ ->
+      | exception Not_found ->
           traversal_failure ~context "up: bas_frame"
     end
   | Func_frame {spine} :: frames ->
@@ -133,7 +135,7 @@ let up context =
   | [] ->
       traversal_failure ~context "up"
 
-let enter tterm = { at = tterm ; tycx = [] ; frames = [] }
+let enter tterm = { at = tterm ; tycx = empty ; frames = [] }
 
 let rec leave context =
   match context.frames with

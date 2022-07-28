@@ -92,7 +92,7 @@ let hide fsk =
 (******************************************************************************)
 (* paths *)
 
-type dir = [`l | `r | `i of ident]
+type dir = [`l | `r | `i of ident | `d]
 type path = dir list
 
 type side = [`l | `r]
@@ -117,8 +117,12 @@ let rec get_at ?(side = `r) tycx form (path : path) k =
       | Imp (_, form), `r ->
           get_at ~side tycx form path k
       | Forall (_, ty, form), `i x
-      | Exists (_, ty, form), `i x ->
-          get_at ~side ({ var = x ; ty : ty } :: tycx) form path k
+      | Forall (x, ty, form), `d
+      | Exists (_, ty, form), `i x
+      | Exists (x, ty, form), `d ->
+          with_var tycx {var = x ; ty} begin fun tycx ->
+            get_at ~side tycx form path k
+          end
       | _ ->
           raise @@ Bad_direction { tycx = Some tycx ; form ; dir }
     end
@@ -140,9 +144,11 @@ let rec replace_at (src : form) (path : path) (repl : form) : form =
       | Or (a, b), `r -> Or (a, replace_at b path repl)
       | Imp (a, b), `l -> Imp (replace_at a path repl, b)
       | Imp (a, b), `r -> Imp (a, replace_at b path repl)
-      | Forall (_, ty, a), `i x ->
+      | Forall (_, ty, a), `i x
+      | Forall (x, ty, a), `d ->
           Forall (x, ty, replace_at a path repl)
-      | Exists (_, ty, a), `i x ->
+      | Exists (_, ty, a), `i x
+      | Exists (x, ty, a), `d ->
           Exists (x, ty, replace_at a path repl)
       | _ ->
           raise @@ Bad_direction { tycx = None ; form = src ; dir }
@@ -200,6 +206,94 @@ and cos_rule = {
   name : cos_rule_name ;
   path : path ;
 }
+
+let side_to_string (side : side) =
+  match side with
+  | `l -> "l"
+  | `r -> "r"
+
+let pp_rule_name ?(cx = empty) out rn =
+  match rn with
+  | Goal_ts_imp side ->
+      Format.fprintf out "goal_ts_imp_%s" (side_to_string side)
+  | Goal_imp_ts ->
+      Format.fprintf out "goal_imp_ts"
+  | Goal_ts_and side ->
+      Format.fprintf out "goal_ts_and_%s" (side_to_string side)
+  | Goal_and_ts side ->
+      Format.fprintf out "goal_and_ts_%s" (side_to_string side)
+  | Goal_ts_or  side ->
+      Format.fprintf out "goal_ts_or_%s" (side_to_string side)
+  | Goal_or_ts ->
+      Format.fprintf out "goal_or_ts"
+  | Goal_ts_all ->
+      Format.fprintf out "goal_ts_all"
+  | Goal_all_ts ->
+      Format.fprintf out "goal_all_ts"
+  | Goal_ts_ex ->
+      Format.fprintf out "goal_ts_ex"
+  | Goal_ex_ts ->
+      Format.fprintf out "goal_ex_ts"
+  | Asms_and { minor ; pick } ->
+      Format.fprintf out "asms_and_%s_%s"
+        (side_to_string minor) (side_to_string pick)
+  | Asms_or  { minor ; pick } ->
+      Format.fprintf out "asms_or_%s_%s"
+        (side_to_string minor) (side_to_string pick)
+  | Asms_imp { minor ; pick } ->
+      Format.fprintf out "asms_imp_%s_%s"
+        (side_to_string minor) (side_to_string pick)
+  | Asms_all { minor } ->
+      Format.fprintf out "asms_all_%s"
+        (side_to_string minor)
+  | Asms_ex  { minor } ->
+      Format.fprintf out "asms_ex_%s"
+        (side_to_string minor)
+  | Simp_imp_true ->
+      Format.fprintf out "simp_imp_true"
+  | Simp_false_imp ->
+      Format.fprintf out "simp_false_imp"
+  | Simp_and_true side ->
+      Format.fprintf out "simp_and_true_%s"
+        (side_to_string side)
+  | Simp_or_true side ->
+      Format.fprintf out "simp_or_true_%s"
+        (side_to_string side)
+  | Simp_all_true ->
+      Format.fprintf out "simp_all_true"
+  | Init ->
+      Format.fprintf out "init"
+  | Congr ->
+      Format.fprintf out "congr"
+  | Contract ->
+      Format.fprintf out "contract"
+  | Weaken ->
+      Format.fprintf out "weaken"
+  | Inst term ->
+      Format.fprintf out "inst[@[%a@]]" (Term.pp_term ~cx) term
+
+let rec pp_path out (path : path) =
+  match path with
+  | [] -> ()
+  | [`l] -> Format.fprintf out "l"
+  | [`r] -> Format.fprintf out "r"
+  | [`i x] -> Format.fprintf out "i %s" x
+  | [`d] -> Format.fprintf out "d"
+  | dir :: (_ :: _ as path) ->
+      Format.fprintf out "%a, %a" pp_path [dir] pp_path path
+
+let pp_rule out goalx rule =
+  let (fx, _) = formx_at goalx rule.path in
+  Format.fprintf out "@[%a :: %a@]"
+    pp_path rule.path
+    (pp_rule_name ~cx:fx.tycx) rule.name
+
+let rule_to_string goalx rule =
+  let buf = Buffer.create 19 in
+  let out = Format.formatter_of_buffer buf in
+  pp_rule out goalx rule ;
+  Format.pp_print_flush out () ;
+  Buffer.contents buf
 
 exception Bad_spines of {ty : ty ; ss : spine ; ts : spine}
 
@@ -421,3 +515,86 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
     | _ -> bad_match ()
   in
   { goal with data = replace_at goal.data rule.path c }
+
+module Test = struct
+
+  let a = App { head = Const ("a", ty_o) ; spine = [] }
+  let b = App { head = Const ("b", ty_o) ; spine = [] }
+  let c = App { head = Const ("c", ty_o) ; spine = [] }
+  let imp f g = Imp (f, g) |> hide
+  let conj f g = And (f, g) |> hide
+  let disj f g = Or (f, g) |> hide
+  let top = hide Top
+  let bot = hide Bot
+  let all x ty f = Forall (x, ty, f) |> hide
+  let ex x ty f = Exists (x, ty, f) |> hide
+
+  let formx_to_string fx = Term.term_to_string ~cx:fx.tycx fx.data
+
+  let rec compute_forms ?(hist = []) goal deriv =
+    match deriv with
+    | [] -> formx_to_string goal :: hist
+    | rule :: deriv ->
+        let prem = compute_premise goal rule in
+        compute_forms prem deriv
+          ~hist:(rule_to_string goal rule :: formx_to_string goal :: hist)
+
+  let t1 () =
+    let kcomb = { tycx = empty ; data = imp a (imp b a) } in
+    let kderiv = [
+      { name = Goal_ts_imp `r ; path = []   } ;
+      { name = Init           ; path = [`r] } ;
+      { name = Simp_imp_true  ; path = []   } ;
+    ] in
+    compute_forms kcomb kderiv
+
+  let t2 () =
+    let s = imp (imp a (imp b c)) (imp (imp a b) (imp a c)) in
+    let scomb = { tycx = empty ; data = s } in
+    let sderiv = [
+      { name = Contract ; path = [`r ; `r] } ;
+      { name = Goal_ts_imp `l ; path = [`r] } ;
+      { name = Asms_imp { minor = `r ; pick = `l } ; path = [`r ; `l] } ;
+      { name = Init ; path = [`r ; `l ; `l] } ;
+      { name = Goal_ts_imp `r ; path = [] } ;
+      { name = Goal_ts_imp `r ; path = [`r] } ;
+      { name = Goal_imp_ts ; path = [`r ; `r] } ;
+      { name = Goal_imp_ts ; path = [`r ; `r ; `r] } ;
+      { name = Init ; path = [`r ; `r ; `r ; `r] } ;
+      { name = Simp_and_true `l ; path = [`r ; `r ; `r] } ;
+      { name = Goal_imp_ts ; path = [] } ;
+      { name = Simp_and_true `r ; path = [] } ;
+      { name = Goal_ts_imp `r ; path = [] } ;
+      { name = Goal_ts_and `r ; path = [`r] } ;
+      { name = Goal_ts_and `l ; path = [] } ;
+      { name = Init ; path = [`l] } ;
+      { name = Simp_and_true `r ; path = [] } ;
+      { name = Init ; path = [] } ;
+    ] in
+    compute_forms scomb sderiv
+
+  let t3 () =
+    let r x y = App { head = Const ("r", Arrow (ty_i, Arrow (ty_i, ty_o))) ;
+                      spine = [x ; y] } in
+    let dbx n = App { head = Index n ; spine = [] } in
+    let f = Imp (Exists ("x", ty_i,
+                         Forall ("y", ty_i, r (dbx 1) (dbx 0)) |> hide) |> hide,
+                 Forall ("y", ty_i,
+                         Exists ("x", ty_i, r (dbx 0) (dbx 1)) |> hide) |> hide) |> hide in
+    let fx = { tycx = empty ; data = f } in
+    let deriv = [
+      { name = Goal_ts_all ; path = [] } ;
+      { name = Goal_ex_ts ; path = [`d] } ;
+      { name = Goal_ts_ex ; path = [`d ; `d] } ;
+      { name = Goal_all_ts ; path = [`d ; `d ; `d] } ;
+      { name = Init ; path = [`d ; `d ; `d ; `d] } ;
+      { name = Inst (dbx 0) ; path = [`i "u" ; `d] } ;
+      { name = Inst (dbx 1) ; path = [`d ; `d] } ;
+      { name = Congr ; path = [`d ; `d ; `l] } ;
+      { name = Simp_and_true `r ; path = [`d ; `d] } ;
+      { name = Congr ; path = [`d ; `d] } ;
+      { name = Simp_all_true ; path = [`d] } ;
+      { name = Simp_all_true ; path = [] } ;
+    ] in
+    compute_forms fx deriv
+end

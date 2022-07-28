@@ -48,10 +48,10 @@ let local_sig : poly_ty IdMap.t ref = ref IdMap.empty
 let rec tygen ~emit (cx : tycx) tm ty_expected =
   match tm with
   | Idx n ->
-      emit (List.nth cx n).ty ty_expected ;
+      emit (List.nth cx.linear n).ty ty_expected ;
       Idx n
   | Var x -> begin
-      match tyget cx x with
+      match tyget cx.linear x with
       | (n, ty) ->
           emit ty ty_expected ;
           Idx n
@@ -85,9 +85,12 @@ let rec tygen ~emit (cx : tycx) tm ty_expected =
         | None -> fresh_tyvar ()
       in
       let tyres = fresh_tyvar () in
-      let bod = tygen ~emit ({var = x ; ty = tyarg} :: cx) bod tyres in
-      emit (Arrow (tyarg, tyres)) ty_expected ;
-      Abs (x, xty, bod)
+      with_var cx { var = x ; ty = tyarg } begin fun cx ->
+        let bod = tygen ~emit cx bod tyres in
+        emit (Arrow (tyarg, tyres)) ty_expected ;
+        let xv = last_var cx in
+        Abs (xv.var, xty, bod)
+      end
 
 and tyget ?(depth = 0) cx x =
   match cx with
@@ -189,11 +192,11 @@ let ty_of_string str =
   thing_of_string Proprs.one_ty str
   |> norm_ty
 
-let term_of_string ?(cx = []) str =
+let term_of_string ?(cx = empty) str =
   thing_of_string Proprs.one_term str
   |> ty_check cx
 
-let form_of_string ?(cx = []) str =
+let form_of_string ?(cx = empty) str =
   let t = thing_of_string Proprs.one_form str in
   let f, ty = ty_check cx t in
   if ty <> ty_o then

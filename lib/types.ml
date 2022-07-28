@@ -16,11 +16,6 @@ let rec ty_norm = function
   | Tyvar { subst = Some ty ; _ } -> ty_norm ty
   | ty -> ty
 
-type poly_ty = {nvars : int ; ty : ty}
-
-type typed_var = {var : ident ; ty : ty}
-type tycx = typed_var list
-
 let rec ty_to_exp ty =
   match ty with
   | Basic a -> Doc.(Atom (String a))
@@ -53,6 +48,8 @@ let k_neg_int = "\\circ"
 
 let ty_o  = Basic "\\o"
 let ty_i  = Basic "\\i"
+
+type poly_ty = {nvars : int ; ty : ty}
 
 let global_sig : poly_ty IdMap.t =
   let vnum n = Tyvar {id = n ; subst = None} in
@@ -105,3 +102,44 @@ module T = struct
     | Shift of int
     | Dot of sub * term
 end
+
+type typed_var = {
+  var : ident ;
+  ty : ty
+}
+type tycx = {
+  linear : typed_var list ;
+  used : IdSet.t ;
+}
+
+let empty = {
+  linear = [] ;
+  used = IdSet.empty ;
+}
+
+let[@inline] salt v k =
+  if k = 0 then v else v ^ "_" ^ string_of_int k
+
+let with_var tycx tv go =
+  let rec freshen v k =
+    let vk = salt v k in
+    if IdSet.mem vk tycx.used then freshen v (k + 1) else vk
+  in
+  let var = freshen tv.var 0 in
+  let used = IdSet.add var tycx.used in
+  let linear = { tv with var } :: tycx.linear in
+  go {linear ; used}
+
+let last_var tycx = List.hd tycx.linear
+
+let last tycx =
+  match tycx.linear with
+  | [] -> raise Not_found
+  | tv :: linear ->
+      (tv, { linear ; used = IdSet.remove tv.var tycx.used })
+
+let last_opt tycx =
+  match tycx.linear with
+  | [] -> None
+  | tv :: linear ->
+      Some (tv, { linear ; used = IdSet.remove tv.var tycx.used })

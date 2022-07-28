@@ -1,6 +1,6 @@
 (library
   (name profint)
-  (libraries containers)
+  ; (libraries containers)
   ;  (preprocess (pps ppx_deriving.show))
 )
 
