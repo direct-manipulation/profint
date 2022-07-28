@@ -14,8 +14,6 @@ type 'a incx = {
   data : 'a ;
  }
 
-let (@>) th cx = { cx with data = th }
-
 type form = term
 type formx = form incx
 
@@ -153,24 +151,6 @@ let rec replace_at (src : form) (path : path) (repl : form) : form =
       | _ ->
           raise @@ Bad_direction { tycx = None ; form = src ; dir }
     end |> hide
-
-(******************************************************************************)
-(* Direct Manipulation Rules *)
-
-type dmanip_rule =
-  | Pristine
-  | Point_form of path
-  | Point_term of path
-  | Link_form of { parent : path ;
-                   src    : path ;
-                   dest   : path ;
-                   side   : side }
-  | Link_eq   of { parent : path ;
-                   src : path ;
-                   dest : path ;
-                   side : side }
-  | Contract  of { where : path }
-  | Weaken    of { where : path }
 
 (******************************************************************************)
 (* CoS rules *)
@@ -516,6 +496,96 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
   in
   { goal with data = replace_at goal.data rule.path c }
 
+(******************************************************************************)
+(* Formula Simplification *)
+
+let ( |@ ) f th = { th with data = f }
+
+let rec recursive_simplify (fx : formx) (rpath : path) (side : side) emit =
+  match expose fx.data with
+  | Eq (s, t, _) when side = `r -> begin
+      match s, t with
+      | App { head = f ; spine = ss },
+        App { head = g ; spine = ts } when Term.eq_head f g ->
+          emit { name = Congr ; path = List.rev rpath } ;
+          let res = compute_spine_congruence (Term.ty_infer fx.tycx f) ss ts in
+          recursive_simplify (res |@ fx) rpath side emit
+      | _ -> fx
+    end
+  | And (a, b) -> begin
+      let a = recursive_simplify (a |@ fx) (`l :: rpath) side emit in
+      let b = recursive_simplify (b |@ fx) (`r :: rpath) side emit in
+      match side with
+      | `l -> And (a.data, b.data) |> hide |@ fx
+      | `r -> begin
+          match expose a.data, expose b.data with
+          | _, Top ->
+              emit { name = Simp_and_true `l ; path = List.rev rpath } ; a
+          | Top, _ ->
+              emit { name = Simp_and_true `r ; path = List.rev rpath } ; b
+          | _ ->
+              And (a.data, b.data) |> hide |@ fx
+        end
+    end
+  | Or (a, b) -> begin
+      let a = recursive_simplify (a |@ fx) (`l :: rpath) side emit in
+      let b = recursive_simplify (b |@ fx) (`r :: rpath) side emit in
+      match side with
+      | `l -> Or (a.data, b.data) |> hide |@ fx
+      | `r -> begin
+          match expose a.data, expose b.data with
+          | _, Top ->
+              emit { name = Simp_or_true `l ; path = List.rev rpath } ; b
+          | Top, _ ->
+              emit { name = Simp_or_true `r ; path = List.rev rpath } ; a
+          | _ ->
+              Or (a.data, b.data) |> hide |@ fx
+        end
+    end
+  | Imp (a, b) -> begin
+      let a = recursive_simplify (a |@ fx) (`l :: rpath) (flip side) emit in
+      let b = recursive_simplify (b |@ fx) (`r :: rpath) side emit in
+      match side with
+      | `l -> Imp (a.data, b.data) |> hide |@ fx
+      | `r -> begin
+          match expose a.data, expose b.data with
+          | _, Top ->
+              emit { name = Simp_imp_true ; path = List.rev rpath } ; b
+          | Bot, _ ->
+              emit { name = Simp_imp_true ; path = List.rev rpath } ;
+              Top |> hide |@ fx
+          | _ ->
+              Imp (a.data, b.data) |> hide |@ fx
+        end
+    end
+  | Forall (x, ty, b) ->
+      with_var ~fresh:true fx.tycx { var = x ; ty } begin fun tycx ->
+        let b = { tycx ; data = b } in
+        let b = recursive_simplify b (`d :: rpath) side emit in
+        match side with
+        | `l -> Forall (x, ty, b.data) |> hide |@ fx
+        | `r -> begin
+            match expose b.data with
+            | Top ->
+                emit { name = Simp_all_true ; path = List.rev rpath } ; b
+            | _ ->
+                Forall (x, ty, b.data) |> hide |@ fx
+          end
+      end
+  | Exists (x, ty, b) ->
+      with_var ~fresh:true fx.tycx { var = x ; ty } begin fun tycx ->
+        let b = { tycx ; data = b } in
+        let b = recursive_simplify b (`d :: rpath) side emit in
+        Exists (x, ty, b.data) |> hide |@ fx
+      end
+  | Atom _ | Eq _ | Top | Bot -> fx
+  | Pos_int _ | Neg_int _ ->
+      Printf.sprintf "Cannot simplify forms with interactions!\n%s"
+        (Term.term_to_string ~cx:fx.tycx fx.data) |> failwith
+
+(******************************************************************************)
+(* Testing *)
+
 module Test = struct
 
   let a = App { head = Const ("a", ty_o) ; spine = [] }
@@ -539,14 +609,27 @@ module Test = struct
         compute_forms prem deriv
           ~hist:(rule_to_string goal rule :: formx_to_string goal :: hist)
 
+  let rec compute_forms_simp ?(hist = []) goal deriv =
+    match deriv with
+    | [] -> formx_to_string goal :: hist
+    | rule :: deriv ->
+        let prem = ref @@ compute_premise goal rule in
+        let hist = ref @@ rule_to_string goal rule :: formx_to_string goal :: hist in
+        let emit rule =
+          hist := formx_to_string !prem :: !hist ;
+          hist := rule_to_string !prem rule :: !hist ;
+          prem := compute_premise !prem rule
+        in
+        let simp_prem = recursive_simplify !prem [] `r emit in
+        compute_forms_simp simp_prem deriv ~hist:!hist
+
   let t1 () =
     let kcomb = { tycx = empty ; data = imp a (imp b a) } in
     let kderiv = [
       { name = Goal_ts_imp `r ; path = []   } ;
       { name = Init           ; path = [`r] } ;
-      { name = Simp_imp_true  ; path = []   } ;
     ] in
-    compute_forms kcomb kderiv
+    compute_forms_simp kcomb kderiv
 
   let t2 () =
     let s = imp (imp a (imp b c)) (imp (imp a b) (imp a c)) in
@@ -561,17 +644,14 @@ module Test = struct
       { name = Goal_imp_ts ; path = [`r ; `r] } ;
       { name = Goal_imp_ts ; path = [`r ; `r ; `r] } ;
       { name = Init ; path = [`r ; `r ; `r ; `r] } ;
-      { name = Simp_and_true `l ; path = [`r ; `r ; `r] } ;
       { name = Goal_imp_ts ; path = [] } ;
-      { name = Simp_and_true `r ; path = [] } ;
       { name = Goal_ts_imp `r ; path = [] } ;
       { name = Goal_ts_and `r ; path = [`r] } ;
       { name = Goal_ts_and `l ; path = [] } ;
       { name = Init ; path = [`l] } ;
-      { name = Simp_and_true `r ; path = [] } ;
       { name = Init ; path = [] } ;
     ] in
-    compute_forms scomb sderiv
+    compute_forms_simp scomb sderiv
 
   let t3 () =
     let r x y = App { head = Const ("r", Arrow (ty_i, Arrow (ty_i, ty_o))) ;
@@ -588,13 +668,26 @@ module Test = struct
       { name = Goal_ts_ex ; path = [`d ; `d] } ;
       { name = Goal_all_ts ; path = [`d ; `d ; `d] } ;
       { name = Init ; path = [`d ; `d ; `d ; `d] } ;
-      { name = Inst (dbx 0) ; path = [`i "u" ; `d] } ;
+      { name = Inst (dbx 0) ; path = [`d ; `d] } ;
       { name = Inst (dbx 1) ; path = [`d ; `d] } ;
-      { name = Congr ; path = [`d ; `d ; `l] } ;
-      { name = Simp_and_true `r ; path = [`d ; `d] } ;
-      { name = Congr ; path = [`d ; `d] } ;
-      { name = Simp_all_true ; path = [`d] } ;
-      { name = Simp_all_true ; path = [] } ;
     ] in
-    compute_forms fx deriv
+    compute_forms_simp fx deriv
 end
+
+(******************************************************************************)
+(* Direct Manipulation Rules *)
+
+type dmanip_rule =
+  | Pristine
+  | Point_form of path
+  | Point_term of path
+  | Link_form of { parent : path ;
+                   src    : path ;
+                   dest   : path ;
+                   side   : side }
+  | Link_eq   of { parent : path ;
+                   src : path ;
+                   dest : path ;
+                   side : side }
+  | Contract  of { where : path }
+  | Weaken    of { where : path }
