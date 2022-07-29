@@ -610,17 +610,19 @@ module Test = struct
         let simp_prem = recursive_simplify !prem [] `r emit in
         compute_forms_simp simp_prem deriv ~hist:!hist
 
+ let kcomb = { tycx = empty ; data = mk_imp a (mk_imp b a) }
+
   let t1 () =
-    let kcomb = { tycx = empty ; data = mk_imp a (mk_imp b a) } in
     let kderiv = [
       { name = Goal_ts_imp `r ; path = []   } ;
       { name = Init           ; path = [`r] } ;
     ] in
     compute_forms_simp kcomb kderiv
 
+  let scomb = { tycx = empty ;
+                data = mk_imp (mk_imp a (mk_imp b c)) (mk_imp (mk_imp a b) (mk_imp a c)) }
+
   let t2 () =
-    let s = mk_imp (mk_imp a (mk_imp b c)) (mk_imp (mk_imp a b) (mk_imp a c)) in
-    let scomb = { tycx = empty ; data = s } in
     let sderiv = [
       { name = Contract ; path = [`r ; `r] } ;
       { name = Goal_ts_imp `l ; path = [`r] } ;
@@ -640,16 +642,19 @@ module Test = struct
     ] in
     compute_forms_simp scomb sderiv
 
-  let t3 () =
-    let r x y = App { head = Const ("r", Arrow (ty_i, Arrow (ty_i, ty_o))) ;
-                      spine = [x ; y] } in
-    let dbx n = App { head = Index n ; spine = [] } in
-    let f = mk_imp
+  let r x y = App { head = Const ("r", Arrow (ty_i, Arrow (ty_i, ty_o))) ;
+                    spine = [x ; y] }
+  let dbx n = App { head = Index n ; spine = [] }
+
+  let qexch = {
+    tycx = empty ;
+    data = mk_imp
         (mk_ex "x" ty_i
            (mk_all "y" ty_i (r (dbx 1) (dbx 0))))
         (mk_all "y" ty_i
-           (mk_ex "x" ty_i (r (dbx 0) (dbx 1)))) in
-    let fx = { tycx = empty ; data = f } in
+           (mk_ex "x" ty_i (r (dbx 0) (dbx 1)))) }
+
+  let t3 () =
     let deriv = [
       { name = Goal_ts_all ; path = [] } ;
       { name = Goal_ex_ts ; path = [`d] } ;
@@ -659,243 +664,5 @@ module Test = struct
       { name = Inst (dbx 0) ; path = [`d ; `d] } ;
       { name = Inst (dbx 1) ; path = [`d ; `d] } ;
     ] in
-    compute_forms_simp fx deriv
+    compute_forms_simp qexch deriv
 end
-
-(******************************************************************************)
-(* Direct Manipulation Rules *)
-
-type dmanip_rule =
-  | Pristine
-  | Point_form of path
-  | Point_term of path
-  | Link_form of { src    : path ;
-                   dest   : path }
-  | Link_eq   of { src : path ;
-                   dest : path ;
-                   side : side }
-  | Contract  of path
-  | Weaken    of path
-
-exception Bad_pair of { src : path ; dest : path }
-
-let rec common_prefix ?(common = []) src dest =
-  match src, dest with
-  | d1 :: src, d2 :: dest when d1 = d2 ->
-      common_prefix ~common:(d1 :: common) src dest
-  | `l :: _, `r :: _ ->
-      (List.rev common, src, dest, `r)
-  | `r :: _, `l :: _ ->
-      (List.rev common, dest, src, `l)
-  | _ ->
-      raise @@ Bad_pair { src ; dest }
-
-type concl = {
-  (* goal : formx ;                (\* overall goal *\) *)
-  cpath : path ;                (* REVERSED path to fx *)
-  side : side ;                 (* which side is fx *)
-  fx : formx ;                  (* scrutinee *)
-  lpath : path ;                (* where to go in left subformula *)
-  rpath : path ;                (* where to go in right subformula *)
-  link_dir : side ;             (* `r : l->r, `l : r->l *)
-}
-
-type rule_result =
-  | Done
-  | Continue of concl
-
-exception Inapplicable
-let abort_if cond : unit = if cond then raise Inapplicable
-let abort_unless cond : unit = abort_if (not cond)
-let abort () = raise Inapplicable
-
-let try_goal_init ~emit concl =
-  abort_unless (concl.side = `r) ;
-  abort_unless (concl.lpath = [`l]) ;
-  abort_unless (concl.rpath = [`r]) ;
-  match expose concl.fx.data with
-  | Imp (App {head = Const (a1, _) ; spine = _},
-         App {head = Const (a2, _) ; spine = _})
-      when a1 = a2 && not (IdMap.mem a1 global_sig) ->
-        emit { name = Init ; path = List.rev concl.cpath } ;
-        Done
-  | _ -> abort ()
-
-let try_goal_ts_and ~emit concl =
-  abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.rpath with
-  | Imp (a, f), (`r :: rpath) -> begin
-      match expose f, rpath with
-      | And (b, f), (`l :: rpath) ->
-          emit { name = Goal_ts_and `l ; path = List.rev concl.cpath } ;
-          let fx = mk_and (mk_imp a b) f |@ concl.fx in
-          let cpath = `l :: concl.cpath in
-          let rpath = `r :: rpath in
-          Continue { concl with fx ; cpath ; rpath }
-      | And (f, b), (`r :: rpath) ->
-          emit { name = Goal_ts_and `r ; path = List.rev concl.cpath } ;
-          let fx = mk_and f (mk_imp a b) |@ concl.fx in
-          let cpath = `r :: concl.cpath in
-          let rpath = `r :: rpath in
-          Continue { concl with fx ; cpath ; rpath }
-      | _ -> abort ()
-    end
-  | _ -> abort ()
-
-let try_goal_and_ts ~emit concl =
-  abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.lpath with
-  | Imp (f, b), (`l :: lpath) -> begin
-      match expose f, lpath with
-      | And (a, _), (`l as dir :: lpath)
-      | And (_, a), (`r as dir :: lpath) ->
-          emit { name = Goal_and_ts dir ; path = List.rev concl.cpath } ;
-          let fx = mk_imp a b |@ concl.fx in
-          let cpath = `l :: concl.cpath in
-          let lpath = `l :: lpath in
-          Continue { concl with fx ; cpath ; lpath }
-      | _ -> abort ()
-    end
-  | _ -> abort ()
-
-let try_goal_ts_or ~emit concl =
-  abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.rpath with
-  | Imp (a, f), (`r :: rpath) -> begin
-      match expose f, rpath with
-      | Or (b, _), (`l as dir :: rpath)
-      | Or (_, b), (`r as dir :: rpath) ->
-          emit { name = Goal_ts_or dir ; path = List.rev concl.cpath } ;
-          let fx = mk_imp a b |@ concl.fx in
-          let cpath = `r :: concl.cpath in
-          let rpath = `r :: rpath in
-          Continue { concl with fx ; cpath ; rpath }
-      | _ -> abort ()
-    end
-  | _ -> abort ()
-
-let try_goal_or_ts ~emit concl =
-  abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.lpath with
-  | Imp (f, b), (`l :: lpath) -> begin
-      match expose f, lpath with
-      | Or (a, _), (`l as dir :: lpath)
-      | Or (_, a), (`r as dir :: lpath) ->
-          emit { name = Goal_or_ts ; path = List.rev concl.cpath } ;
-          let fx = (mk_imp a b) |@ concl.fx in
-          let cpath = dir :: concl.cpath in
-          let lpath = `l :: lpath in
-          Continue { concl with fx ; cpath ; lpath }
-      | _ -> abort ()
-    end
-  | _ -> abort ()
-
-let try_goal_ts_imp ~emit concl =
-  abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.rpath with
-  | Imp (a, f), (`r :: rpath) -> begin
-      match expose f, rpath with
-      | Imp (b, _), (`l :: rpath) ->
-          emit { name = Goal_ts_imp `l ; path = List.rev concl.cpath } ;
-          let fx = mk_and a b |@ concl.fx in
-          let side = flip concl.side in
-          let cpath = `l :: concl.cpath in
-          let rpath = `r :: rpath in
-          Continue { concl with fx ; side ; cpath ; rpath }
-      | Imp (_, b), (`r :: rpath) ->
-          emit { name = Goal_ts_imp `r ; path = List.rev concl.cpath } ;
-          let fx = mk_imp a b |@ concl.fx in
-          let cpath = `r :: concl.cpath in
-          let rpath = `r :: rpath in
-          Continue { concl with fx ; cpath ; rpath }
-      | _ -> abort ()
-    end
-  | _ -> abort ()
-
-let try_goal_imp_ts ~emit concl =
-  abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.lpath with
-  | Imp (f, b), (`l :: lpath) -> begin
-      match expose f, lpath with
-      | Imp (_, a), (`r :: lpath) ->
-          emit { name = Goal_imp_ts ; path = List.rev concl.cpath } ;
-          let fx = mk_imp a b |@ concl.fx in
-          let cpath = `r :: concl.cpath in
-          let lpath = `l :: lpath in
-          Continue { concl with fx ; cpath ; lpath }
-      | _ -> abort ()
-    end
-  | _ -> abort ()
-
-let try_goal_ts_allex ~emit concl =
-  abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.rpath with
-  | Imp (a, f), (`r :: rpath) -> begin
-      match expose f, rpath with
-      | (Forall (var, ty, b) as fexp), (`d :: rpath)
-      | (Exists (var, ty, b) as fexp), (`d :: rpath) ->
-          with_var concl.fx.tycx { var ; ty } begin fun tycx ->
-            let name = match fexp with
-              | Forall _ -> Goal_ts_all
-              | _ -> Goal_ts_ex in
-            emit { name ; path = List.rev concl.cpath } ;
-            let fx = { data = mk_imp (shift 1 a) b ; tycx } in
-            let cpath = `d :: concl.cpath in
-            let rpath = `r :: rpath in
-            Continue { concl with fx ; cpath ; rpath }
-          end
-      | _ -> abort ()
-    end
-  | _ -> abort ()
-
-let try_goal_allex_ts ~emit concl =
-  abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.lpath with
-  | Imp (f, b), (`l :: lpath) -> begin
-      match expose f, lpath with
-      | (Forall (var, ty, a) as fexp), (`d :: lpath)
-      | (Exists (var, ty, a) as fexp), (`d :: lpath) ->
-          with_var concl.fx.tycx { var ; ty } begin fun tycx ->
-            let name = match fexp with
-              | Forall _ -> Goal_all_ts
-              | _ -> Goal_ex_ts in
-            emit { name ; path = List.rev concl.cpath } ;
-            let fx = { data = mk_imp a (shift 1 b) ; tycx } in
-            let cpath = `d :: concl.cpath in
-            let lpath = `l :: lpath in
-            Continue { concl with fx ; cpath ; lpath }
-          end
-      | _ -> abort ()
-    end
-  | _ -> abort ()
-
-(*
-
-exception Bad_link of { goal : formx ; mrule : dmanip_rule }
-
-let compute_derivation goal mrule emit =
-  let fail () = raise @@ Bad_link { goal ; mrule } in
-  match mrule with
-  | Pristine
-  | Point_form _
-  | Point_term _ ->
-      ()
-  | Contract path ->
-      emit { name = Contract ; path }
-  | Weaken path ->
-      emit { name = Weaken ; path }
-  | Link_eq _ ->
-      failwith "unfinished"
-  | Link_form { src ; dest } -> begin
-      let (common, src, dest) = common_prefix src dest in
-      let (fx, side) = formx_at goal common in
-      let (fx, side) = bring_together fx side src dest
-          (fun rule -> emit { rule with path = common @ rule.path }) in
-      match expose fx.data, side with
-      | Imp (a, b), `r ->
-          failwith "need to try init"
-      | _, `r -> fail ()
-      | _, `l -> ()
-    end
-
-*)
