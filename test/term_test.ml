@@ -25,7 +25,7 @@ module Terms = struct
                       (app1 (index 0) (index 0)))
 end
 
-let test_type_check term ty _test_cx = assert_equal (Term.ty_check [] term ty) ()
+let test_type_check term ty _test_cx = assert_equal (Term.ty_check empty term ty) ()
 
 let tests =
   "Term" >::: [

@@ -33,32 +33,32 @@ let abort () = raise Inapplicable
 
 let try_goal_init ~emit concl =
   abort_unless (concl.side = `r) ;
-  abort_unless (concl.lpath = [`l]) ;
-  abort_unless (concl.rpath = [`r]) ;
+  abort_unless (concl.lpath = Q.of_list [`l]) ;
+  abort_unless (concl.rpath = Q.of_list [`r]) ;
   match expose concl.fx.data with
   | Imp (App {head = Const (a1, _) ; spine = _},
          App {head = Const (a2, _) ; spine = _})
       when a1 = a2 && not (IdMap.mem a1 global_sig) ->
-        emit { name = Init ; path = List.rev concl.cpath } ;
+        emit { name = Init ; path = concl.cpath } ;
         Done
   | _ -> abort ()
 
 let try_goal_ts_and ~emit concl =
   abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.rpath with
-  | Imp (a, f), (`r :: rpath) -> begin
-      match expose f, rpath with
-      | And (b, f), (`l :: rpath) ->
-          emit { name = Goal_ts_and `l ; path = List.rev concl.cpath } ;
+  match expose concl.fx.data, Q.take_front concl.rpath with
+  | Imp (a, f), Some (`r, rpath) -> begin
+      match expose f, Q.take_front rpath with
+      | And (b, f), Some (`l, rpath) ->
+          emit { name = Goal_ts_and `l ; path = concl.cpath } ;
           let fx = mk_and (mk_imp a b) f |@ concl.fx in
-          let cpath = `l :: concl.cpath in
-          let rpath = `r :: rpath in
+          let cpath = Q.snoc concl.cpath `l in
+          let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
-      | And (f, b), (`r :: rpath) ->
-          emit { name = Goal_ts_and `r ; path = List.rev concl.cpath } ;
+      | And (f, b), Some (`r, rpath) ->
+          emit { name = Goal_ts_and `r ; path = concl.cpath } ;
           let fx = mk_and f (mk_imp a b) |@ concl.fx in
-          let cpath = `r :: concl.cpath in
-          let rpath = `r :: rpath in
+          let cpath = Q.snoc concl.cpath `r in
+          let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
     end
@@ -66,15 +66,15 @@ let try_goal_ts_and ~emit concl =
 
 let try_goal_and_ts ~emit concl =
   abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.lpath with
-  | Imp (f, b), (`l :: lpath) -> begin
-      match expose f, lpath with
-      | And (a, _), (`l as dir :: lpath)
-      | And (_, a), (`r as dir :: lpath) ->
-          emit { name = Goal_and_ts dir ; path = List.rev concl.cpath } ;
+  match expose concl.fx.data, Q.take_front concl.lpath with
+  | Imp (f, b), Some (`l, lpath) -> begin
+      match expose f, Q.take_front lpath with
+      | And (a, _), Some (`l as dir, lpath)
+      | And (_, a), Some (`r as dir, lpath) ->
+          emit { name = Goal_and_ts dir ; path = concl.cpath } ;
           let fx = mk_imp a b |@ concl.fx in
-          let cpath = `l :: concl.cpath in
-          let lpath = `l :: lpath in
+          let cpath = Q.snoc concl.cpath `l in
+          let lpath = Q.cons `l lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
     end
@@ -82,15 +82,15 @@ let try_goal_and_ts ~emit concl =
 
 let try_goal_ts_or ~emit concl =
   abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.rpath with
-  | Imp (a, f), (`r :: rpath) -> begin
-      match expose f, rpath with
-      | Or (b, _), (`l as dir :: rpath)
-      | Or (_, b), (`r as dir :: rpath) ->
-          emit { name = Goal_ts_or dir ; path = List.rev concl.cpath } ;
+  match expose concl.fx.data, Q.take_front concl.rpath with
+  | Imp (a, f), Some (`r, rpath) -> begin
+      match expose f, Q.take_front rpath with
+      | Or (b, _), Some (`l as dir, rpath)
+      | Or (_, b), Some (`r as dir, rpath) ->
+          emit { name = Goal_ts_or dir ; path = concl.cpath } ;
           let fx = mk_imp a b |@ concl.fx in
-          let cpath = `r :: concl.cpath in
-          let rpath = `r :: rpath in
+          let cpath = Q.snoc concl.cpath `r in
+          let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
     end
@@ -98,15 +98,15 @@ let try_goal_ts_or ~emit concl =
 
 let try_goal_or_ts ~emit concl =
   abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.lpath with
-  | Imp (f, b), (`l :: lpath) -> begin
-      match expose f, lpath with
-      | Or (a, _), (`l as dir :: lpath)
-      | Or (_, a), (`r as dir :: lpath) ->
-          emit { name = Goal_or_ts ; path = List.rev concl.cpath } ;
+  match expose concl.fx.data, Q.take_front concl.lpath with
+  | Imp (f, b), Some (`l, lpath) -> begin
+      match expose f, Q.take_front lpath with
+      | Or (a, _), Some (`l as dir, lpath)
+      | Or (_, a), Some (`r as dir, lpath) ->
+          emit { name = Goal_or_ts ; path = concl.cpath } ;
           let fx = (mk_imp a b) |@ concl.fx in
-          let cpath = dir :: concl.cpath in
-          let lpath = `l :: lpath in
+          let cpath =Q.snoc concl.cpath  dir in
+          let lpath = Q.cons `l lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
     end
@@ -114,21 +114,21 @@ let try_goal_or_ts ~emit concl =
 
 let try_goal_ts_imp ~emit concl =
   abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.rpath with
-  | Imp (a, f), (`r :: rpath) -> begin
-      match expose f, rpath with
-      | Imp (b, _), (`l :: rpath) ->
-          emit { name = Goal_ts_imp `l ; path = List.rev concl.cpath } ;
+  match expose concl.fx.data, Q.take_front concl.rpath with
+  | Imp (a, f), Some (`r, rpath) -> begin
+      match expose f, Q.take_front rpath with
+      | Imp (b, _), Some (`l, rpath) ->
+          emit { name = Goal_ts_imp `l ; path = concl.cpath } ;
           let fx = mk_and a b |@ concl.fx in
           let side = flip concl.side in
-          let cpath = `l :: concl.cpath in
-          let rpath = `r :: rpath in
+          let cpath = Q.snoc concl.cpath `l in
+          let rpath = Q.cons `r rpath in
           Continue { concl with fx ; side ; cpath ; rpath }
-      | Imp (_, b), (`r :: rpath) ->
-          emit { name = Goal_ts_imp `r ; path = List.rev concl.cpath } ;
+      | Imp (_, b), Some (`r, rpath) ->
+          emit { name = Goal_ts_imp `r ; path = concl.cpath } ;
           let fx = mk_imp a b |@ concl.fx in
-          let cpath = `r :: concl.cpath in
-          let rpath = `r :: rpath in
+          let cpath = Q.snoc concl.cpath `r in
+          let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
     end
@@ -136,14 +136,14 @@ let try_goal_ts_imp ~emit concl =
 
 let try_goal_imp_ts ~emit concl =
   abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.lpath with
-  | Imp (f, b), (`l :: lpath) -> begin
-      match expose f, lpath with
-      | Imp (_, a), (`r :: lpath) ->
-          emit { name = Goal_imp_ts ; path = List.rev concl.cpath } ;
+  match expose concl.fx.data, Q.take_front concl.lpath with
+  | Imp (f, b), Some (`l, lpath) -> begin
+      match expose f, Q.take_front lpath with
+      | Imp (_, a), Some (`r, lpath) ->
+          emit { name = Goal_imp_ts ; path = concl.cpath } ;
           let fx = mk_imp a b |@ concl.fx in
-          let cpath = `r :: concl.cpath in
-          let lpath = `l :: lpath in
+          let cpath = Q.snoc concl.cpath `r in
+          let lpath = Q.cons `l lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
     end
@@ -159,18 +159,18 @@ let is_exists = function
 
 let try_goal_ts_allex ~qsel ~emit concl =
   abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.rpath with
-  | Imp (a, f), (`r :: rpath) -> begin
-      match expose f, rpath with
-      | (Forall (var, ty, b) as fexp), (`d :: rpath)
-      | (Exists (var, ty, b) as fexp), (`d :: rpath)
+  match expose concl.fx.data, Q.take_front concl.rpath with
+  | Imp (a, f), Some (`r, rpath) -> begin
+      match expose f, Q.take_front rpath with
+      | (Forall (vty, b) as fexp), Some (`d, rpath)
+      | (Exists (vty, b) as fexp), Some (`d, rpath)
         when qsel fexp ->
-          with_var concl.fx.tycx { var ; ty } begin fun tycx ->
+          with_var concl.fx.tycx vty begin fun tycx ->
             let name = if is_forall fexp then Goal_ts_all else Goal_ts_ex in
-            emit { name ; path = List.rev concl.cpath } ;
+            emit { name ; path = concl.cpath } ;
             let fx = { data = mk_imp (shift 1 a) b ; tycx } in
-            let cpath = `d :: concl.cpath in
-            let rpath = `r :: rpath in
+            let cpath = Q.snoc concl.cpath `d in
+            let rpath = Q.cons `r rpath in
             Continue { concl with fx ; cpath ; rpath }
           end
       | _ -> abort ()
@@ -179,65 +179,70 @@ let try_goal_ts_allex ~qsel ~emit concl =
 
 let try_goal_allex_ts ~qsel ~emit concl =
   abort_unless (concl.side = `r) ;
-  match expose concl.fx.data, concl.lpath with
-  | Imp (f, b), (`l :: lpath) -> begin
-      match expose f, lpath with
-      | (Forall (var, ty, a) as fexp), (`d :: lpath)
-      | (Exists (var, ty, a) as fexp), (`d :: lpath)
+  match expose concl.fx.data, Q.take_front concl.lpath with
+  | Imp (f, b), Some (`l, lpath) -> begin
+      match expose f, Q.take_front lpath with
+      | (Forall (vty, a) as fexp), Some (`d, lpath)
+      | (Exists (vty, a) as fexp), Some (`d, lpath)
         when qsel fexp ->
-          with_var concl.fx.tycx { var ; ty } begin fun tycx ->
+          with_var concl.fx.tycx vty begin fun tycx ->
             let name = if is_forall fexp then Goal_all_ts else Goal_ex_ts in
-            emit { name ; path = List.rev concl.cpath } ;
+            emit { name ; path = concl.cpath } ;
             let fx = { data = mk_imp a (shift 1 b) ; tycx } in
-            let cpath = `d :: concl.cpath in
-            let lpath = `l :: lpath in
+            let cpath = Q.snoc concl.cpath `d in
+            let lpath = Q.cons `l lpath in
             Continue { concl with fx ; cpath ; lpath }
           end
       | _ -> abort ()
     end
   | _ -> abort ()
 
+let single_l : path = Q.singleton `l
+let single_r : path = Q.singleton `r
+
 let can_descend (dir : side) concl =
   match dir, concl.link_dir with
   | `l, `l ->
       (* descend left on r2l links unless already at dest *)
-      concl.lpath <> [`l]
+      concl.lpath <> single_l
   | `l, `r ->
       (* descend left on l2r links only if already at dest *)
-      concl.rpath = [`r]
+      concl.rpath = single_r
   | `r, `l ->
       (* descend right on r2l links only if already at dest *)
-      concl.lpath = [`l]
+      concl.lpath = single_l
   | `r, `r ->
       (* descend right on l2r links unless already at dest *)
-      concl.rpath <> [`r]
+      concl.rpath <> single_r
 
 let try_asms_and ~emit concl =
   abort_unless (concl.side = `l) ;
-  match expose concl.fx.data, concl.lpath, concl.rpath with
-  | And (f, b), (`l :: lpath), _
+  match expose concl.fx.data,
+        Q.take_front concl.lpath,
+        Q.take_front concl.rpath with
+  | And (f, b), Some (`l, lpath), _
     when can_descend `l concl -> begin
-      match expose f, lpath with
-      | And (a, _), (`l as dir :: lpath)
-      | And (_, a), (`r as dir :: lpath) ->
+      match expose f, Q.take_front lpath with
+      | And (a, _), Some (`l as dir, lpath)
+      | And (_, a), Some (`r as dir, lpath) ->
           emit { name = Asms_and { minor = `r ; pick = dir } ;
-                 path = List.rev concl.cpath } ;
+                 path = concl.cpath } ;
           let fx = mk_and a b |@ concl.fx in
           (* cpath unchanged *)
-          let lpath = `l :: lpath in
+          let lpath = Q.cons `l lpath in
           Continue { concl with fx ; lpath }
       | _ -> abort ()
     end
-  | And (a, f), _, (`r :: rpath)
+  | And (a, f), _, Some (`r, rpath)
     when can_descend `r concl -> begin
-      match expose f, rpath with
-      | And (b, _), (`l as dir :: rpath)
-      | And (_, b), (`r as dir :: rpath) ->
+      match expose f, Q.take_front rpath with
+      | And (b, _), Some (`l as dir, rpath)
+      | And (_, b), Some (`r as dir, rpath) ->
           emit { name = Asms_and { minor = `l ; pick = dir } ;
-                 path = List.rev concl.cpath } ;
+                 path = concl.cpath } ;
           let fx = mk_and a b |@ concl.fx in
           (* cpath unchanged *)
-          let rpath = `r :: rpath in
+          let rpath = Q.cons `r rpath in
           Continue { concl with fx ; rpath }
       | _ -> abort ()
     end
@@ -245,30 +250,32 @@ let try_asms_and ~emit concl =
 
 let try_asms_or ~emit concl =
   abort_unless (concl.side = `l) ;
-  match expose concl.fx.data, concl.lpath, concl.rpath with
-  | And (f, b), (`l :: lpath), _
+  match expose concl.fx.data,
+        Q.take_front concl.lpath,
+        Q.take_front concl.rpath with
+  | And (f, b), Some (`l, lpath), _
     when can_descend `l concl -> begin
-      match expose f, lpath with
-      | Or (a, _), (`l as dir :: lpath)
-      | Or (_, a), (`r as dir :: lpath) ->
+      match expose f, Q.take_front lpath with
+      | Or (a, _), Some (`l as dir, lpath)
+      | Or (_, a), Some (`r as dir, lpath) ->
           emit { name = Asms_or { minor = `r ; pick = dir } ;
-                 path = List.rev concl.cpath } ;
+                 path = concl.cpath } ;
           let fx = mk_and a b |@ concl.fx in
-          let cpath = dir :: concl.cpath in
-          let lpath = `l :: lpath in
+          let cpath =Q.snoc concl.cpath  dir in
+          let lpath = Q.cons `l lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
     end
-  | And (a, f), _, (`r :: rpath)
+  | And (a, f), _, Some (`r, rpath)
     when can_descend `r concl -> begin
-      match expose f, rpath with
-      | Or (b, _), (`l as dir :: rpath)
-      | Or (_, b), (`r as dir :: rpath) ->
+      match expose f, Q.take_front rpath with
+      | Or (b, _), Some (`l as dir, rpath)
+      | Or (_, b), Some (`r as dir, rpath) ->
           emit { name = Asms_or { minor = `l ; pick = dir } ;
-                 path = List.rev concl.cpath } ;
+                 path = concl.cpath } ;
           let fx = mk_and a b |@ concl.fx in
-          let cpath = dir :: concl.cpath in
-          let rpath = `r :: rpath in
+          let cpath =Q.snoc concl.cpath  dir in
+          let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
     end
@@ -276,45 +283,47 @@ let try_asms_or ~emit concl =
 
 let try_asms_imp ~emit concl =
   abort_unless (concl.side = `l) ;
-  match expose concl.fx.data, concl.lpath, concl.rpath with
-  | And (f, b), (`l :: lpath), _
+  match expose concl.fx.data,
+        Q.take_front concl.lpath,
+        Q.take_front concl.rpath with
+  | And (f, b), Some (`l, lpath), _
     when can_descend `l concl -> begin
-      match expose f, lpath with
-      | Imp (a, _), (`l :: lpath) ->
+      match expose f, Q.take_front lpath with
+      | Imp (a, _), Some (`l, lpath) ->
           emit { name = Asms_imp { minor = `r ; pick = `l } ;
-                 path = List.rev concl.cpath } ;
+                 path = concl.cpath } ;
           let fx = mk_imp b a |@ concl.fx in
           let side = flip concl.side in
-          let cpath = `l :: concl.cpath in
-          let rpath = `r :: lpath in
-          let lpath = `l :: List.tl concl.rpath in
+          let cpath = Q.snoc concl.cpath `l in
+          let rpath = Q.cons `r lpath in
+          let lpath = Q.cons `l (Q.take_front_exn concl.rpath |> snd) in
           Continue { concl with fx ; side ; cpath ; lpath ; rpath }
-      | Imp (_, a), (`r :: lpath) ->
+      | Imp (_, a), Some (`r, lpath) ->
           emit { name = Asms_imp { minor = `r ; pick = `r } ;
-                 path = List.rev concl.cpath } ;
+                 path = concl.cpath } ;
           let fx = mk_and a b |@ concl.fx in
-          let cpath = `r :: concl.cpath in
-          let lpath = `l :: lpath in
+          let cpath = Q.snoc concl.cpath `r in
+          let lpath = Q.cons `l lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
     end
-  | And (a, f), _, (`r :: rpath)
+  | And (a, f), _, Some (`r, rpath)
     when can_descend `r concl -> begin
-      match expose f, rpath with
-      | Imp (b, _), (`l :: rpath) ->
+      match expose f, Q.take_front rpath with
+      | Imp (b, _), Some (`l, rpath) ->
           emit { name = Asms_imp { minor = `l ; pick = `l } ;
-                 path = List.rev concl.cpath } ;
+                 path = concl.cpath } ;
           let fx = mk_imp a b |@ concl.fx in
           let side = flip concl.side in
-          let cpath = `l :: concl.cpath in
-          let rpath = `r :: rpath in
+          let cpath = Q.snoc concl.cpath `l in
+          let rpath = Q.cons `r rpath in
           Continue { concl with fx ; side ; cpath ; rpath }
-      | Imp (_, b), (`r :: rpath) ->
+      | Imp (_, b), Some (`r, rpath) ->
           emit { name = Asms_imp { minor = `l ; pick = `r } ;
-                 path = List.rev concl.cpath } ;
+                 path = concl.cpath } ;
           let fx = mk_and a b |@ concl.fx in
-          let cpath = `r :: concl.cpath in
-          let rpath = `r :: rpath in
+          let cpath = Q.snoc concl.cpath `r in
+          let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
     end
@@ -322,39 +331,41 @@ let try_asms_imp ~emit concl =
 
 let try_asms_allex ~emit concl =
   abort_unless (concl.side = `l) ;
-  match expose concl.fx.data, concl.lpath, concl.rpath with
-  | And (f, b), (`l :: lpath), _
+  match expose concl.fx.data,
+        Q.take_front concl.lpath,
+        Q.take_front concl.rpath with
+  | And (f, b), Some (`l, lpath), _
     when can_descend `l concl -> begin
-      match expose f, lpath with
-      | (Forall (var, ty, a) as fexp), (`d :: lpath)
-      | (Exists (var, ty, a) as fexp), (`d :: lpath) ->
-          with_var concl.fx.tycx { var ; ty } begin fun tycx ->
+      match expose f, Q.take_front lpath with
+      | (Forall (vty, a) as fexp), Some (`d, lpath)
+      | (Exists (vty, a) as fexp), Some (`d, lpath) ->
+          with_var concl.fx.tycx vty begin fun tycx ->
             let name = match fexp with
               | Forall _ -> Asms_all { minor = `r }
               | _ -> Asms_ex { minor = `r }
             in
-            emit { name ; path = List.rev concl.cpath } ;
+            emit { name ; path = concl.cpath } ;
             let fx = { data = mk_and a (shift 1 b) ; tycx } in
-            let cpath = `d :: concl.cpath in
-            let lpath = `l :: lpath in
+            let cpath = Q.snoc concl.cpath `d in
+            let lpath = Q.cons `l lpath in
             Continue { concl with fx ; cpath ; lpath }
           end
       | _ -> abort ()
     end
-  | And (a, f), _, (`r :: rpath)
+  | And (a, f), _, Some (`r, rpath)
     when can_descend `r concl -> begin
-      match expose f, rpath with
-      | (Forall (var, ty, b) as fexp), (`d :: rpath)
-      | (Exists (var, ty, b) as fexp), (`d :: rpath) ->
-          with_var concl.fx.tycx { var ; ty } begin fun tycx ->
+      match expose f, Q.take_front rpath with
+      | (Forall (vty, b) as fexp), Some (`d, rpath)
+      | (Exists (vty, b) as fexp), Some (`d, rpath) ->
+          with_var concl.fx.tycx vty begin fun tycx ->
             let name = match fexp with
               | Forall _ -> Asms_all { minor = `l }
               | _ -> Asms_ex { minor = `l }
             in
-            emit { name ; path = List.rev concl.cpath } ;
+            emit { name ; path = concl.cpath } ;
             let fx = { data = mk_and (shift 1 a) b ; tycx } in
-            let cpath = `d :: concl.cpath in
-            let rpath = `r :: rpath in
+            let cpath = Q.snoc concl.cpath `d in
+            let rpath = Q.cons `r rpath in
             Continue { concl with fx ; cpath ; rpath }
           end
       | _ -> abort ()
@@ -403,12 +414,11 @@ let rec spin_rules ~emit concl =
 type dmanip_rule =
   | Pristine
   | Point_form of path
-  | Point_term of path
-  | Link_form of { src    : path ;
-                   dest   : path }
-  | Link_eq   of { src : path ;
-                   dest : path ;
-                   side : side }
+  (* | Point_term of path *)
+  | Link_form of { src   : path ;
+                   dest  : path }
+  (* | Link_eq   of { src : path ; *)
+  (*                  dest : path } *)
   | Contract  of path
   | Weaken    of path
 
@@ -416,36 +426,34 @@ exception Bad_link of { goal : formx ; mrule : dmanip_rule }
 
 let compute_derivation ~emit goal mrule =
   let fail () = raise @@ Bad_link { goal ; mrule } in
-  let rec analyze_link src dest =
-    match src, dest with
-    | (ds :: src), (dd :: dest) when ds = dd ->
-        let (cpath, lpath, rpath, ldir) = analyze_link src dest in
-        (ds :: cpath, lpath, rpath, ldir)
-    | (ds :: _), (dd :: _) ->
+  let rec analyze_link cpath src dest =
+    match Q.take_front src, Q.take_front dest with
+    | Some (ds, src), Some (dd, dest) when ds = dd ->
+        analyze_link (Q.snoc cpath ds) src dest
+    | Some (ds, _), Some (dd, _) ->
         if ds = `l && dd = `r then
-          ([], src, dest, `r)
+          (cpath, src, dest, `r)
         else if ds = `r && dd = `l then
-          ([], dest, src, `l)
+          (cpath, dest, src, `l)
         else fail ()
     | _ -> fail ()
   in
   match mrule with
   | Pristine
   | Point_form _
-  | Point_term _ ->
-      ()
+  (* | Point_term _ *)
+    -> ()
   | Contract path ->
       emit { name = Contract ; path }
   | Weaken path ->
       emit { name = Weaken ; path }
-  | Link_eq _ ->
-      failwith "unfinished"
   | Link_form { src ; dest } -> begin
-      let (cpath, lpath, rpath, link_dir) = analyze_link src dest in
-      let (fx, side) = formx_at goal (List.rev cpath) in
+      let (cpath, lpath, rpath, link_dir) = analyze_link Q.empty src dest in
+      let (fx, side) = formx_at goal cpath in
       let concl = { cpath ; fx ; side ; lpath ; rpath ; link_dir } in
       spin_rules ~emit concl
     end
+  (* | Link_eq _ -> failwith "unfinished" *)
 
 (******************************************************************************)
 (* Testing *)
@@ -457,8 +465,8 @@ module Test = struct
     let deriv = ref [] in
     let emit rule = deriv := rule :: !deriv in
     compute_derivation ~emit scomb @@ Link_form {
-      src = [`l ; `r ; `r] ;
-      dest = [`r ; `r ; `r] ;
+      src = Q.of_list [`l ; `r ; `r] ;
+      dest = Q.of_list [`r ; `r ; `r] ;
     } ;
     compute_forms_simp scomb (List.rev !deriv)
 
@@ -466,8 +474,8 @@ module Test = struct
     let deriv = ref [] in
     let emit rule = deriv := rule :: !deriv in
     compute_derivation ~emit qexch @@ Link_form {
-      src = [`l ; `d ; `d] ;
-      dest = [`r ; `d ; `d] ;
+      src = Q.of_list [`l ; `d ; `d] ;
+      dest = Q.of_list [`r ; `d ; `d] ;
     } ;
     compute_forms_simp qexch (List.rev !deriv)
 end

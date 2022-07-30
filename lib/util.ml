@@ -50,3 +50,6 @@ let range ?(step = 1) x y =
   if step >= 0
   then range_up step x y
   else range_down step x y
+
+module Q = CCFQueue
+type 'a q = 'a Q.t

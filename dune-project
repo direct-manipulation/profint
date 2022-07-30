@@ -22,7 +22,7 @@
  (synopsis "Profound: Intuitionistic Version")
  (depends
   (ocaml (>= 4.12))
-;  (containers (>= 3.8))
+  (containers-data (>= 3.8))
   (ounit2 (>= 2.2.6))
   (js_of_ocaml (>= 3.9.0))
   (js_of_ocaml-ppx (>= 4.0.0))))

@@ -21,15 +21,15 @@ type formx = form incx
 (* formula views *)
 
 type fskel =
-  | Atom of term
-  | Eq of term * term * ty
-  | And of form * form
+  | Atom   of term
+  | Eq     of term * term * ty
+  | And    of form * form
   | Top
-  | Or of form * form
+  | Or     of form * form
   | Bot
-  | Imp of form * form
-  | Forall of ident * ty * form
-  | Exists of ident * ty * form
+  | Imp    of form * form
+  | Forall of typed_var * form
+  | Exists of typed_var * form
 
 let expose (form : form) =
   match form with
@@ -47,10 +47,10 @@ let expose (form : form) =
       Eq (t1, t2, ty)
   | App { head = Const (k, Arrow (Arrow (ty, _), _)) ;
          spine = [Abs { var ; body }] } when k = k_all ->
-      Forall (var, ty, body)
+      Forall ({ var ; ty }, body)
   | App { head = Const (k, Arrow (Arrow (ty, _), _)) ;
          spine = [Abs { var ; body }] } when k = k_ex ->
-      Exists (var, ty, body)
+      Exists ({ var ; ty }, body)
   | _ ->
       Atom form
 
@@ -67,30 +67,18 @@ let mk_or fa fb =
 let mk_bot = App { head = Const (k_bot, ty_o) ; spine = [] }
 let mk_imp fa fb =
   App { head = Const (k_imp, ty_ooo) ; spine = [fa ; fb] }
-let mk_all var ty body =
-  App { head = Const (k_all, Arrow (Arrow (ty, ty_o), ty_o)) ;
-        spine = [Abs { var ; body }] }
-let mk_ex var ty body =
-  App { head = Const (k_ex, Arrow (Arrow (ty, ty_o), ty_o)) ;
-        spine = [Abs { var ; body }] }
-
-(* let hide__ fsk = *)
-(*   match fsk with *)
-(*   | Atom f -> f *)
-(*   | Eq (t1, t2, ty) -> mk_eq t1 t2 ty *)
-(*   | And (fa, fb) -> mk_and fa fb *)
-(*   | Top -> mk_top *)
-(*   | Or (fa, fb) -> mk_or fa fb *)
-(*   | Bot -> mk_bot *)
-(*   | Imp (fa, fb) -> mk_imp fa fb *)
-(*   | Forall (var, ty, body) -> mk_all var ty body *)
-(*   | Exists (var, ty, body) -> mk_ex var ty body *)
+let mk_all vty body =
+  App { head = Const (k_all, Arrow (Arrow (vty.ty, ty_o), ty_o)) ;
+        spine = [Abs { var = vty.var ; body }] }
+let mk_ex vty body =
+  App { head = Const (k_ex, Arrow (Arrow (vty.ty, ty_o), ty_o)) ;
+        spine = [Abs { var = vty.var ; body }] }
 
 (******************************************************************************)
 (* paths *)
 
 type dir = [`l | `r | `i of ident | `d]
-type path = dir list
+type path = dir q
 
 type side = [`l | `r]
 
@@ -100,9 +88,9 @@ let flip (p : side) =
 exception Bad_direction of { tycx : tycx option ; form : form ; dir : dir }
 
 let rec get_at ?(side = `r) tycx form (path : path) k =
-  match path with
-  | [] -> k tycx form side
-  | dir :: path -> begin
+  match Q.take_front_exn path with
+  | exception Q.Empty -> k tycx form side
+  | dir, path -> begin
       match expose form, dir with
       | And (form, _), `l
       | Or (form, _), `l ->
@@ -113,10 +101,10 @@ let rec get_at ?(side = `r) tycx form (path : path) k =
       | Or (_, form), `r
       | Imp (_, form), `r ->
           get_at ~side tycx form path k
-      | Forall (_, ty, form), `i x
-      | Forall (x, ty, form), `d
-      | Exists (_, ty, form), `i x
-      | Exists (x, ty, form), `d ->
+      | Forall ({ ty ; _ }, form), `i x
+      | Forall ({ var = x ; ty }, form), `d
+      | Exists ({ ty ; _ }, form), `i x
+      | Exists ({ var = x ; ty }, form), `d ->
           with_var tycx {var = x ; ty} begin fun tycx ->
             get_at ~side tycx form path k
           end
@@ -131,9 +119,9 @@ let side_at ?side tycx form path =
   get_at ?side tycx form path (fun _ _ side -> side)
 
 let rec replace_at (src : form) (path : path) (repl : form) : form =
-  match path with
-  | [] -> repl
-  | dir :: path -> begin
+  match Q.take_front_exn path with
+  | exception Q.Empty -> repl
+  | dir, path -> begin
       match expose src, dir with
       | And (a, b), `l -> mk_and (replace_at a path repl) b
       | And (a, b), `r -> mk_and a (replace_at b path repl)
@@ -141,12 +129,12 @@ let rec replace_at (src : form) (path : path) (repl : form) : form =
       | Or (a, b), `r -> mk_or a (replace_at b path repl)
       | Imp (a, b), `l -> mk_imp (replace_at a path repl) b
       | Imp (a, b), `r -> mk_imp a (replace_at b path repl)
-      | Forall (_, ty, a), `i x
-      | Forall (x, ty, a), `d ->
-          mk_all x ty (replace_at a path repl)
-      | Exists (_, ty, a), `i x
-      | Exists (x, ty, a), `d ->
-          mk_ex x ty (replace_at a path repl)
+      | Forall ({ ty ; _ }, a), `i x
+      | Forall ({ ty ; var = x }, a), `d ->
+          mk_all { var = x ; ty } (replace_at a path repl)
+      | Exists ({ ty ; _ }, a), `i x
+      | Exists ({ ty ; var = x }, a), `d ->
+          mk_ex { var = x ; ty } (replace_at a path repl)
       | _ ->
           raise @@ Bad_direction { tycx = None ; form = src ; dir }
     end
@@ -251,7 +239,7 @@ let pp_rule_name ?(cx = empty) out rn =
   | Inst term ->
       Format.fprintf out "inst[@[%a@]]" (Term.pp_term ~cx) term
 
-let rec pp_path out (path : path) =
+let rec pp_path_list out path =
   match path with
   | [] -> ()
   | [`l] -> Format.fprintf out "l"
@@ -259,7 +247,10 @@ let rec pp_path out (path : path) =
   | [`i x] -> Format.fprintf out "i %s" x
   | [`d] -> Format.fprintf out "d"
   | dir :: (_ :: _ as path) ->
-      Format.fprintf out "%a, %a" pp_path [dir] pp_path path
+      Format.fprintf out "%a, %a" pp_path_list [dir] pp_path_list path
+
+let pp_path out (path : path) =
+  pp_path_list out (Q.to_list path)
 
 let pp_rule out goalx rule =
   let (fx, _) = formx_at goalx rule.path in
@@ -344,26 +335,26 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
       end
     | `r, Imp (a, f), Goal_ts_all -> begin
         match expose f with
-        | Forall (x, ty, b) ->
-            mk_all x ty (mk_imp (shift 1 a) b)
+        | Forall (vty, b) ->
+            mk_all vty (mk_imp (shift 1 a) b)
         | _ -> bad_match ()
       end
     | `r, Imp (f, b), Goal_all_ts -> begin
         match expose f with
-        | Forall (x, ty, a) ->
-            mk_ex x ty (mk_imp a (shift 1 b))
+        | Forall (vty, a) ->
+            mk_ex vty (mk_imp a (shift 1 b))
         | _ -> bad_match ()
       end
     | `r, Imp (a, f), Goal_ts_ex -> begin
         match expose f with
-        | Exists (x, ty, b) ->
-            mk_ex x ty (mk_imp (shift 1 a) b)
+        | Exists (vty, b) ->
+            mk_ex vty (mk_imp (shift 1 a) b)
         | _ -> bad_match ()
       end
     | `r, Imp (f, b), Goal_ex_ts -> begin
         match expose f with
-        | Exists (x, ty, a) ->
-            mk_all x ty (mk_imp a (shift 1 b))
+        | Exists (vty, a) ->
+            mk_all vty (mk_imp a (shift 1 b))
         | _ -> bad_match ()
       end
     (* assumptions *)
@@ -415,26 +406,26 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
       end
     | `l, And (a, f), Asms_all { minor = `l } -> begin
         match expose f with
-        | Forall (x, ty, b) ->
-            mk_all x ty (mk_and (shift 1 a) b)
+        | Forall (vty, b) ->
+            mk_all vty (mk_and (shift 1 a) b)
         | _ -> bad_match ()
       end
     | `l, And (f, b), Asms_all { minor = `r } -> begin
         match expose f with
-        | Forall (x, ty, a) ->
-            mk_all x ty (mk_and a (shift 1 b))
+        | Forall (vty, a) ->
+            mk_all vty (mk_and a (shift 1 b))
         | _ -> bad_match ()
       end
     | `l, And (a, f), Asms_ex { minor = `l } -> begin
         match expose f with
-        | Exists (x, ty, b) ->
-            mk_ex x ty (mk_and (shift 1 a) b)
+        | Exists (vty, b) ->
+            mk_ex vty (mk_and (shift 1 a) b)
         | _ -> bad_match ()
       end
     | `l, And (f, b), Asms_ex { minor = `r } -> begin
         match expose f with
-        | Exists (x, ty, a) ->
-            mk_ex x ty (mk_and a (shift 1 b))
+        | Exists (vty, a) ->
+            mk_ex vty (mk_and a (shift 1 b))
         | _ -> bad_match ()
       end
     (* simplification *)
@@ -460,7 +451,7 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
         | Top -> f
         | _ -> bad_match ()
       end
-    | `r, Forall (_, _, f), Simp_all_true -> begin
+    | `r, Forall (_, f), Simp_all_true -> begin
         match expose f with
         | Top -> f
         | _ -> bad_match ()
@@ -486,9 +477,9 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
         mk_and fx.data fx.data
     | `r, Imp (_, b), Weaken ->
         b
-    | `r, Exists (x, ty, b), Inst wt ->
-        Term.ty_check fx.tycx wt ty ;
-        Term.do_app (Abs {var = x ; body = b}) [wt]
+    | `r, Exists (vty, b), Inst wt ->
+        Term.ty_check fx.tycx wt vty.ty ;
+        Term.do_app (Abs {var = vty.var ; body = b}) [wt]
     | _ -> bad_match ()
   in
   { goal with data = replace_at goal.data rule.path c }
@@ -498,82 +489,84 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
 
 let ( |@ ) f th = { th with data = f }
 
-let rec recursive_simplify (fx : formx) (rpath : path) (side : side) emit =
+let rec recursive_simplify (fx : formx) (path : path) (side : side) emit =
   match expose fx.data with
   | Eq (s, t, _) when side = `r -> begin
       match s, t with
       | App { head = f ; spine = ss },
         App { head = g ; spine = ts } when Term.eq_head f g ->
-          emit { name = Congr ; path = List.rev rpath } ;
+          emit { name = Congr ; path } ;
           let res = compute_spine_congruence (Term.ty_infer fx.tycx f) ss ts in
-          recursive_simplify (res |@ fx) rpath side emit
+          recursive_simplify (res |@ fx) path side emit
       | _ -> fx
     end
   | And (a, b) -> begin
-      let a = recursive_simplify (a |@ fx) (`l :: rpath) side emit in
-      let b = recursive_simplify (b |@ fx) (`r :: rpath) side emit in
+      let a = recursive_simplify (a |@ fx) (Q.snoc path `l) side emit in
+      let b = recursive_simplify (b |@ fx) (Q.snoc path `r) side emit in
       match side with
       | `l -> mk_and a.data b.data |@ fx
       | `r -> begin
           match expose a.data, expose b.data with
           | _, Top ->
-              emit { name = Simp_and_true `l ; path = List.rev rpath } ; a
+              emit { name = Simp_and_true `l ; path } ; a
           | Top, _ ->
-              emit { name = Simp_and_true `r ; path = List.rev rpath } ; b
+              emit { name = Simp_and_true `r ; path } ; b
           | _ ->
               mk_and a.data b.data |@ fx
         end
     end
   | Or (a, b) -> begin
-      let a = recursive_simplify (a |@ fx) (`l :: rpath) side emit in
-      let b = recursive_simplify (b |@ fx) (`r :: rpath) side emit in
+      let a = recursive_simplify (a |@ fx) (Q.snoc path `l) side emit in
+      let b = recursive_simplify (b |@ fx) (Q.snoc path `r) side emit in
       match side with
       | `l -> mk_or a.data b.data |@ fx
       | `r -> begin
           match expose a.data, expose b.data with
           | _, Top ->
-              emit { name = Simp_or_true `l ; path = List.rev rpath } ; b
+              emit { name = Simp_or_true `l ; path } ; b
           | Top, _ ->
-              emit { name = Simp_or_true `r ; path = List.rev rpath } ; a
+              emit { name = Simp_or_true `r ; path } ; a
           | _ ->
               mk_or a.data b.data |@ fx
         end
     end
   | Imp (a, b) -> begin
-      let a = recursive_simplify (a |@ fx) (`l :: rpath) (flip side) emit in
-      let b = recursive_simplify (b |@ fx) (`r :: rpath) side emit in
+      let a = recursive_simplify (a |@ fx) (Q.snoc path `l) (flip side) emit in
+      let b = recursive_simplify (b |@ fx) (Q.snoc path `r) side emit in
       match side with
       | `l -> mk_imp a.data b.data |@ fx
       | `r -> begin
           match expose a.data, expose b.data with
           | _, Top ->
-              emit { name = Simp_imp_true ; path = List.rev rpath } ; b
+              emit { name = Simp_imp_true ; path } ; b
           | Bot, _ ->
-              emit { name = Simp_imp_true ; path = List.rev rpath } ;
+              emit { name = Simp_imp_true ; path } ;
               mk_top |@ fx
           | _ ->
               mk_imp a.data b.data |@ fx
         end
     end
-  | Forall (x, ty, b) ->
-      with_var ~fresh:true fx.tycx { var = x ; ty } begin fun tycx ->
+  | Forall (vty, b) ->
+      with_var ~fresh:true fx.tycx vty begin fun tycx ->
         let b = { tycx ; data = b } in
-        let b = recursive_simplify b (`d :: rpath) side emit in
+        let b = recursive_simplify b (Q.snoc path `d) side emit in
+        let vty = last_var tycx in
         match side with
-        | `l -> mk_all x ty b.data |@ fx
+        | `l -> mk_all vty b.data |@ fx
         | `r -> begin
             match expose b.data with
             | Top ->
-                emit { name = Simp_all_true ; path = List.rev rpath } ; b
+                emit { name = Simp_all_true ; path } ; b
             | _ ->
-                mk_all x ty b.data |@ fx
+                mk_all vty b.data |@ fx
           end
       end
-  | Exists (x, ty, b) ->
-      with_var ~fresh:true fx.tycx { var = x ; ty } begin fun tycx ->
+  | Exists (vty, b) ->
+      with_var ~fresh:true fx.tycx vty begin fun tycx ->
         let b = { tycx ; data = b } in
-        let b = recursive_simplify b (`d :: rpath) side emit in
-        mk_ex x ty b.data |@ fx
+        let b = recursive_simplify b (Q.snoc path `d) side emit in
+        let vty = last_var tycx in
+        mk_ex vty b.data |@ fx
       end
   | Atom _ | Eq _ | Top | Bot -> fx
 
@@ -607,15 +600,15 @@ module Test = struct
           hist := rule_to_string !prem rule :: !hist ;
           prem := compute_premise !prem rule
         in
-        let simp_prem = recursive_simplify !prem [] `r emit in
+        let simp_prem = recursive_simplify !prem Q.empty `r emit in
         compute_forms_simp simp_prem deriv ~hist:!hist
 
  let kcomb = { tycx = empty ; data = mk_imp a (mk_imp b a) }
 
   let t1 () =
     let kderiv = [
-      { name = Goal_ts_imp `r ; path = []   } ;
-      { name = Init           ; path = [`r] } ;
+      { name = Goal_ts_imp `r ; path = Q.empty   } ;
+      { name = Init           ; path = Q.singleton `r } ;
     ] in
     compute_forms_simp kcomb kderiv
 
@@ -624,21 +617,21 @@ module Test = struct
 
   let t2 () =
     let sderiv = [
-      { name = Contract ; path = [`r ; `r] } ;
-      { name = Goal_ts_imp `l ; path = [`r] } ;
-      { name = Asms_imp { minor = `r ; pick = `l } ; path = [`r ; `l] } ;
-      { name = Init ; path = [`r ; `l ; `l] } ;
-      { name = Goal_ts_imp `r ; path = [] } ;
-      { name = Goal_ts_imp `r ; path = [`r] } ;
-      { name = Goal_imp_ts ; path = [`r ; `r] } ;
-      { name = Goal_imp_ts ; path = [`r ; `r ; `r] } ;
-      { name = Init ; path = [`r ; `r ; `r ; `r] } ;
-      { name = Goal_imp_ts ; path = [] } ;
-      { name = Goal_ts_imp `r ; path = [] } ;
-      { name = Goal_ts_and `r ; path = [`r] } ;
-      { name = Goal_ts_and `l ; path = [] } ;
-      { name = Init ; path = [`l] } ;
-      { name = Init ; path = [] } ;
+      { name = Contract ; path = Q.of_list [`r ; `r] } ;
+      { name = Goal_ts_imp `l ; path = Q.of_list [`r] } ;
+      { name = Asms_imp { minor = `r ; pick = `l } ; path = Q.of_list [`r ; `l] } ;
+      { name = Init ; path = Q.of_list [`r ; `l ; `l] } ;
+      { name = Goal_ts_imp `r ; path = Q.of_list [] } ;
+      { name = Goal_ts_imp `r ; path = Q.of_list [`r] } ;
+      { name = Goal_imp_ts ; path = Q.of_list [`r ; `r] } ;
+      { name = Goal_imp_ts ; path = Q.of_list [`r ; `r ; `r] } ;
+      { name = Init ; path = Q.of_list [`r ; `r ; `r ; `r] } ;
+      { name = Goal_imp_ts ; path = Q.of_list [] } ;
+      { name = Goal_ts_imp `r ; path = Q.of_list [] } ;
+      { name = Goal_ts_and `r ; path = Q.of_list [`r] } ;
+      { name = Goal_ts_and `l ; path = Q.of_list [] } ;
+      { name = Init ; path = Q.of_list [`l] } ;
+      { name = Init ; path = Q.of_list [] } ;
     ] in
     compute_forms_simp scomb sderiv
 
@@ -649,20 +642,20 @@ module Test = struct
   let qexch = {
     tycx = empty ;
     data = mk_imp
-        (mk_ex "x" ty_i
-           (mk_all "y" ty_i (r (dbx 1) (dbx 0))))
-        (mk_all "y" ty_i
-           (mk_ex "x" ty_i (r (dbx 0) (dbx 1)))) }
+        (mk_ex { var = "x" ; ty = ty_i }
+           (mk_all { var = "y" ; ty = ty_i } (r (dbx 1) (dbx 0))))
+        (mk_all { var = "y" ; ty = ty_i }
+           (mk_ex { var = "x" ; ty = ty_i } (r (dbx 0) (dbx 1)))) }
 
   let t3 () =
     let deriv = [
-      { name = Goal_ts_all ; path = [] } ;
-      { name = Goal_ex_ts ; path = [`d] } ;
-      { name = Goal_ts_ex ; path = [`d ; `d] } ;
-      { name = Goal_all_ts ; path = [`d ; `d ; `d] } ;
-      { name = Init ; path = [`d ; `d ; `d ; `d] } ;
-      { name = Inst (dbx 0) ; path = [`d ; `d] } ;
-      { name = Inst (dbx 1) ; path = [`d ; `d] } ;
+      { name = Goal_ts_all ; path = Q.of_list [] } ;
+      { name = Goal_ex_ts ; path = Q.of_list [`d] } ;
+      { name = Goal_ts_ex ; path = Q.of_list [`d ; `d] } ;
+      { name = Goal_all_ts ; path = Q.of_list [`d ; `d ; `d] } ;
+      { name = Init ; path = Q.of_list [`d ; `d ; `d ; `d] } ;
+      { name = Inst (dbx 0) ; path = Q.of_list [`d ; `d] } ;
+      { name = Inst (dbx 1) ; path = Q.of_list [`d ; `d] } ;
     ] in
     compute_forms_simp qexch deriv
 end
