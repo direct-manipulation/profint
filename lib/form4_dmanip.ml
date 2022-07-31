@@ -5,21 +5,23 @@
  * See LICENSE for licensing details.
  *)
 
-open! Util
-open! Types
-open! T
-open! Form4
+open Util
+open Types
+open T
+open Form4_core
+open Form4_paths
+open Form4_cos
 
 (******************************************************************************)
 (* Direct Manipulation Rules *)
 
 type concl = {
-  cpath : path ;                (* REVERSED path to fx *)
+  cpath : path ;                (* path to fx *)
   side : side ;                 (* which side is fx *)
   fx : formx ;                  (* scrutinee *)
   lpath : path ;                (* where to go in left subformula *)
   rpath : path ;                (* where to go in right subformula *)
-  link_dir : side ;             (* `r : l->r, `l : r->l *)
+  dest_in : side ;              (* `r : l->r, `l : r->l *)
 }
 
 type rule_result =
@@ -201,7 +203,7 @@ let single_l : path = Q.singleton `l
 let single_r : path = Q.singleton `r
 
 let can_descend (dir : side) concl =
-  match dir, concl.link_dir with
+  match dir, concl.dest_in with
   | `l, `l ->
       (* descend left on r2l links unless already at dest *)
       concl.lpath <> single_l
@@ -448,34 +450,9 @@ let compute_derivation ~emit goal mrule =
   | Weaken path ->
       emit { name = Weaken ; path }
   | Link_form { src ; dest } -> begin
-      let (cpath, lpath, rpath, link_dir) = analyze_link Q.empty src dest in
+      let (cpath, lpath, rpath, dest_in) = analyze_link Q.empty src dest in
       let (fx, side) = formx_at goal cpath in
-      let concl = { cpath ; fx ; side ; lpath ; rpath ; link_dir } in
+      let concl = { cpath ; fx ; side ; lpath ; rpath ; dest_in } in
       spin_rules ~emit concl
     end
   (* | Link_eq _ -> failwith "unfinished" *)
-
-(******************************************************************************)
-(* Testing *)
-
-module Test = struct
-  include Form4.Test
-
-  let scomb_d () =
-    let deriv = ref [] in
-    let emit rule = deriv := rule :: !deriv in
-    compute_derivation ~emit scomb @@ Link_form {
-      src = Q.of_list [`l ; `r ; `r] ;
-      dest = Q.of_list [`r ; `r ; `r] ;
-    } ;
-    compute_forms_simp scomb (List.rev !deriv)
-
-  let qexch_d () =
-    let deriv = ref [] in
-    let emit rule = deriv := rule :: !deriv in
-    compute_derivation ~emit qexch @@ Link_form {
-      src = Q.of_list [`l ; `d ; `d] ;
-      dest = Q.of_list [`r ; `d ; `d] ;
-    } ;
-    compute_forms_simp qexch (List.rev !deriv)
-end
