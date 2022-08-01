@@ -73,10 +73,9 @@ let rec recursive_simplify ~emit (fx : formx) (path : path) (side : side) =
         end
     end
   | Forall (vty, b) ->
-      with_var ~fresh:true fx.tycx vty begin fun tycx ->
+      with_var ~fresh:true fx.tycx vty begin fun vty tycx ->
         let b = { tycx ; data = b } in
         let b = recursive_simplify ~emit b (Q.snoc path `d) side in
-        let vty = last_var tycx in
         match side with
         | `l -> mk_all vty b.data |@ fx
         | `r -> begin
@@ -88,10 +87,9 @@ let rec recursive_simplify ~emit (fx : formx) (path : path) (side : side) =
           end
       end
   | Exists (vty, b) ->
-      with_var ~fresh:true fx.tycx vty begin fun tycx ->
+      with_var ~fresh:true fx.tycx vty begin fun vty tycx ->
         let b = { tycx ; data = b } in
         let b = recursive_simplify ~emit b (Q.snoc path `d) side in
-        let vty = last_var tycx in
         mk_ex vty b.data |@ fx
       end
   | Atom _ | Eq _ | Top | Bot -> fx

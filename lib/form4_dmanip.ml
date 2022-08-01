@@ -167,7 +167,7 @@ let try_goal_ts_allex ~qsel ~emit concl =
       | (Forall (vty, b) as fexp), Some (`d, rpath)
       | (Exists (vty, b) as fexp), Some (`d, rpath)
         when qsel fexp ->
-          with_var concl.fx.tycx vty begin fun tycx ->
+          with_var concl.fx.tycx vty begin fun _ tycx ->
             let name = if is_forall fexp then Goal_ts_all else Goal_ts_ex in
             emit { name ; path = concl.cpath } ;
             let fx = { data = mk_imp (shift 1 a) b ; tycx } in
@@ -187,7 +187,7 @@ let try_goal_allex_ts ~qsel ~emit concl =
       | (Forall (vty, a) as fexp), Some (`d, lpath)
       | (Exists (vty, a) as fexp), Some (`d, lpath)
         when qsel fexp ->
-          with_var concl.fx.tycx vty begin fun tycx ->
+          with_var concl.fx.tycx vty begin fun _ tycx ->
             let name = if is_forall fexp then Goal_all_ts else Goal_ex_ts in
             emit { name ; path = concl.cpath } ;
             let fx = { data = mk_imp a (shift 1 b) ; tycx } in
@@ -341,7 +341,7 @@ let try_asms_allex ~emit concl =
       match expose f, Q.take_front lpath with
       | (Forall (vty, a) as fexp), Some (`d, lpath)
       | (Exists (vty, a) as fexp), Some (`d, lpath) ->
-          with_var concl.fx.tycx vty begin fun tycx ->
+          with_var concl.fx.tycx vty begin fun _ tycx ->
             let name = match fexp with
               | Forall _ -> Asms_all { minor = `r }
               | _ -> Asms_ex { minor = `r }
@@ -359,7 +359,7 @@ let try_asms_allex ~emit concl =
       match expose f, Q.take_front rpath with
       | (Forall (vty, b) as fexp), Some (`d, rpath)
       | (Exists (vty, b) as fexp), Some (`d, rpath) ->
-          with_var concl.fx.tycx vty begin fun tycx ->
+          with_var concl.fx.tycx vty begin fun _ tycx ->
             let name = match fexp with
               | Forall _ -> Asms_all { minor = `l }
               | _ -> Asms_ex { minor = `l }

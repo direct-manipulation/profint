@@ -40,7 +40,7 @@ let rec get_at ?(side = `r) tycx form (path : path) k =
       | Forall ({ var = x ; ty }, form), `d
       | Exists ({ ty ; _ }, form), `i x
       | Exists ({ var = x ; ty }, form), `d ->
-          with_var tycx {var = x ; ty} begin fun tycx ->
+          with_var tycx {var = x ; ty} begin fun _ tycx ->
             get_at ~side tycx form path k
           end
       | _ ->

@@ -126,8 +126,9 @@ let pp_path out (path : path) =
 
 let pp_rule out goalx rule =
   let (fx, _) = formx_at goalx rule.path in
-  Format.fprintf out "@[%a :: %a@]"
+  Format.fprintf out "@[%a%s:: %a@]"
     pp_path rule.path
+    (if Q.size rule.path = 0 then "" else " ")
     (pp_rule_name ~cx:fx.tycx) rule.name
 
 let rule_to_string goalx rule =

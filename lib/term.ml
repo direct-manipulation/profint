@@ -77,7 +77,7 @@ and ty_lookup cx n =
 let rec ty_check cx term ty =
   match term, ty with
   | Abs f, Arrow (tya, tyb) ->
-      with_var cx {var = f.var ; ty = tya} begin fun cx ->
+      with_var cx {var = f.var ; ty = tya} begin fun _ cx ->
         ty_check cx f.body tyb
       end
   | Abs _, _ ->
@@ -126,8 +126,8 @@ let rec term_to_exp ?(cx = empty) term =
   let open Doc in
   match term with
   | Abs {var ; body} ->
-      with_var ~fresh:true cx { var ; ty = Types.ty_i } begin fun cx ->
-        let rep = String (Printf.sprintf "[%s] " (last_var cx).var) in
+      with_var ~fresh:true cx { var ; ty = Types.ty_i } begin fun vty cx ->
+        let rep = String (Printf.sprintf "[%s] " vty.var) in
         Appl (1, Prefix (rep, term_to_exp ~cx body))
       end
   | App {head ; spine = []} ->
@@ -165,8 +165,8 @@ let rec term_to_exp_html ?(cx = empty) term =
   let open Doc in
   match term with
   | Abs {var ; body} ->
-      with_var ~fresh:true cx { var ; ty = Types.ty_i } begin fun cx ->
-        let rep = StringAs (1, Printf.sprintf "\\lambda{%s}.\\," (last_var cx).var) in
+      with_var ~fresh:true cx { var ; ty = Types.ty_i } begin fun vty cx ->
+        let rep = StringAs (1, Printf.sprintf "\\lambda{%s}.\\," vty.var) in
         Appl (5, Prefix (rep, term_to_exp_html ~cx body))
       end
   | App {head ; spine = []} ->

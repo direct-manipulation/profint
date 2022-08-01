@@ -34,7 +34,7 @@ let down n context =
   | Abs {var ; body = term} when n = 0 -> begin
       match context.at.ty with
       | Arrow (var_ty, body_ty) ->
-          with_var context.tycx {var ; ty = var_ty} begin fun tycx ->
+          with_var context.tycx {var ; ty = var_ty} begin fun _ tycx ->
             {tycx ;
              at = {term ; ty = body_ty} ;
              frames = Abs_frame :: context.frames}

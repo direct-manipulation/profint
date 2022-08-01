@@ -277,7 +277,7 @@ let get_cx context : tycx =
           | Const (_, Arrow (Arrow (ty, _), _)) -> ty
           | _ -> traversal_failure ~context "recovering typing context"
         in
-        with_var cx { var = ff.var ; ty } (fun cx -> spin cx frames)
+        with_var cx { var = ff.var ; ty } (fun _ cx -> spin cx frames)
   in
   spin empty context.frames
 
@@ -309,13 +309,13 @@ let rec form_to_exp ?(cx = empty) form =
       Appl (10, Infix (String " |> ", Non,
                        [form_to_exp ~cx fa ; form_to_exp ~cx fb]))
   | Forall (var, ty, body) ->
-      let qstr = Printf.sprintf "\\A [%s:%s] " var (ty_to_string ty) in
-      with_var cx { var ; ty } begin fun cx ->
+      with_var ~fresh:true cx { var ; ty } begin fun vty cx ->
+        let qstr = Printf.sprintf "\\A [%s:%s] " vty.var (ty_to_string ty) in
         Appl (5, Prefix (String qstr, form_to_exp ~cx body))
       end
   | Exists (var, ty, body) ->
-      let qstr = Printf.sprintf "\\E [%s:%s] " var (ty_to_string ty) in
-      with_var cx { var ; ty } begin fun cx ->
+      with_var ~fresh:true cx { var ; ty } begin fun vty cx ->
+        let qstr = Printf.sprintf "\\E [%s:%s] " vty.var (ty_to_string ty) in
         Appl (5, Prefix (String qstr, form_to_exp ~cx body))
       end
   | Atom f -> begin
@@ -368,13 +368,13 @@ let rec form_to_exp_html ?(cx = empty) form =
         Appl (10, Infix (StringAs (1, " \\rhd "), Non,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Forall (var, ty, body) ->
-        let qstr = Printf.sprintf "\\forall{%s{:}%s}.\\," var (ty_to_string ty) in
-        with_var cx { var ; ty } begin fun cx ->
+        with_var ~fresh:true cx { var ; ty } begin fun vty cx ->
+          let qstr = Printf.sprintf "\\forall{%s{:}%s}.\\," vty.var (ty_to_string ty) in
           Appl (5, Prefix (StringAs (1, qstr), form_to_exp_html ~cx body))
         end
     | Exists (var, ty, body) ->
-        let qstr = Printf.sprintf "\\exists{%s{:}%s}.\\," var (ty_to_string ty) in
-        with_var cx { var ; ty } begin fun cx ->
+        with_var ~fresh:true cx { var ; ty } begin fun vty cx ->
+          let qstr = Printf.sprintf "\\exists{%s{:}%s}.\\," vty.var (ty_to_string ty) in
           Appl (5, Prefix (StringAs (1, qstr), form_to_exp_html ~cx body))
         end
     | Atom f -> begin

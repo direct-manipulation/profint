@@ -9,13 +9,6 @@ open! Util
 open! Types
 open! T
 
-type 'a incx = {
-  tycx : tycx ;
-  data : 'a ;
- }
-
-let ( |@ ) f th = { th with data = f }
-
 type form = term
 type formx = form incx
 

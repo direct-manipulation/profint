@@ -85,11 +85,10 @@ let rec tygen ~emit (cx : tycx) tm ty_expected =
         | None -> fresh_tyvar ()
       in
       let tyres = fresh_tyvar () in
-      with_var cx { var = x ; ty = tyarg } begin fun cx ->
+      with_var cx { var = x ; ty = tyarg } begin fun vty cx ->
         let bod = tygen ~emit cx bod tyres in
         emit (Arrow (tyarg, tyres)) ty_expected ;
-        let xv = last_var cx in
-        Abs (xv.var, xty, bod)
+        Abs (vty.var, xty, bod)
       end
 
 and tyget ?(depth = 0) cx x =

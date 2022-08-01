@@ -107,6 +107,7 @@ type typed_var = {
   var : ident ;
   ty : ty
 }
+
 type tycx = {
   linear : typed_var list ;
   used : IdSet.t ;
@@ -120,15 +121,16 @@ let empty = {
 let[@inline] salt v k =
   if k = 0 then v else v ^ "_" ^ string_of_int k
 
-let with_var ?(fresh = false) tycx tv go =
+let with_var ?(fresh = false) tycx vty go =
   let rec freshen v k =
     let vk = salt v k in
     if IdSet.mem vk tycx.used then freshen v (k + 1) else vk
   in
-  let var = if fresh then freshen tv.var 0 else tv.var in
+  let var = if fresh then freshen vty.var 0 else vty.var in
   let used = IdSet.add var tycx.used in
-  let linear = { tv with var } :: tycx.linear in
-  go {linear ; used}
+  let vty = { vty with var } in
+  let linear = vty :: tycx.linear in
+  go vty {linear ; used}
 
 let last_var tycx = List.hd tycx.linear
 
@@ -143,3 +145,10 @@ let last_opt tycx =
   | [] -> None
   | tv :: linear ->
       Some (tv, { linear ; used = IdSet.remove tv.var tycx.used })
+
+type 'a incx = {
+  tycx : tycx ;
+  data : 'a ;
+ }
+
+let ( |@ ) f th = { th with data = f }

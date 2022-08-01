@@ -5,51 +5,50 @@
  * See LICENSE for licensing details.
  *)
 
-open Util
-open Types
+(******************************************************************************)
+(* Form4 Library *)
 
-module Core = Form4_core
-module Paths = Form4_paths
-module Cos = Form4_cos
+module Core     = Form4_core
+module Pp       = Form4_pp
+module Paths    = Form4_paths
+module Cos      = Form4_cos
 module Simplify = Form4_simplify
-module Dmanip = Form4_dmanip
+module Dmanip   = Form4_dmanip
 
 (******************************************************************************)
 (* Testing *)
 
 module Test = struct
-  open T
-  open Core
+  open Util
+  open Types
 
-  let a = App { head = Const ("a", ty_o) ; spine = [] }
-  let b = App { head = Const ("b", ty_o) ; spine = [] }
-  let c = App { head = Const ("c", ty_o) ; spine = [] }
-
-  let formx_to_string fx = Term.term_to_string ~cx:fx.tycx fx.data
+  let a = T.(App { head = Const ("a", ty_o) ; spine = [] })
+  let b = T.(App { head = Const ("b", ty_o) ; spine = [] })
+  let c = T.(App { head = Const ("c", ty_o) ; spine = [] })
 
   let rec compute_forms ?(hist = []) goal deriv =
     match deriv with
-    | [] -> formx_to_string goal :: hist
+    | [] -> Pp.formx_to_string goal :: hist
     | rule :: deriv ->
         let prem = Cos.compute_premise goal rule in
         compute_forms prem deriv
-          ~hist:(Cos.rule_to_string goal rule :: formx_to_string goal :: hist)
+          ~hist:(Cos.rule_to_string goal rule :: Pp.formx_to_string goal :: hist)
 
   let rec compute_forms_simp ?(hist = []) goal deriv =
     match deriv with
-    | [] -> formx_to_string goal :: hist
+    | [] -> Pp.formx_to_string goal :: hist
     | rule :: deriv ->
         let prem = ref @@ Cos.compute_premise goal rule in
-        let hist = ref @@ Cos.rule_to_string goal rule :: formx_to_string goal :: hist in
+        let hist = ref @@ Cos.rule_to_string goal rule :: Pp.formx_to_string goal :: hist in
         let emit rule =
-          hist := formx_to_string !prem :: !hist ;
+          hist := Pp.formx_to_string !prem :: !hist ;
           hist := Cos.rule_to_string !prem rule :: !hist ;
           prem := Cos.compute_premise !prem rule
         in
-        let simp_prem = Simplify.recursive_simplify ~emit !prem Q.empty `r in
-        compute_forms_simp simp_prem deriv ~hist:!hist
+        let _simp_prem = Simplify.recursive_simplify ~emit !prem Q.empty `r in
+        compute_forms_simp !prem deriv ~hist:!hist
 
- let kcomb = { tycx = empty ; data = mk_imp a (mk_imp b a) }
+ let kcomb = Core.{ tycx = empty ; data = mk_imp a (mk_imp b a) }
 
   let t1 () =
     let kderiv = [
@@ -58,8 +57,8 @@ module Test = struct
     ] in
     compute_forms_simp kcomb kderiv
 
-  let scomb = { tycx = empty ;
-                data = mk_imp (mk_imp a (mk_imp b c)) (mk_imp (mk_imp a b) (mk_imp a c)) }
+  let scomb = Core.{ tycx = empty ;
+                     data = mk_imp (mk_imp a (mk_imp b c)) (mk_imp (mk_imp a b) (mk_imp a c)) }
 
   let t2 () =
     let sderiv = [
@@ -81,11 +80,11 @@ module Test = struct
     ] in
     compute_forms_simp scomb sderiv
 
-  let r x y = App { head = Const ("r", Arrow (ty_i, Arrow (ty_i, ty_o))) ;
-                    spine = [x ; y] }
-  let dbx n = App { head = Index n ; spine = [] }
+  let r x y = T.(App { head = Const ("r", Arrow (ty_i, Arrow (ty_i, ty_o))) ;
+                       spine = [x ; y] })
+  let dbx n = T.(App { head = Index n ; spine = [] })
 
-  let qexch = {
+  let qexch = Core.{
     tycx = empty ;
     data = mk_imp
         (mk_ex { var = "x" ; ty = ty_i }
