@@ -21,6 +21,7 @@ module Dmanip   = Form4_dmanip
 module Test = struct
   open Util
   open Types
+  open Pp
 
   let a = T.(App { head = Const ("a", ty_o) ; spine = [] })
   let b = T.(App { head = Const ("b", ty_o) ; spine = [] })
@@ -28,20 +29,20 @@ module Test = struct
 
   let rec compute_forms ?(hist = []) goal deriv =
     match deriv with
-    | [] -> Pp.formx_to_string goal :: hist
+    | [] -> LeanPP.to_string goal :: hist
     | rule :: deriv ->
         let prem = Cos.compute_premise goal rule in
         compute_forms prem deriv
-          ~hist:(Cos.rule_to_string goal rule :: Pp.formx_to_string goal :: hist)
+          ~hist:(Cos.rule_to_string goal rule :: LeanPP.to_string goal :: hist)
 
   let rec compute_forms_simp ?(hist = []) goal deriv =
     match deriv with
-    | [] -> Pp.formx_to_string goal :: hist
+    | [] -> LeanPP.to_string goal :: hist
     | rule :: deriv ->
         let prem = ref @@ Cos.compute_premise goal rule in
-        let hist = ref @@ Cos.rule_to_string goal rule :: Pp.formx_to_string goal :: hist in
+        let hist = ref @@ Cos.rule_to_string goal rule :: LeanPP.to_string goal :: hist in
         let emit rule =
-          hist := Pp.formx_to_string !prem :: !hist ;
+          hist := LeanPP.to_string !prem :: !hist ;
           hist := Cos.rule_to_string !prem rule :: !hist ;
           prem := Cos.compute_premise !prem rule
         in

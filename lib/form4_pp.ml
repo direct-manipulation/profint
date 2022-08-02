@@ -11,67 +11,87 @@ open Form4_core
 (******************************************************************************)
 (* Pretty Printing of Skeletons *)
 
-type skelpp = fskel -> Doc.doc
+exception Unprintable
 
-let to_lean : skelpp = function
-  | And _ -> String " ∧ "
-  | Top   -> String "⊤"
-  | Or _  -> String " ∨ "
-  | Bot   -> String "⊥"
-  | Imp _ -> String " → "
-  | Eq _ ->  String " ≐ "
-  | Forall (vty, _) ->
-      String (Printf.sprintf "∀ (%s : %s), " vty.var (ty_to_string vty.ty))
-  | Exists (vty, _) ->
-      String (Printf.sprintf "∃ (%s : %s), " vty.var (ty_to_string vty.ty))
-  | Atom _ -> assert false
+module type SKEL_PARAMS = sig
+  val rep_atom : termx -> Doc.exp
+  val rep_eq : termx -> termx -> ty -> Doc.exp
+  val rep_and : Doc.doc
+  val rep_top : Doc.doc
+  val rep_or : Doc.doc
+  val rep_bot : Doc.doc
+  val rep_imp : Doc.doc
+  val rep_all : typed_var -> Doc.doc
+  val rep_ex : typed_var -> Doc.doc
+  val wrap : Doc.exp -> Doc.exp
+end
+
+module SkelPP (Params : SKEL_PARAMS) = struct
+  let skel_to_exp (f2e : formx -> Doc.exp) (skel : fskel incx) =
+    Params.wrap begin
+      match skel.data with
+      | Atom a -> Params.rep_atom (a |@ skel)
+      | Eq (s, t, ty) -> Params.rep_eq (s |@ skel) (t |@ skel) ty
+      | And (a, b) ->
+          let a = f2e (a |@ skel) in
+          let b = f2e (b |@ skel) in
+          Doc.(Appl (30, Infix (Params.rep_and, Right, [a ; b])))
+      | Top -> Doc.(Atom Params.rep_top)
+      | Or (a, b) ->
+          let a = f2e (a |@ skel) in
+          let b = f2e (b |@ skel) in
+          Doc.(Appl (20, Infix (Params.rep_or, Right, [a ; b])))
+      | Bot -> Doc.(Atom Params.rep_bot)
+      | Imp (a, b) ->
+          let a = f2e (a |@ skel) in
+          let b = f2e (b |@ skel) in
+          Doc.(Appl (10, Infix (Params.rep_imp, Right, [a ; b])))
+      | Forall (vty, b) ->
+          with_var ~fresh:true skel.tycx vty begin fun vty tycx ->
+            let q = Params.rep_all vty in
+            let b = f2e { data = b ; tycx } in
+            Doc.(Appl (5, Prefix (q, b)))
+          end
+      | Exists (vty, b) ->
+          with_var ~fresh:true skel.tycx vty begin fun vty tycx ->
+            let q = Params.rep_ex vty in
+            let b = f2e { data = b ; tycx } in
+            Doc.(Appl (5, Prefix (q, b)))
+          end
+    end
+  let rec to_exp (fx : formx) =
+    skel_to_exp to_exp (expose fx.data |@ fx)
+  let pp out fx = to_exp fx |> Doc.bracket |> Doc.pp_doc out
+  let to_string fx = to_exp fx |> Doc.bracket |> Doc.lin_doc
+end
 
 (******************************************************************************)
-(* Pretty Printing *)
+(* Lean Pretty-Printing *)
 
-let rec formx_to_exp (skelpp : skelpp) (fx : formx) =
-  let open Doc in
-  let fex = expose fx.data in
-  match fex with
-  | Atom T.(App { head = Const (p, _) ; spine = spine }) ->
-      let rec aux f xs =
-        match xs with
-        | [] -> f
-        | x :: xs ->
-            let f = Appl (40, Infix (String " ", Left,
-                                     [f ; Term.term_to_exp ~cx:fx.tycx x])) in
-            aux f xs
-      in
-      aux (Atom (String p)) spine
-  | Atom a ->
-      Term.term_to_exp ~cx:fx.tycx a
-  | And (a, b) ->
-      Appl (30, Infix (skelpp fex, Right,
-                       [formx_to_exp skelpp (a |@ fx) ;
-                        formx_to_exp skelpp (b |@ fx)]))
-  | Or (a, b) ->
-      Appl (20, Infix (String " ∨ ", Right,
-                       [formx_to_exp skelpp (a |@ fx) ;
-                        formx_to_exp skelpp (b |@ fx)]))
-  | Eq (s, t, _) ->
-      Appl (20, Infix (skelpp fex, Non,
-                       [Term.term_to_exp ~cx:fx.tycx s ;
-                        Term.term_to_exp ~cx:fx.tycx t]))
-  | Top | Bot -> Atom (skelpp fex)
-  | Imp (a, b) ->
-      Appl (10, Infix (skelpp fex, Right,
-                       [formx_to_exp skelpp (a |@ fx) ;
-                        formx_to_exp skelpp (b |@ fx)]))
-  | Forall (vty, b) ->
-      with_var ~fresh:true fx.tycx vty begin fun vty tycx ->
-        let qstr = skelpp @@ Forall (vty, b) in
-        Appl (5, Prefix (qstr, formx_to_exp skelpp { data = b ; tycx }))
-      end
-  | Exists (vty, b) ->
-      with_var ~fresh:true fx.tycx vty begin fun vty tycx ->
-        let qstr = skelpp @@ Exists (vty, b) in
-        Appl (5, Prefix (qstr, formx_to_exp skelpp { data = b ; tycx }))
-      end
-
-let pp_formx ?(skelpp = to_lean) out fx = formx_to_exp skelpp fx |> Doc.bracket |> Doc.pp_doc out
-let formx_to_string ?(skelpp = to_lean) fx = formx_to_exp skelpp fx |> Doc.bracket |> Doc.lin_doc
+module LeanPP = SkelPP (
+  struct
+    let rep_atom t =
+      match t.data with
+      | T.(App { head = Const (p, _) ; spine }) ->
+          List.fold_left begin fun f x ->
+            let x = Term.term_to_exp ~cx:t.tycx x in
+            Doc.(Appl (50, Infix (String " ", Left, [f ; x])))
+          end Doc.(Atom (String p)) spine
+      | _ -> raise Unprintable
+    let rep_eq s t _ =
+      let s = Term.term_to_exp ~cx:s.tycx s.data in
+      let t = Term.term_to_exp ~cx:t.tycx t.data in
+      Doc.(Appl (40, Infix (String " ≐ ", Non, [s ; t])))
+    let rep_and = Doc.String " ∧ "
+    let rep_top = Doc.String "⊤"
+    let rep_or  = Doc.String " ∨ "
+    let rep_bot = Doc.String "⊥"
+    let rep_imp = Doc.String " → "
+    let rep_all vty =
+      Doc.String (Printf.sprintf "∀ (%s : %s), "
+                    vty.var (ty_to_string vty.ty))
+    let rep_ex vty =
+      Doc.String (Printf.sprintf "∃ (%s : %s), "
+                    vty.var (ty_to_string vty.ty))
+    let wrap e = e
+  end)

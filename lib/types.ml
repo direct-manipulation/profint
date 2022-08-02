@@ -152,3 +152,7 @@ type 'a incx = {
  }
 
 let ( |@ ) f th = { th with data = f }
+
+type utermx = U.term incx
+type headx = T.head incx
+type termx = T.term incx
