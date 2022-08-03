@@ -35,8 +35,11 @@ module IdMap : Stdlib.Map.S with type key := ident =
 module IdTab : Stdlib.Hashtbl.S with type key := ident =
   Stdlib.Hashtbl.Make(IdHashEq)
 
-let failwith_s fmt   = Printf.ksprintf failwith fmt
-let failwith_fmt fmt = Format.ksprintf failwith fmt
+let failwith_s fmt = Printf.ksprintf failwith fmt
+let failwith_fmt fmt =
+  let buf = Buffer.create 19 in
+  let out = Format.formatter_of_buffer buf in
+  Format.kfprintf (fun _ -> failwith (Buffer.contents buf)) out fmt
 
 let rec range_up step lo hi : int Seq.t = fun () ->
   if lo >= hi then Seq.Nil else

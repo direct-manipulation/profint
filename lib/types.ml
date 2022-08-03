@@ -49,10 +49,10 @@ module K = struct
   let k_eq  = next_internal "eq"
   let k_pos_int = next_internal "posint"
   let k_neg_int = next_internal "negint"
-  (* let ty_o  = Basic (next_internal "o") *)
-  (* let ty_i  = Basic (next_internal "i") *)
-  let ty_o = Basic "o"
-  let ty_i = Basic "i"
+  let ty_o  = Basic (next_internal "o")
+  let ty_i  = Basic (next_internal "i")
+  (* let ty_o = Basic "o" *)
+  (* let ty_i = Basic "i" *)
 end
 
 type poly_ty = {nvars : int ; ty : ty}

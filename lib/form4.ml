@@ -29,20 +29,20 @@ module Test = struct
 
   let rec compute_forms ?(hist = []) goal deriv =
     match deriv with
-    | [] -> LeanPP.to_string goal :: hist
+    | [] -> TexPP.to_string goal :: hist
     | rule :: deriv ->
         let prem = Cos.compute_premise goal rule in
         compute_forms prem deriv
-          ~hist:(Cos.rule_to_string goal rule :: LeanPP.to_string goal :: hist)
+          ~hist:(Cos.rule_to_string goal rule :: TexPP.to_string goal :: hist)
 
   let rec compute_forms_simp ?(hist = []) goal deriv =
     match deriv with
-    | [] -> LeanPP.to_string goal :: hist
+    | [] -> TexPP.to_string goal :: hist
     | rule :: deriv ->
         let prem = ref @@ Cos.compute_premise goal rule in
-        let hist = ref @@ Cos.rule_to_string goal rule :: LeanPP.to_string goal :: hist in
+        let hist = ref @@ Cos.rule_to_string goal rule :: TexPP.to_string goal :: hist in
         let emit rule =
-          hist := LeanPP.to_string !prem :: !hist ;
+          hist := TexPP.to_string !prem :: !hist ;
           hist := Cos.rule_to_string !prem rule :: !hist ;
           prem := Cos.compute_premise !prem rule
         in

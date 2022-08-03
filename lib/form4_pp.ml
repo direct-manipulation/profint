@@ -110,19 +110,35 @@ module TexPP = SkelPP (
     let fresh_id =
       let count = ref 0 in
       fun () -> incr count ; !count
-    let ty_to_exp ty = Doc.(Atom (String (ty_to_string ty)))
+    let rec ty_to_exp ty =
+      match ty with
+      | Basic a ->
+          let a =
+            if ty = K.ty_o then Doc.StringAs (1, {|\omicron|}) else
+            if ty = K.ty_i then Doc.StringAs (1, {|\iota|}) else
+            Doc.StringAs (String.length a, {|\mathsf{|} ^ a ^ {|}|}) in
+          Doc.Atom a
+      | Arrow (ta, tb) ->
+          Doc.(Appl (1, Infix (StringAs (1, {|\to|}), Right,
+                               [ty_to_exp ta ; ty_to_exp tb])))
+      | Tyvar v -> begin
+          match v.subst with
+          | None -> Doc.(Atom (StringAs (1, {|\_|})))
+          | Some ty -> ty_to_exp ty
+        end
+    let ty_to_string ty = ty_to_exp ty |> Doc.bracket |> Doc.lin_doc
     let term_to_exp tx =
       Doc.(Wrap (Transparent,
                  StringAs (0, Printf.sprintf {|\htmlId{t%d}{|} @@ fresh_id ()),
                  Term.term_to_exp ~cx:tx.tycx tx.data,
                  StringAs (0, {|}|})))
-    let rep_app = Doc.String " "
+    let rep_app  = Doc.StringAs (1, {|\,|})
     let rep_eq _ = Doc.StringAs (1, {|\mathbin{\doteq}|})
-    let rep_and = Doc.StringAs (1, {|\mathbin{\land}|})
-    let rep_top = Doc.StringAs (1, {|{\top}|})
-    let rep_or  = Doc.StringAs (1, {|\mathbin{\lor}|})
-    let rep_bot = Doc.StringAs (1, {|{\bot}|})
-    let rep_imp = Doc.StringAs (1, {|\mathbin{\Rightarrow}|})
+    let rep_and  = Doc.StringAs (1, {|\mathbin{\land}|})
+    let rep_top  = Doc.StringAs (1, {|{\top}|})
+    let rep_or   = Doc.StringAs (1, {|\mathbin{\lor}|})
+    let rep_bot  = Doc.StringAs (1, {|{\bot}|})
+    let rep_imp  = Doc.StringAs (1, {|\mathbin{\Rightarrow}|})
     let rep_all vty =
       Doc.String (Printf.sprintf {|{\forall}{%s{:}%s}.\,|}
                     vty.var (ty_to_string vty.ty))
