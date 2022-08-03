@@ -126,7 +126,7 @@ let rec term_to_exp ?(cx = empty) term =
   let open Doc in
   match term with
   | Abs {var ; body} ->
-      with_var ~fresh:true cx { var ; ty = Types.ty_i } begin fun vty cx ->
+      with_var ~fresh:true cx { var ; ty = K.ty_i } begin fun vty cx ->
         let rep = String (Printf.sprintf "[%s] " vty.var) in
         Appl (1, Prefix (rep, term_to_exp ~cx body))
       end
@@ -154,6 +154,9 @@ and head_to_exp ?(cx = empty) head =
       Atom (String vstr)
   | Const (k, _) -> Atom (String k)
 
+let termx_to_exp tx = term_to_exp ~cx:tx.tycx tx.data
+let headx_to_exp hx = head_to_exp ~cx:hx.tycx hx.data
+
 (* let sym_spine_left = Doc.String "[" *)
 (* let sym_spine_right = Doc.String "]" *)
 (* let sym_app = Doc.StringAs (1, "{\\cdot}") *)
@@ -165,7 +168,7 @@ let rec term_to_exp_html ?(cx = empty) term =
   let open Doc in
   match term with
   | Abs {var ; body} ->
-      with_var ~fresh:true cx { var ; ty = Types.ty_i } begin fun vty cx ->
+      with_var ~fresh:true cx { var ; ty = K.ty_i } begin fun vty cx ->
         let rep = StringAs (1, Printf.sprintf "\\lambda{%s}.\\," vty.var) in
         Appl (5, Prefix (rep, term_to_exp_html ~cx body))
       end

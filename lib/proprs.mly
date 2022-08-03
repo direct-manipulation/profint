@@ -82,21 +82,21 @@ wrapped_term:
 
 form:
 | TOP
-  { U.(Kon (k_top, None)) }
+  { U.(Kon (K.k_top, None)) }
 | BOT
-  { U.(Kon (k_bot, None)) }
+  { U.(Kon (K.k_bot, None)) }
 | fa=form AND fb=form
-  { U.(App (App (Kon (k_and, None), fa), fb)) }
+  { U.(App (App (Kon (K.k_and, None), fa), fb)) }
 | fa=form OR fb=form
-  { U.(App (App (Kon (k_or, None), fa), fb)) }
+  { U.(App (App (Kon (K.k_or, None), fa), fb)) }
 | fa=form TO fb=form
-  { U.(App (App (Kon (k_imp, None), fa), fb)) }
+  { U.(App (App (Kon (K.k_imp, None), fa), fb)) }
 | fa=form FROM fb=form
-  { U.(App (App (Kon (k_imp, None), fb), fa)) }
+  { U.(App (App (Kon (K.k_imp, None), fb), fa)) }
 | FORALL vs=lambda bod=form %prec PREC_MIN
-  { make_quant k_all vs bod }
+  { make_quant K.k_all vs bod }
 | EXISTS vs=lambda bod=form %prec PREC_MIN
-  { make_quant k_ex vs bod }
+  { make_quant K.k_ex vs bod }
 | a=IDENT ts=list(wrapped_term)
   { make_app (U.Kon (a, None) :: ts) }
 | LPAREN f=form RPAREN
@@ -104,9 +104,9 @@ form:
 
 ty:
 | OMICRON
-  { ty_o }
+  { K.ty_o }
 | IOTA
-  { ty_i }
+  { K.ty_i }
 | b=IDENT
   { Basic b }
 | a=ty ARROW b=ty

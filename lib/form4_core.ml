@@ -28,44 +28,43 @@ type fskel =
 
 let expose (form : form) =
   match form with
-  | App { head = Const (k, _) ; spine = [] } when k = k_top ->
+  | App { head = Const (k, _) ; spine = [] } when k = K.k_top ->
       Top
-  | App { head = Const (k, _) ; spine = [] } when k = k_bot ->
+  | App { head = Const (k, _) ; spine = [] } when k = K.k_bot ->
       Bot
-  | App { head = Const (k, _) ; spine = [fa ; fb] } when k = k_and ->
+  | App { head = Const (k, _) ; spine = [fa ; fb] } when k = K.k_and ->
       And (fa, fb)
-  | App { head = Const (k, _) ; spine = [fa ; fb] } when k = k_or ->
+  | App { head = Const (k, _) ; spine = [fa ; fb] } when k = K.k_or ->
       Or (fa, fb)
-  | App { head = Const (k, _) ; spine = [fa ; fb] } when k = k_imp ->
+  | App { head = Const (k, _) ; spine = [fa ; fb] } when k = K.k_imp ->
       Imp (fa, fb)
-  | App { head = Const (k, Arrow (ty, _)) ; spine = [t1 ; t2] } when k = k_eq ->
+  | App { head = Const (k, Arrow (ty, _)) ; spine = [t1 ; t2] } when k = K.k_eq ->
       Eq (t1, t2, ty)
   | App { head = Const (k, Arrow (Arrow (ty, _), _)) ;
-         spine = [Abs { var ; body }] } when k = k_all ->
+         spine = [Abs { var ; body }] } when k = K.k_all ->
       Forall ({ var ; ty }, body)
   | App { head = Const (k, Arrow (Arrow (ty, _), _)) ;
-         spine = [Abs { var ; body }] } when k = k_ex ->
+         spine = [Abs { var ; body }] } when k = K.k_ex ->
       Exists ({ var ; ty }, body)
   | _ ->
       Atom form
 
-let ty_ooo = Arrow (ty_o, Arrow (ty_o, ty_o))
+let ty_ooo = Arrow (K.ty_o, Arrow (K.ty_o, K.ty_o))
 
 let mk_eq t1 t2 ty =
-  App { head = Const (k_eq, Arrow (ty, Arrow (ty, ty_o))) ;
+  App { head = Const (K.k_eq, Arrow (ty, Arrow (ty, K.ty_o))) ;
         spine = [t1 ; t2] }
 let mk_and fa fb =
-  App { head = Const (k_and, ty_ooo) ; spine = [fa ; fb] }
-let mk_top = App { head = Const (k_top, ty_o) ; spine = [] }
+  App { head = Const (K.k_and, ty_ooo) ; spine = [fa ; fb] }
+let mk_top = App { head = Const (K.k_top, K.ty_o) ; spine = [] }
 let mk_or fa fb =
-  App { head = Const (k_or, ty_ooo) ; spine = [fa ; fb] }
-let mk_bot = App { head = Const (k_bot, ty_o) ; spine = [] }
+  App { head = Const (K.k_or, ty_ooo) ; spine = [fa ; fb] }
+let mk_bot = App { head = Const (K.k_bot, K.ty_o) ; spine = [] }
 let mk_imp fa fb =
-  App { head = Const (k_imp, ty_ooo) ; spine = [fa ; fb] }
+  App { head = Const (K.k_imp, ty_ooo) ; spine = [fa ; fb] }
 let mk_all vty body =
-  App { head = Const (k_all, Arrow (Arrow (vty.ty, ty_o), ty_o)) ;
+  App { head = Const (K.k_all, Arrow (Arrow (vty.ty, K.ty_o), K.ty_o)) ;
         spine = [Abs { var = vty.var ; body }] }
 let mk_ex vty body =
-  App { head = Const (k_ex, Arrow (Arrow (vty.ty, ty_o), ty_o)) ;
+  App { head = Const (K.k_ex, Arrow (Arrow (vty.ty, K.ty_o), K.ty_o)) ;
         spine = [Abs { var = vty.var ; body }] }
-

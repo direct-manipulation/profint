@@ -198,7 +198,7 @@ let term_of_string ?(cx = empty) str =
 let form_of_string ?(cx = empty) str =
   let t = thing_of_string Proprs.one_form str in
   let f, ty = ty_check cx t in
-  if ty <> ty_o then
+  if ty <> K.ty_o then
     ty_error "form must have type \\o" ;
   f
 

@@ -23,9 +23,9 @@ module Test = struct
   open Types
   open Pp
 
-  let a = T.(App { head = Const ("a", ty_o) ; spine = [] })
-  let b = T.(App { head = Const ("b", ty_o) ; spine = [] })
-  let c = T.(App { head = Const ("c", ty_o) ; spine = [] })
+  let a = T.(App { head = Const ("a", K.ty_o) ; spine = [] })
+  let b = T.(App { head = Const ("b", K.ty_o) ; spine = [] })
+  let c = T.(App { head = Const ("c", K.ty_o) ; spine = [] })
 
   let rec compute_forms ?(hist = []) goal deriv =
     match deriv with
@@ -81,17 +81,17 @@ module Test = struct
     ] in
     compute_forms_simp scomb sderiv
 
-  let r x y = T.(App { head = Const ("r", Arrow (ty_i, Arrow (ty_i, ty_o))) ;
+  let r x y = T.(App { head = Const ("r", Arrow (K.ty_i, Arrow (K.ty_i, K.ty_o))) ;
                        spine = [x ; y] })
   let dbx n = T.(App { head = Index n ; spine = [] })
 
   let qexch = Core.{
     tycx = empty ;
     data = mk_imp
-        (mk_ex { var = "x" ; ty = ty_i }
-           (mk_all { var = "y" ; ty = ty_i } (r (dbx 1) (dbx 0))))
-        (mk_all { var = "y" ; ty = ty_i }
-           (mk_ex { var = "x" ; ty = ty_i } (r (dbx 0) (dbx 1)))) }
+        (mk_ex { var = "x" ; ty = K.ty_i }
+           (mk_all { var = "y" ; ty = K.ty_i } (r (dbx 1) (dbx 0))))
+        (mk_all { var = "y" ; ty = K.ty_i }
+           (mk_ex { var = "x" ; ty = K.ty_i } (r (dbx 0) (dbx 1)))) }
 
   let t3 () =
     let deriv = [

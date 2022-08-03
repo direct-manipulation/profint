@@ -33,40 +33,46 @@ let rec ty_to_exp ty =
 let ty_to_string ty =
   ty_to_exp ty |> Doc.bracket |> Doc.lin_doc
 
-let k_all = "\\A"
-let k_ex  = "\\E"
-let k_and = "\\and"
-let k_top = "\\top"
-let k_or  = "\\or"
-let k_bot = "\\bot"
-let k_imp = "\\imp"
+module K = struct
+  let next_internal =
+    let count = ref 0 in
+    fun hint -> incr count ;
+      Printf.sprintf {|#%s@%d#|} hint !count
 
-let k_eq  = "\\eq"
-
-let k_pos_int = "\\rhd"
-let k_neg_int = "\\circ"
-
-let ty_o  = Basic "\\o"
-let ty_i  = Basic "\\i"
+  let k_all = next_internal "forall"
+  let k_ex  = next_internal "exists"
+  let k_and = next_internal "and"
+  let k_top = next_internal "top"
+  let k_or  = next_internal "or"
+  let k_bot = next_internal "bot"
+  let k_imp = next_internal "imp"
+  let k_eq  = next_internal "eq"
+  let k_pos_int = next_internal "posint"
+  let k_neg_int = next_internal "negint"
+  (* let ty_o  = Basic (next_internal "o") *)
+  (* let ty_i  = Basic (next_internal "i") *)
+  let ty_o = Basic "o"
+  let ty_i = Basic "i"
+end
 
 type poly_ty = {nvars : int ; ty : ty}
 
 let global_sig : poly_ty IdMap.t =
   let vnum n = Tyvar {id = n ; subst = None} in
   let binds = [
-    k_all, {nvars = 1 ;
-            ty = Arrow (Arrow (vnum 0, ty_o), ty_o)} ;
-    k_ex, {nvars = 1 ;
-           ty = Arrow (Arrow (vnum 0, ty_o), ty_o)} ;
-    k_and, {nvars = 0 ; ty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
-    k_top, {nvars = 0 ; ty = ty_o} ;
-    k_or,  {nvars = 0 ; ty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
-    k_bot, {nvars = 0 ; ty = ty_o} ;
-    k_imp, {nvars = 0 ; ty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
-    k_eq,  {nvars = 1 ;
-            ty = Arrow (vnum 0, Arrow (vnum 0, ty_o))} ;
-    k_pos_int, {nvars = 0 ; ty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
-    k_neg_int, {nvars = 0 ; ty = Arrow (ty_o, Arrow (ty_o, ty_o))} ;
+    K.k_all, {nvars = 1 ;
+            ty = Arrow (Arrow (vnum 0, K.ty_o), K.ty_o)} ;
+    K.k_ex, {nvars = 1 ;
+           ty = Arrow (Arrow (vnum 0, K.ty_o), K.ty_o)} ;
+    K.k_and, {nvars = 0 ; ty = Arrow (K.ty_o, Arrow (K.ty_o, K.ty_o))} ;
+    K.k_top, {nvars = 0 ; ty = K.ty_o} ;
+    K.k_or,  {nvars = 0 ; ty = Arrow (K.ty_o, Arrow (K.ty_o, K.ty_o))} ;
+    K.k_bot, {nvars = 0 ; ty = K.ty_o} ;
+    K.k_imp, {nvars = 0 ; ty = Arrow (K.ty_o, Arrow (K.ty_o, K.ty_o))} ;
+    K.k_eq,  {nvars = 1 ;
+            ty = Arrow (vnum 0, Arrow (vnum 0, K.ty_o))} ;
+    K.k_pos_int, {nvars = 0 ; ty = Arrow (K.ty_o, Arrow (K.ty_o, K.ty_o))} ;
+    K.k_neg_int, {nvars = 0 ; ty = Arrow (K.ty_o, Arrow (K.ty_o, K.ty_o))} ;
   ] |> List.to_seq in
   IdMap.add_seq binds IdMap.empty
 
@@ -152,7 +158,3 @@ type 'a incx = {
  }
 
 let ( |@ ) f th = { th with data = f }
-
-type utermx = U.term incx
-type headx = T.head incx
-type termx = T.term incx

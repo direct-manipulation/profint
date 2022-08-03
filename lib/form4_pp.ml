@@ -14,8 +14,11 @@ open Form4_core
 exception Unprintable
 
 module type SKEL_PARAMS = sig
-  val rep_atom : termx -> Doc.exp
-  val rep_eq : termx -> termx -> ty -> Doc.exp
+  val ty_to_exp : ty -> Doc.exp
+  val term_to_exp : T.term incx -> Doc.exp
+
+  val rep_app : Doc.doc
+  val rep_eq : ty -> Doc.doc
   val rep_and : Doc.doc
   val rep_top : Doc.doc
   val rep_or : Doc.doc
@@ -30,8 +33,19 @@ module SkelPP (Params : SKEL_PARAMS) = struct
   let skel_to_exp (f2e : formx -> Doc.exp) (skel : fskel incx) =
     Params.wrap begin
       match skel.data with
-      | Atom a -> Params.rep_atom (a |@ skel)
-      | Eq (s, t, ty) -> Params.rep_eq (s |@ skel) (t |@ skel) ty
+      | Atom a -> begin
+          match a with
+          | T.(App { head = Const (p, _) ; spine }) ->
+              List.fold_left begin fun f x ->
+                let x = Params.term_to_exp (x |@ skel) in
+                Doc.(Appl (50, Infix (Params.rep_app, Left, [f ; x])))
+              end Doc.(Atom (String p)) spine
+          | _ -> raise Unprintable
+        end
+      | Eq (s, t, ty) ->
+          let s = Params.term_to_exp (s |@ skel) in
+          let t = Params.term_to_exp (t |@ skel) in
+          Doc.(Appl (40, Infix (Params.rep_eq ty, Non, [s ; t])))
       | And (a, b) ->
           let a = f2e (a |@ skel) in
           let b = f2e (b |@ skel) in
@@ -70,18 +84,10 @@ end
 
 module LeanPP = SkelPP (
   struct
-    let rep_atom t =
-      match t.data with
-      | T.(App { head = Const (p, _) ; spine }) ->
-          List.fold_left begin fun f x ->
-            let x = Term.term_to_exp ~cx:t.tycx x in
-            Doc.(Appl (50, Infix (String " ", Left, [f ; x])))
-          end Doc.(Atom (String p)) spine
-      | _ -> raise Unprintable
-    let rep_eq s t _ =
-      let s = Term.term_to_exp ~cx:s.tycx s.data in
-      let t = Term.term_to_exp ~cx:t.tycx t.data in
-      Doc.(Appl (40, Infix (String " ≐ ", Non, [s ; t])))
+    let ty_to_exp ty = Doc.(Atom (String (ty_to_string ty)))
+    let term_to_exp tx = Term.term_to_exp ~cx:tx.tycx tx.data
+    let rep_app = Doc.String " "
+    let rep_eq _ = Doc.String " ≐ "
     let rep_and = Doc.String " ∧ "
     let rep_top = Doc.String "⊤"
     let rep_or  = Doc.String " ∨ "
@@ -94,4 +100,38 @@ module LeanPP = SkelPP (
       Doc.String (Printf.sprintf "∃ (%s : %s), "
                     vty.var (ty_to_string vty.ty))
     let wrap e = e
+  end)
+
+(******************************************************************************)
+(* KaTeX Pretty Printing *)
+
+module TexPP = SkelPP (
+  struct
+    let fresh_id =
+      let count = ref 0 in
+      fun () -> incr count ; !count
+    let ty_to_exp ty = Doc.(Atom (String (ty_to_string ty)))
+    let term_to_exp tx =
+      Doc.(Wrap (Transparent,
+                 StringAs (0, Printf.sprintf {|\htmlId{t%d}{|} @@ fresh_id ()),
+                 Term.term_to_exp ~cx:tx.tycx tx.data,
+                 StringAs (0, {|}|})))
+    let rep_app = Doc.String " "
+    let rep_eq _ = Doc.StringAs (1, {|\mathbin{\doteq}|})
+    let rep_and = Doc.StringAs (1, {|\mathbin{\land}|})
+    let rep_top = Doc.StringAs (1, {|{\top}|})
+    let rep_or  = Doc.StringAs (1, {|\mathbin{\lor}|})
+    let rep_bot = Doc.StringAs (1, {|{\bot}|})
+    let rep_imp = Doc.StringAs (1, {|\mathbin{\Rightarrow}|})
+    let rep_all vty =
+      Doc.String (Printf.sprintf {|{\forall}{%s{:}%s}.\,|}
+                    vty.var (ty_to_string vty.ty))
+    let rep_ex vty =
+      Doc.String (Printf.sprintf {|{\exists}{%s{:}%s}.\,|}
+                    vty.var (ty_to_string vty.ty))
+    let wrap e =
+      Doc.(Wrap (Transparent,
+                 StringAs (0, Printf.sprintf {|\htmlId{f%d}{|} @@ fresh_id ()),
+                 e,
+                 StringAs (0, {|}|})))
   end)
