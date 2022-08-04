@@ -506,7 +506,7 @@ let r_pos_init concl =
   match expose concl.context.form with
   | Pos_int (App {head = Const (a1, ty) ; spine = ts1},
              App {head = Const (a2, _)  ; spine = ts2})
-      when a1 = a2 && not (IdMap.mem a1 global_sig) ->
+      when a1 = a2 && not (IdMap.mem a1 !sigma.consts) ->
         let form = big_and @@ make_eqs ts1 ts2 ty in
         Ordinary {concl.context with form}
         |> dprintf "pos_init"
@@ -1173,6 +1173,6 @@ module TestFn () = struct
      accept_term cx "f (f y)",
      leave {cx with form = accept_form cx "p (f (f y))"})
 
-  let () = Uterm.clear_declarations ()
+  let () = reset_sigma ()
 end
 (* module Test = TestFn () *)

@@ -40,7 +40,7 @@ let try_goal_init ~emit concl =
   match expose concl.fx.data with
   | Imp (App {head = Const (a1, _) ; spine = _},
          App {head = Const (a2, _) ; spine = _})
-      when a1 = a2 && not (IdMap.mem a1 global_sig) ->
+      when a1 = a2 && not (IdMap.mem a1 !sigma.consts) ->
         emit { name = Init ; path = concl.cpath } ;
         Done
   | _ -> abort ()
