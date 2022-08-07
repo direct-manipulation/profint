@@ -40,7 +40,8 @@ module Test = struct
     | [] -> TexPP.to_string goal :: hist
     | rule :: deriv ->
         let prem = ref @@ Cos.compute_premise goal rule in
-        let hist = ref @@ Cos.rule_to_string goal rule :: TexPP.to_string goal :: hist in
+        let hist = ref @@ Cos.rule_to_string goal rule ::
+                          TexPP.to_string goal :: hist in
         let emit rule =
           hist := TexPP.to_string !prem :: !hist ;
           hist := Cos.rule_to_string !prem rule :: !hist ;
@@ -59,13 +60,15 @@ module Test = struct
     compute_forms_simp kcomb kderiv
 
   let scomb = Core.{ tycx = empty ;
-                     data = mk_imp (mk_imp a (mk_imp b c)) (mk_imp (mk_imp a b) (mk_imp a c)) }
+                     data = mk_imp (mk_imp a (mk_imp b c))
+                         (mk_imp (mk_imp a b) (mk_imp a c)) }
 
   let t2 () =
     let sderiv = [
       Cos.{ name = Contract ; path = Q.of_list [`r ; `r] } ;
       Cos.{ name = Goal_ts_imp `l ; path = Q.of_list [`r] } ;
-      Cos.{ name = Asms_imp { minor = `r ; pick = `l } ; path = Q.of_list [`r ; `l] } ;
+      Cos.{ name = Asms_imp { minor = `r ; pick = `l } ;
+            path = Q.of_list [`r ; `l] } ;
       Cos.{ name = Init ; path = Q.of_list [`r ; `l ; `l] } ;
       Cos.{ name = Goal_ts_imp `r ; path = Q.of_list [] } ;
       Cos.{ name = Goal_ts_imp `r ; path = Q.of_list [`r] } ;
