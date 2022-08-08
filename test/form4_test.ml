@@ -108,10 +108,28 @@ let tests =
     end ;
     "S-combinator COS" >:: begin fun _ ->
       let (_, prem) = run_scomb () in
-      assert_equal ~msg:"Premise" ~printer:LeanPP.to_string prem (Core.mk_top |@ kcomb)
+      assert_equal ~msg:"Premise" ~printer:LeanPP.to_string prem (Core.mk_top |@ scomb)
     end ;
-    "qesch COS" >:: begin fun _ ->
+    "qexch COS" >:: begin fun _ ->
       let (_, prem) = run_qexch () in
-      assert_equal ~msg:"Premise" ~printer:LeanPP.to_string prem (Core.mk_top |@ kcomb)
-    end
+      assert_equal ~msg:"Premise" ~printer:LeanPP.to_string prem (Core.mk_top |@ qexch)
+    end ;
+    "S-combinator DManip" >:: begin fun _ ->
+      let (_, prem) = scomb_d () in
+      let cmp f g = Term.eq_term f.data g.data in
+      assert_equal ~printer:LeanPP.to_string ~cmp prem
+        Core.(mk_imp (mk_imp a b) (mk_imp a (mk_and a b)) |@ scomb)
+    end ;
+    "qexch DManip" >:: begin fun _ ->
+      let (_, prem) = qexch_d () in
+      let cmp f g = Term.eq_term f.data g.data in
+      assert_equal ~printer:LeanPP.to_string ~cmp prem
+        Core.(mk_all { var = "x" ; ty = K.ty_i }
+                (mk_all { var = "y" ; ty = K.ty_i }
+                   (mk_ex { var = "x_1" ; ty = K.ty_i }
+                      (mk_ex { var = "y_1" ; ty = K.ty_i }
+                         (mk_and
+                           (mk_eq (dbx 2) (dbx 1) K.ty_i)
+                           (mk_eq (dbx 0) (dbx 3) K.ty_i))))) |@ qexch)
+    end ;
   ]
