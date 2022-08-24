@@ -9,8 +9,12 @@
 (* Form4 Library *)
 
 module Core     = Form4_core
+include Core
 module Pp       = Form4_pp
 module Paths    = Form4_paths
+type dir = Paths.dir
+type path = Paths.path
 module Cos      = Form4_cos
-module Simplify = Form4_simplify
-module Dmanip   = Form4_dmanip
+(* module Simplify = Form4_simplify *)
+include Form4_simplify
+include Form4_dmanip

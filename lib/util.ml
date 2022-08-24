@@ -35,6 +35,14 @@ module IdMap : Stdlib.Map.S with type key := ident =
 module IdTab : Stdlib.Hashtbl.S with type key := ident =
   Stdlib.Hashtbl.Make(IdHashEq)
 
+let panic =
+  (* hiding the exception in a local module to make it impossible to
+   * handle except with a catchall handler *)
+  let module P = struct
+    exception Panic of string
+  end in
+  fun msg -> raise @@ P.Panic msg
+
 let failwith_s fmt = Printf.ksprintf failwith fmt
 let failwith_fmt fmt =
   let buf = Buffer.create 19 in

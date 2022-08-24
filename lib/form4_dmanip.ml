@@ -413,21 +413,23 @@ let rec spin_rules ~emit concl =
   in
   try_all concl all_rules
 
-type dmanip_rule =
-  | Pristine
-  | Point_form of path
+type mstep =
+  | Pristine of formx
+  | Point_form of formx * path
   (* | Point_term of path *)
-  | Link_form of { src   : path ;
+  | Link_form of { goal : formx ;
+                   src   : path ;
                    dest  : path }
-  (* | Link_eq   of { src : path ; *)
+  (* | Link_eq   of { goal : formx ; *)
+  (*                  src : path ; *)
   (*                  dest : path } *)
-  | Contract  of path
-  | Weaken    of path
+  | Contract  of formx * path
+  | Weaken    of formx * path
 
-exception Bad_link of { goal : formx ; mrule : dmanip_rule }
+exception Bad_link of mstep
 
-let compute_derivation ~emit goal mrule =
-  let fail () = raise @@ Bad_link { goal ; mrule } in
+let compute_derivation ~emit mstep =
+  let fail () = raise @@ Bad_link mstep in
   let rec analyze_link cpath src dest =
     match Q.take_front src, Q.take_front dest with
     | Some (ds, src), Some (dd, dest) when ds = dd ->
@@ -440,16 +442,16 @@ let compute_derivation ~emit goal mrule =
         else fail ()
     | _ -> fail ()
   in
-  match mrule with
-  | Pristine
+  match mstep with
+  | Pristine _
   | Point_form _
   (* | Point_term _ *)
     -> ()
-  | Contract path ->
+  | Contract (_, path) ->
       emit { name = Contract ; path }
-  | Weaken path ->
+  | Weaken (_, path) ->
       emit { name = Weaken ; path }
-  | Link_form { src ; dest } -> begin
+  | Link_form { goal ; src ; dest } -> begin
       let (cpath, lpath, rpath, dest_in) = analyze_link Q.empty src dest in
       let (fx, side) = formx_at goal cpath in
       let concl = { cpath ; fx ; side ; lpath ; rpath ; dest_in } in

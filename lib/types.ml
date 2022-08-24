@@ -210,3 +210,5 @@ type 'a incx = {
  }
 
 let ( |@ ) f th = { th with data = f }
+
+let triv th = { tycx = empty ; data = th }

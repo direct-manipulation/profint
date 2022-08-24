@@ -170,12 +170,12 @@ let declare_const k str =
   let pty = {nvars = 0 ; ty = ty_of_string str} in
   sigma := add_const !sigma k pty
 
-(* module Test = struct
- *   let () = declare_const "p" {| \i -> \i -> \o |} ;;
- *   let () = declare_const "f" {| \i -> \i -> \i |} ;;
- *   let t1 = term_of_string {| [x] f x x |}
- *   let t2 = term_of_string {| [x, y] f x y |}
- *   let t3 = term_of_string {| [x, y] [z:\o] f x (f y x) |}
- *   let f1 = form_of_string {| \A [x, y, z] p x (f y z) |}
- *   let () = local_sig := IdMap.empty
- * end *)
+module Test = struct
+  let () = declare_const "p" {| \i -> \i -> \o |}
+  let () = declare_const "f" {| \i -> \i -> \i |}
+  let t1 = term_of_string {| [x] f x x |}
+  let t2 = term_of_string {| [x, y] f x y |}
+  let t3 = term_of_string {| [x, y] [z:\o] f x (f y x) |}
+  let f1 = form_of_string {| \A [x, y, z] p x (f y z) |}
+  let () = reset_sigma ()
+end

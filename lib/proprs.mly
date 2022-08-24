@@ -6,6 +6,7 @@
  *)
 
 %{
+  open Util
   open Types
 
   let make_quant q vs bod =
@@ -18,13 +19,27 @@
     | [] -> assert false
     | [t] -> t
     | f :: t :: ts -> make_app (U.App (f, t) :: ts)
+
+  type sig_one =
+    | Basic of ident
+    | Const of ident * ty
+
+  let assemble_signature things =
+    let rec aux sigma = function
+      | [] -> sigma
+      | Basic t :: things ->
+         aux (add_basic sigma t) things
+      | Const (k, ty) :: things ->
+         aux (add_const sigma k { nvars = 0 ; ty }) things
+    in
+    aux sigma0 things
 %}
 
 %token  EOS PREC_MIN
 (* %token  PREC_MAX *)
 %token  <Util.ident> IDENT
 %token  LPAREN RPAREN LBRACK RBRACK COMMA COLON DOT
-%token  ARROW OMICRON IOTA
+%token  ARROW OMICRON IOTA TYPE
 (* %token  EQ NEQ *)
 %token  AND OR TO FROM BOT TOP
 %token  FORALL EXISTS
@@ -39,7 +54,7 @@
 %start <U.term> one_term
 %start <ty> one_ty
 %start <U.term> one_form
-%start <(string * ty) list> signature
+%start <Types.sigma> signature
 
 %%
 
@@ -115,9 +130,11 @@ ty:
   { ty }
 
 signature:
-| vtyss=list(signature_one) EOS
-  { List.concat vtyss }
+| sss=list(signature_one) EOS
+  { assemble_signature (List.concat sss) }
 
 signature_one:
 | vs=separated_nonempty_list(COMMA, IDENT) COLON ty=ty DOT
-  { List.map (fun v -> (v, ty)) vs }
+  { List.map (fun v -> Const (v, ty)) vs }
+| vs=separated_nonempty_list(COMMA, IDENT) COLON TYPE DOT
+  { List.map (fun v -> Basic v) vs }

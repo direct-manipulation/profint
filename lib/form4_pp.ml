@@ -127,10 +127,36 @@ module TexPP = SkelPP (
           | Some ty -> ty_to_exp ty
         end
     let ty_to_string ty = ty_to_exp ty |> Doc.bracket |> Doc.lin_doc
+    let rec term_to_exp_ ~cx t =
+      let open Doc in
+      match t with
+      | T.Abs { var ; body } ->
+          with_var ~fresh:true cx { var ; ty = K.ty_i } begin fun vty cx ->
+            let rep = StringAs (3 + String.length vty.var,
+                                Printf.sprintf "\\lambda{%s}.\\," vty.var) in
+            Appl (5, Prefix (rep, term_to_exp_ ~cx body))
+          end
+      | T.App {head ; spine = []} ->
+          Term.head_to_exp ~cx head
+      | T.App {head ; spine} ->
+          let left = Term.head_to_exp ~cx head in
+          let right = match spine with
+            | [t] ->
+                Wrap (Opaque, String "(",
+                      term_to_exp_ ~cx t,
+                      String ")")
+            | _ ->
+                Wrap (Opaque,
+                      String "(",
+                      Appl (0, Infix (String ",", Left,
+                                      List.map (term_to_exp_ ~cx) spine)),
+                      String ")")
+          in
+          Appl (200, Infix (StringAs (0, ""), Non, [left ; right]))
     let term_to_exp tx =
       Doc.(Wrap (Transparent,
                  StringAs (0, Printf.sprintf {|\htmlId{t%d}{|} @@ fresh_id ()),
-                 Term.term_to_exp ~cx:tx.tycx tx.data,
+                 term_to_exp_ ~cx:tx.tycx tx.data,
                  StringAs (0, {|}|})))
     let rep_app  = Doc.StringAs (1, {|\,|})
     let rep_eq _ = Doc.StringAs (1, {|\mathbin{\doteq}|})

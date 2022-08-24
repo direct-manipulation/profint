@@ -21,7 +21,7 @@ let rec compute_forms_simp ?(hist = []) goal deriv =
         hist := Cos.rule_to_string !prem rule :: !hist ;
         prem := Cos.compute_premise !prem rule
       in
-      let _simp_prem = Simplify.recursive_simplify ~emit !prem Q.empty `r in
+      let _simp_prem = recursive_simplify ~emit !prem Q.empty `r in
       compute_forms_simp !prem deriv ~hist:!hist
 
 let kcomb = Core.{ tycx = empty ; data = mk_imp a (mk_imp b a) }
@@ -85,7 +85,8 @@ let run_qexch () =
 let scomb_d () =
   let deriv = ref [] in
   let emit rule = deriv := rule :: !deriv in
-  Dmanip.compute_derivation ~emit scomb @@ Link_form {
+  compute_derivation ~emit @@ Link_form {
+    goal = scomb ;
     src = Q.of_list [`l ; `r ; `r] ;
     dest = Q.of_list [`r ; `r ; `r] ;
   } ;
@@ -94,7 +95,8 @@ let scomb_d () =
 let qexch_d () =
   let deriv = ref [] in
   let emit rule = deriv := rule :: !deriv in
-  Dmanip.compute_derivation ~emit qexch @@ Link_form {
+  compute_derivation ~emit @@ Link_form {
+    goal = qexch ;
     src = Q.of_list [`l ; `d ; `d] ;
     dest = Q.of_list [`r ; `d ; `d] ;
   } ;
