@@ -39,6 +39,7 @@ module K = struct
     fun hint -> incr count ;
       Printf.sprintf {|#%s@%d#|} hint !count
 
+  let k_mdata = next_internal "mdata"
   let k_all = next_internal "forall"
   let k_ex  = next_internal "exists"
   let k_and = next_internal "and"

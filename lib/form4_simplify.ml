@@ -17,6 +17,9 @@ open Form4_cos
 
 let rec recursive_simplify ~emit (fx : formx) (path : path) (side : side) =
   match expose fx.data with
+  | Mdata (md, ty, f) ->
+      let f = recursive_simplify ~emit (f |@ fx) path side in
+      mk_mdata md ty f.data |@ fx
   | Eq (s, t, _) when side = `r -> begin
       match s, t with
       | App { head = f ; spine = ss },

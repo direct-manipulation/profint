@@ -11,8 +11,6 @@ open Form4_core
 (******************************************************************************)
 (* Pretty Printing of Skeletons *)
 
-exception Unprintable
-
 module type SKEL_PARAMS = sig
   val ty_to_exp : ty -> Doc.exp
   val term_to_exp : T.term incx -> Doc.exp
@@ -27,10 +25,15 @@ module type SKEL_PARAMS = sig
   val rep_all : typed_var -> Doc.doc
   val rep_ex : typed_var -> Doc.doc
   val wrap : Doc.exp -> Doc.exp
+  val wrap_src : Doc.exp -> Doc.exp
+  val wrap_dest : Doc.exp -> Doc.exp
 end
+
+exception Unprintable of fskel incx
 
 module SkelPP (Params : SKEL_PARAMS) = struct
   let skel_to_exp (f2e : formx -> Doc.exp) (skel : fskel incx) =
+    let fail () = raise @@ Unprintable skel in
     Params.wrap begin
       match skel.data with
       | Atom a -> begin
@@ -40,7 +43,7 @@ module SkelPP (Params : SKEL_PARAMS) = struct
                 let x = Params.term_to_exp (x |@ skel) in
                 Doc.(Appl (50, Infix (Params.rep_app, Left, [f ; x])))
               end Doc.(Atom (String p)) spine
-          | _ -> raise Unprintable
+          | _ -> fail ()
         end
       | Eq (s, t, ty) ->
           let s = Params.term_to_exp (s |@ skel) in
@@ -72,6 +75,15 @@ module SkelPP (Params : SKEL_PARAMS) = struct
             let b = f2e { data = b ; tycx } in
             Doc.(Appl (5, Prefix (q, b)))
           end
+      | Mdata (md, _, f) -> begin
+          let fe = f2e { skel with data = f } in
+          match md with
+          | T.App { head = Const ("src", _) ; _ } ->
+              Params.wrap_src fe
+          | T.App { head = Const ("dest", _) ; _ } ->
+              Params.wrap_dest fe
+          | _ -> fail ()
+        end
     end
   let rec to_exp (fx : formx) =
     skel_to_exp to_exp (expose fx.data |@ fx)
@@ -100,6 +112,10 @@ module LeanPP = SkelPP (
       Doc.String (Printf.sprintf "∃ (%s : %s), "
                     vty.var (ty_to_string vty.ty))
     let wrap e = e
+    let wrap_src e =
+      Doc.(Wrap (Opaque, String "〚", e, String "〛"))
+    let wrap_dest e =
+      Doc.(Wrap (Opaque, String "⟨", e, String "⟩"))
   end)
 
 (******************************************************************************)
@@ -176,4 +192,8 @@ module TexPP = SkelPP (
                  StringAs (0, Printf.sprintf {|\htmlId{f%d}{|} @@ fresh_id ()),
                  e,
                  StringAs (0, {|}|})))
+    let wrap_src e =
+      Doc.(Wrap (Transparent, StringAs (0, {|\lnsrc{|}), e, StringAs (0, "}")))
+    let wrap_dest e =
+      Doc.(Wrap (Transparent, StringAs (0, {|\lndest{|}), e, StringAs (0, "}")))
   end)

@@ -458,3 +458,22 @@ let compute_derivation ~emit mstep =
       spin_rules ~emit concl
     end
   (* | Link_eq _ -> failwith "unfinished" *)
+
+let mk_src f =
+  mk_mdata (T.App { head = Const ("src", K.ty_i) ; spine = [] }) K.ty_i f
+let mk_dest f =
+  mk_mdata (T.App { head = Const ("dest", K.ty_i) ; spine = [] }) K.ty_i f
+
+let pp_mstep ?(ppfx = Form4_pp.LeanPP.pp) out mstep =
+  match mstep with
+  | Pristine fx -> ppfx out fx
+  | Point_form (fx, path)
+  | Contract (fx, path)
+  | Weaken (fx, path) ->
+      let fx = transform_at fx.data path mk_src |@ fx in
+      ppfx out fx
+  | Link_form lf ->
+      let fx = lf.goal in
+      let fx = transform_at fx.data lf.src mk_src |@ fx in
+      let fx = transform_at fx.data lf.dest mk_dest |@ fx in
+      ppfx out fx

@@ -25,9 +25,12 @@ type fskel =
   | Imp    of form * form
   | Forall of typed_var * form
   | Exists of typed_var * form
+  | Mdata  of term * ty * form
 
 let expose (form : form) =
   match form with
+  | App { head = Const (k, ty) ; spine = [md ; f] } when k = K.k_mdata ->
+      Mdata (md, ty, f)
   | App { head = Const (k, _) ; spine = [] } when k = K.k_top ->
       Top
   | App { head = Const (k, _) ; spine = [] } when k = K.k_bot ->
@@ -68,3 +71,6 @@ let mk_all vty body =
 let mk_ex vty body =
   App { head = Const (K.k_ex, Arrow (Arrow (vty.ty, K.ty_o), K.ty_o)) ;
         spine = [Abs { var = vty.var ; body }] }
+let mk_mdata md ty f =
+  App { head = Const (K.k_mdata, Arrow (ty, Arrow (K.ty_o, K.ty_o))) ;
+        spine = [md ; f] }

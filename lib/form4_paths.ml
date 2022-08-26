@@ -43,6 +43,8 @@ let rec get_at ?(side = `r) tycx form (path : path) k =
           with_var tycx {var = x ; ty} begin fun _ tycx ->
             get_at ~side tycx form path k
           end
+      | Mdata (_, _, f), _ ->
+          get_at ~side tycx f path k
       | _ ->
           raise @@ Bad_direction { tycx = Some tycx ; form ; dir }
     end
@@ -70,6 +72,31 @@ let rec replace_at (src : form) (path : path) (repl : form) : form =
       | Exists ({ ty ; _ }, a), `i x
       | Exists ({ ty ; var = x }, a), `d ->
           mk_ex { var = x ; ty } (replace_at a path repl)
+      | Mdata (md, ty, a), _ ->
+          mk_mdata md ty @@ replace_at a path repl
+      | _ ->
+          raise @@ Bad_direction { tycx = None ; form = src ; dir }
+    end
+
+let rec transform_at (src : form) (path : path) (fn : form -> form) : form =
+  match Q.take_front_exn path with
+  | exception Q.Empty -> fn src
+  | dir, path -> begin
+      match expose src, dir with
+      | And (a, b), `l -> mk_and (transform_at a path fn) b
+      | And (a, b), `r -> mk_and a (transform_at b path fn)
+      | Or (a, b), `l -> mk_or (transform_at a path fn) b
+      | Or (a, b), `r -> mk_or a (transform_at b path fn)
+      | Imp (a, b), `l -> mk_imp (transform_at a path fn) b
+      | Imp (a, b), `r -> mk_imp a (transform_at b path fn)
+      | Forall ({ ty ; _ }, a), `i x
+      | Forall ({ ty ; var = x }, a), `d ->
+          mk_all { var = x ; ty } (transform_at a path fn)
+      | Exists ({ ty ; _ }, a), `i x
+      | Exists ({ ty ; var = x }, a), `d ->
+          mk_ex { var = x ; ty } (transform_at a path fn)
+      | Mdata (md, ty, a), _ ->
+          mk_mdata md ty @@ transform_at a path fn
       | _ ->
           raise @@ Bad_direction { tycx = None ; form = src ; dir }
     end

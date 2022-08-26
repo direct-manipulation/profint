@@ -3,12 +3,12 @@ open Util
 open Js_of_ocaml
 
 type state = {
-  mutable goal : Form3.form ;
-  mutable history : Form3.form list ;
-  mutable future : Form3.form list ;
+  mutable goal : Form4.mstep ;
+  mutable history : Form4.mstep list ;
+  mutable future : Form4.mstep list ;
 }
 
-let state = { goal = Form3.(reform0 Top) ;
+let state = { goal = Form4.Pristine (Types.triv Form4.Core.mk_top) ;
               future = [] ; history = [] }
 
 let push_goal goal =
@@ -17,15 +17,10 @@ let push_goal goal =
   state.goal <- goal
 
 let sig_change text =
-  Uterm.local_sig := IdMap.empty ;
   try begin
     let text = Js.to_string text in
-    let vtys = Uterm.thing_of_string Proprs.signature text in
-    Uterm.local_sig := IdMap.empty ;
-    List.iter begin fun (v, ty) ->
-      let pty = Types.{nvars = 0 ; ty} in
-      Uterm.(local_sig := IdMap.add v pty !local_sig)
-    end vtys ;
+    let sigma = Uterm.thing_of_string Proprs.signature text in
+    Types.sigma := sigma ;
     true
   end with _ -> false
 
@@ -42,7 +37,7 @@ let to_trail str =
 
 let change_formula text =
   try
-    state.goal <- Uterm.form_of_string text ;
+    state.goal <- Form4.Pristine (Types.triv (Uterm.form_of_string text)) ;
     state.history <- [] ;
     state.future <- [] ;
     true
@@ -64,7 +59,7 @@ let profint_object =
       change_formula @@ Js.to_string text
 
     method formulaOrd =
-      Form3.form_to_string state.goal |> Js.string
+      Form4.Pp.LeanPP.to_string state.goal |> Js.string
 
     method formulaHTML =
       Form3.form_to_html state.goal |> Js.string
