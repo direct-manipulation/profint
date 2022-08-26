@@ -45,21 +45,26 @@ let try_goal_init ~emit concl =
         Done
   | _ -> abort ()
 
+let try_goal_release ~emit:_ concl =
+  abort_unless (concl.side = `r) ;
+  abort_unless (concl.lpath = Q.of_list [`l]) ;
+  abort_unless (concl.rpath = Q.of_list [`r]) ;
+  match expose concl.fx.data with
+  | Imp _ ->
+      (* nothing to emit *)
+      Done
+  | _ -> abort ()
+
 let try_goal_ts_and ~emit concl =
   abort_unless (concl.side = `r) ;
   match expose concl.fx.data, Q.take_front concl.rpath with
   | Imp (a, f), Some (`r, rpath) -> begin
       match expose f, Q.take_front rpath with
-      | And (b, f), Some (`l, rpath) ->
-          emit { name = Goal_ts_and `l ; path = concl.cpath } ;
-          let fx = mk_and (mk_imp a b) f |@ concl.fx in
-          let cpath = Q.snoc concl.cpath `l in
-          let rpath = Q.cons `r rpath in
-          Continue { concl with fx ; cpath ; rpath }
-      | And (f, b), Some (`r, rpath) ->
-          emit { name = Goal_ts_and `r ; path = concl.cpath } ;
-          let fx = mk_and f (mk_imp a b) |@ concl.fx in
-          let cpath = Q.snoc concl.cpath `r in
+      | And (b, _), Some (`l as dir, rpath)
+      | And (_, b), Some (`r as dir, rpath) ->
+          emit { name = Goal_ts_and dir ; path = concl.cpath } ;
+          let fx = mk_imp a b |@ concl.fx in
+          let cpath = Q.snoc concl.cpath dir in
           let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
@@ -75,9 +80,9 @@ let try_goal_and_ts ~emit concl =
       | And (_, a), Some (`r as dir, lpath) ->
           emit { name = Goal_and_ts dir ; path = concl.cpath } ;
           let fx = mk_imp a b |@ concl.fx in
-          let cpath = Q.snoc concl.cpath `l in
+          (* let cpath = Q.snoc concl.cpath `l in *)
           let lpath = Q.cons `l lpath in
-          Continue { concl with fx ; cpath ; lpath }
+          Continue { concl with fx (* ; cpath *) ; lpath }
       | _ -> abort ()
     end
   | _ -> abort ()
@@ -106,7 +111,7 @@ let try_goal_or_ts ~emit concl =
       | Or (a, _), Some (`l as dir, lpath)
       | Or (_, a), Some (`r as dir, lpath) ->
           emit { name = Goal_or_ts ; path = concl.cpath } ;
-          let fx = (mk_imp a b) |@ concl.fx in
+          let fx = mk_imp a b |@ concl.fx in
           let cpath =Q.snoc concl.cpath  dir in
           let lpath = Q.cons `l lpath in
           Continue { concl with fx ; cpath ; lpath }
@@ -216,6 +221,14 @@ let can_descend (dir : side) concl =
   | `r, `r ->
       (* descend right on l2r links unless already at dest *)
       concl.rpath <> single_r
+
+let try_asms_release ~emit:_ concl =
+  abort_unless (concl.side = `l) ;
+  match expose concl.fx.data with
+  | And _ ->
+      (* nothing to emit *)
+      Done
+  | _ -> abort ()
 
 let try_asms_and ~emit concl =
   abort_unless (concl.side = `l) ;
@@ -393,16 +406,20 @@ let all_rules = [
   try_asms_or ;
   try_asms_imp ;
   try_asms_allex ;
+  (* end *)
+  try_goal_release ;
+  try_asms_release ;
 ]
 
 let rec spin_rules ~emit concl =
   let rec try_all concl rules =
     match rules with
     | [] ->
-        Format.eprintf "spin_rules: stuck on: @[%a@]@. lpath = %a@. rpath = %a@.%!"
-          (Term.pp_term ~cx:concl.fx.tycx) concl.fx.data
+        Format.eprintf "spin_rules: stuck on: @[%a@]@. lpath = %a@. rpath = %a@. cpath = %a@.%!"
+          Form4_pp.LeanPP.pp concl.fx
           pp_path concl.lpath
-          pp_path concl.rpath ;
+          pp_path concl.rpath
+          pp_path concl.cpath ;
         failwith "stuck"
     | rule :: rules -> begin
         match rule ~emit concl with

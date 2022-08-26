@@ -16,241 +16,234 @@
       var initial_form = "(\\A [x] \\E [y] r (f x) y) & (\\A [z] r (f j) z => p (f z)) => \\E [u] p (f u)";
 
       const macros = {
-          "\\o": "\\mathsf{o}",
-          "\\i": "\\mathsf{i}",
-          "\\lnsrc": "{\\color{orange}#1}",
-          "\\lndest": "{\\color{blue}#1}",
+        "\\o": "\\mathsf{o}",
+        "\\i": "\\mathsf{i}",
+        "\\lnsrc": "{\\color{orange}#1}",
+        "\\lndest": "{\\color{blue}#1}",
       };
 
       const katex_options = {
-          trust: true,
-          output: 'html',
-          strict: false,
-          macros
+        trust: true,
+        output: 'html',
+        strict: false,
+        macros
       };
 
       const formLink = {
-          src: null,
-          dest: null
+        src: null,
+        dest: null
       };
 
       function findPath(elem) {
-          var path = [];
-          var outputDiv = $('#output');
-          while (elem && !$(elem).is(outputDiv)) {
-              if ($(elem).attr('id')) {
-                  var beforeCount = $(elem).prevAll('.enclosing').length;
-                  var afterCount  = $(elem).nextAll('.enclosing').length;
-                  if (beforeCount === 0)
-                      path.unshift(afterCount === 0 ? 'D' : 'L');
-                  else
-                      path.unshift('R');
-                  // console.log(path);
-              }
-              elem = $(elem).parent();
-          }
-          path.shift(); // remove the last 'D'
-          // console.log(path);
-          return path.join('');
+        var path;
+        var outputDiv = $('#output');
+        while (elem && !$(elem).is(outputDiv)) {
+          path = $(elem).data('path');
+          if (path) break;
+          elem = $(elem).parent();
+        }
+        if (!path) path = '';
+        console.log('findPath: ' + path);
+        return path;
       }
 
       function clearLinks() {
-          formLink.src = null;
-          formLink.dest = null;
-          $('#output .enclosing').removeClass('f-src');
-          $('#output .enclosing').removeClass('f-dest');
+        formLink.src = null;
+        formLink.dest = null;
+        $('#output .enclosing').removeClass('f-src');
+        $('#output .enclosing').removeClass('f-dest');
       }
 
       var witnessBox = null;
 
       function makeWitnessBox(ev) {
-          if (witnessBox) {
-              console.log('there is already a witness box');
-              return;
-          }
-          var hlForm = $('.hl-range');
-          if (hlForm.length != 1) {
-              console.log('there is more than one hl!');
-              return;
-          }
-          const path = findPath(hlForm);
-          const txt = profint.testWitness(path);
-          if (txt) {
-              witnessBox = $('<input>')
-                  .attr('placeholder', txt)
-                  .attr('value', '')
-                  .attr('size', Math.max(txt.length, 1))
-                  .data('path', path)
-                  .css({'font-family': 'monospace',
-                        'font-size': 'inherit'})
-                  .on('input', function(ev){
-                      $(this).attr('size', Math.max(ev.target.value.length, 1));
-                  })
-                  .on('change', function(ev){
-                      console.log('path: ' + $(ev.target).data('path'));
-                      console.log('new witness: ' + ev.target.value);
-                      const res = profint.doWitness($(ev.target).data('path'),
-                                                    ev.target.value);
-                      if (res) {
-                          witnessBox = null;
-                          renderFormula();
-                      } else {
-                          console.log('witness was not accepted');
-                          witnessBox.css({'background-color': 'red'})
-                              .animate({'background-color': 'inherit'}, 'slow');
-                      }
-                  })
-                  .on('keyup', function(ev){
-                      if (ev.key === 'Escape') {
-                          witnessBox = null;
-                          renderFormula();
-                          ev.stopPropagation();
-                      }
-                  });
-              $('.hl-range > span:nth-child(2) > span:first-child')
-                  .replaceWith(witnessBox);
-              witnessBox.focus();
-          }
+        if (witnessBox) {
+          console.log('there is already a witness box');
+          return;
+        }
+        var hlForm = $('.hl-range');
+        if (hlForm.length != 1) {
+          console.log('there is more than one hl!');
+          return;
+        }
+        const path = findPath(hlForm);
+        const txt = profint.testWitness(path);
+        if (txt) {
+          witnessBox = $('<input>')
+            .attr('placeholder', txt)
+            .attr('value', '')
+            .attr('size', Math.max(txt.length, 1))
+            .data('path', path)
+            .css({'font-family': 'monospace',
+                  'font-size': 'inherit'})
+            .on('input', function(ev){
+              $(this).attr('size', Math.max(ev.target.value.length, 1));
+            })
+            .on('change', function(ev){
+              console.log('path: ' + $(ev.target).data('path'));
+              console.log('new witness: ' + ev.target.value);
+              const res = profint.doWitness($(ev.target).data('path'),
+                                            ev.target.value);
+              if (res) {
+                witnessBox = null;
+                renderFormula();
+              } else {
+                console.log('witness was not accepted');
+                witnessBox.css({'background-color': 'red'})
+                  .animate({'background-color': 'inherit'}, 'slow');
+              }
+            })
+            .on('keyup', function(ev){
+              if (ev.key === 'Escape') {
+                witnessBox = null;
+                renderFormula();
+                ev.stopPropagation();
+              }
+            });
+          $('.hl-range > span:nth-child(2) > span:first-child')
+            .replaceWith(witnessBox);
+          witnessBox.focus();
+        }
       }
 
       function linkSubformula(elem, doContract) {
-          if (witnessBox) return;
-          if (formLink.src) {
-              if (formLink.dest || $(elem).is(formLink.src)) {
-                  // do nothing
-              } else {
-                  formLink.dest = elem;
-                  $(elem).addClass('f-dest');
-                  // console.log('dest: ' + findPath(elem));
-                  // $('#destId').text(findPath(elem));
-                  var res = profint.makeLink(findPath(formLink.src),
-                                             findPath(formLink.dest),
-                                             doContract);
-                  if (res) renderFormula();
-                  else {
-                      console.log('link failed');
-                      clearLinks();
-                      $('#output').css({
-                          'background-color': 'red'
-                      }).animate({
-                          'background-color': 'white'
-                      }, 'fast');
-                  }
-              }
+        if (witnessBox) return;
+        if (formLink.src) {
+          if (formLink.dest || $(elem).is(formLink.src)) {
+            // do nothing
           } else {
-              formLink.src = elem;
-              $(elem).addClass('f-src');
-              // console.log('src: ' + findPath(elem));
-              // $('#srcId').text(findPath(elem));
+            formLink.dest = elem;
+            $(elem).addClass('f-dest');
+            // console.log('dest: ' + findPath(elem));
+            // $('#destId').text(findPath(elem));
+            var res = profint.makeLink(findPath(formLink.src),
+                                       findPath(formLink.dest),
+                                       doContract);
+            if (res) renderFormula();
+            else {
+              console.log('link failed');
+              clearLinks();
+              $('#output').css({
+                'background-color': 'red'
+              }).animate({
+                'background-color': 'white'
+              }, 'fast');
+            }
           }
+        } else {
+          formLink.src = elem;
+          $(elem).addClass('f-src');
+          // console.log('src: ' + findPath(elem));
+          // $('#srcId').text(findPath(elem));
+        }
       }
 
       function contractSubformula(elem) {
-          var res = profint.doContraction(findPath(elem));
-          if (res) renderFormula();
-          else {
-              console.log('contaction failed');
-          }
+        var res = profint.doContraction(findPath(elem));
+        if (res) renderFormula();
+        else {
+          console.log('contaction failed');
+        }
       }
 
       function weakenSubformula(elem) {
-          var res = profint.doWeakening(findPath(elem));
-          if (res) renderFormula();
-          else {
-              console.log('weakening failed');
-          }
+        var res = profint.doWeakening(findPath(elem));
+        if (res) renderFormula();
+        else {
+          console.log('weakening failed');
+        }
       }
 
       function substituteWitness(elem) {
-          var res = profint.doWitness(findPath(elem));
-          if (res) renderFormula();
-          else {
-              console.log('witness failed');
-          }
+        var res = profint.doWitness(findPath(elem));
+        if (res) renderFormula();
+        else {
+          console.log('witness failed');
+        }
       }
 
       function changeFormula() {
-          var text = window.prompt('Enter the new formula');
-          setFormula(text);
-          return false;
+        var text = window.prompt('Enter the new formula');
+        setFormula(text);
+        return false;
       }
 
       function doUndo() {
-          var res = profint.doUndo();
-          if (res) renderFormula();
-          else console.log('undo failed');
+        var res = profint.doUndo();
+        if (res) renderFormula();
+        else console.log('undo failed');
       }
 
       function doRedo() {
-          var res = profint.doRedo();
-          if (res) renderFormula();
-          else console.log('redo failed');
+        var res = profint.doRedo();
+        if (res) renderFormula();
+        else console.log('redo failed');
       }
 
       function renderFormula() {
-          clearLinks();
-          $('#output').html(function(){
-              const expr = profint.formulaHTML();
-              console.log('render: ' + expr);
-              return katex.renderToString(expr, katex_options);
-          });
-          $('#output .enclosing').on("click", function(ev){
-              // console.log('clicked: ' + $(this).attr('id'));
-              if (ev.ctrlKey) {
-                  if (formLink.src)
-                      linkSubformula(this, true);
-                  else
-                      contractSubformula(this);
-              }
-              else if (ev.altKey) weakenSubformula(this);
-              else if (ev.shiftKey) substituteWitness(this);
-              else linkSubformula(this, false);
-              ev.stopPropagation();
-          });
-          $("#output .enclosing").mouseover(function(ev) {
-              $('#output .enclosing').removeClass('hl-range');
-              $(this).addClass('hl-range');
-              // $("span.enclosing").css({"border-bottom": "0"});
-              // $(this).css({"border-bottom": "3px solid red"});
-              ev.stopPropagation();
-          });
-          $("#output .enclosing").mouseout(function(ev) {
-              $(this).removeClass('hl-range');
-              // $("span.enclosing").css({"border-bottom": "0"});
-          });
-          $('#history').html(function(){
-              const expr = profint.historyHTML();
-              return katex.renderToString(expr, katex_options);
-          });
-          $('#doUndo').prop('disabled', profint.countHistory() <= 0);
-          $('#future').html(function(){
-              const expr = profint.futureHTML();
-              return katex.renderToString(expr, katex_options);
-          });
-          $('#doRedo').prop('disabled', profint.countFuture() <= 0);
+        clearLinks();
+        $('#output').html(function(){
+          const expr = profint.formulaHTML();
+          console.log('render: ' + expr);
+          return katex.renderToString(expr, katex_options);
+        });
+        $('#output .enclosing').on("click", function(ev){
+          // console.log('clicked: ' + $(this).attr('id'));
+          if (ev.ctrlKey) {
+            if (formLink.src)
+              linkSubformula(this, true);
+            else
+              contractSubformula(this);
+          }
+          else if (ev.altKey) weakenSubformula(this);
+          else if (ev.shiftKey) substituteWitness(this);
+          else linkSubformula(this, false);
+          ev.stopPropagation();
+        });
+        $("#output .enclosing").mouseover(function(ev) {
+          $('#output .enclosing').removeClass('hl-range');
+          $(this).addClass('hl-range');
+          // $("span.enclosing").css({"border-bottom": "0"});
+          // $(this).css({"border-bottom": "3px solid red"});
+          ev.stopPropagation();
+        });
+        $("#output .enclosing").mouseout(function(ev) {
+          $(this).removeClass('hl-range');
+          // $("span.enclosing").css({"border-bottom": "0"});
+        });
+        $('#history').html(function(){
+          const expr = profint.historyHTML();
+          return katex.renderToString(expr, katex_options);
+        });
+        $('#doUndo').prop('disabled', profint.countHistory() <= 0);
+        $('#future').html(function(){
+          const expr = profint.futureHTML();
+          return katex.renderToString(expr, katex_options);
+        });
+        $('#doRedo').prop('disabled', profint.countFuture() <= 0);
       }
       
       function setFormula(text) {
-          var res = profint.formulaChange(text);
-          if (res) renderFormula();
-          else {
-              // console.log('formChange() failed');
-              $('#output').css({'background-color': 'red'});
-              $('#output').animate({'background-color': 'white'}, 'slow');
-          }
+        var res = profint.formulaChange(text);
+        if (res) renderFormula();
+        else {
+          // console.log('formChange() failed');
+          $('#output').css({'background-color': 'red'});
+          $('#output').animate({'background-color': 'white'}, 'slow');
+        }
       }
 
       $(document).ready(function(){
-          hotkeys('ctrl+up,ctrl+down,w', function (event, handler){
-              switch (handler.key) {
-              case 'ctrl+down': doUndo(); break;
-              case 'ctrl+up': doRedo(); break;
-              case 'w': makeWitnessBox(event); return false;
-              }
-          });
-          profint.signatureChange(document.sigEditor.getValue());
-          if (profint.startup()) renderFormula();
-          else setFormula(initial_form);
+        hotkeys('ctrl+up,ctrl+down,w', function (event, handler){
+          switch (handler.key) {
+          case 'ctrl+down': doUndo(); break;
+          case 'ctrl+up': doRedo(); break;
+          case 'w': makeWitnessBox(event); return false;
+          }
+        });
+        profint.signatureChange(document.sigEditor.getValue());
+        if (profint.startup()) renderFormula();
+        else setFormula(initial_form);
       });
     </script>
     <style>

@@ -2,6 +2,9 @@ open Profint
 open Util
 open Js_of_ocaml
 
+let mstep_to_string mstep =
+  pp_to_string (Form4.pp_mstep ~ppfx:Form4_pp.LeanPP.pp) mstep
+
 type state = {
   mutable goal : Form4.mstep ;
   mutable history : Form4.mstep list ;
@@ -25,15 +28,19 @@ let sig_change text =
   end with _ -> false
 
 let to_trail str : Form4.path =
-  let str = Js.to_string str in
-  range 0 (String.length str)
-  |> Seq.map begin fun i ->
-    match str.[i] with
-      | 'L' -> `l
-      | 'R' -> `r
-      | 'D' -> `d
-      | _   -> invalid_arg ("to_trail: " ^ str)
-  end |> Q.of_seq
+  let path = Js.to_string str |> String.split_on_char ';' in
+  match path with
+  | [""] -> Q.empty
+  | dirs ->
+      Q.of_list dirs |>
+      Q.map begin function
+      | "l" -> `l
+      | "r" -> `r
+      | "d" -> `d
+      | dir when dir.[0] = 'i' ->
+          `i (String.sub dir 2 (String.length dir - 3))
+      | dir -> failwith @@ "invalid direction: " ^ dir
+      end
 
 let change_formula text =
   try
@@ -135,6 +142,7 @@ let profint_object =
       let fx = ref @@ Form4.goal_of_mstep old_goal in
       try
         state.goal <- Form4.Contract (!fx, to_trail src) ;
+        Format.printf "doContraction: %s@." (mstep_to_string state.goal) ;
         let emit crule = fx := Form4.Cos.compute_premise !fx crule in
         Form4.compute_derivation ~emit state.goal ;
         push_goal (Form4.Pristine !fx) ;
@@ -158,6 +166,10 @@ let profint_object =
 
 (*
     method testWitness trail =
+      let old_goal = state.goal in
+      let fx = ref @@ Form4.goal_of_mstep old_goal in
+      try
+        state.goal <- Form4.
       let trail = to_trail trail in
       let open Form3 in
       match go state.goal trail with

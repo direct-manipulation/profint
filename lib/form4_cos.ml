@@ -124,7 +124,7 @@ let rec pp_path_list out path =
 let pp_path out (path : path) =
   pp_path_list out (Q.to_list path)
 
-let pp_rule out goalx rule =
+let pp_rule out (goalx, rule) =
   let (fx, _) = formx_at goalx rule.path in
   Format.fprintf out "@[%a%s:: %a@]"
     pp_path rule.path
@@ -134,7 +134,7 @@ let pp_rule out goalx rule =
 let rule_to_string goalx rule =
   let buf = Buffer.create 19 in
   let out = Format.formatter_of_buffer buf in
-  pp_rule out goalx rule ;
+  pp_rule out (goalx, rule) ;
   Format.pp_print_flush out () ;
   Buffer.contents buf
 
@@ -160,7 +160,9 @@ exception Bad_match of {goal : formx ; rule : cos_rule}
 let shift n t = Term.(sub_term (Shift n) t) [@@inline]
 
 let compute_premise (goal : formx) (rule : cos_rule) : formx =
-  let bad_match () = raise @@ Bad_match {goal ; rule} in
+  let bad_match () =
+    Format.eprintf "Bad_match: %a@." pp_rule (goal, rule) ;
+    raise @@ Bad_match {goal ; rule} in
   let (fx, side) = formx_at goal rule.path in
   let c = match side, expose fx.data, rule.name with
     (* goal *)

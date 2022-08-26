@@ -102,6 +102,24 @@ let qexch_d () =
   } ;
   compute_forms_simp qexch (List.rev !deriv)
 
+let and_ts_l_d () =
+  let deriv = ref [] in
+  let emit rule = deriv := rule :: !deriv in
+  let goal = Types.triv @@ mk_imp (mk_and a b) a in
+  compute_derivation ~emit @@ Link_form {
+    goal ;
+    src = Q.of_list [`l ; `l] ;
+    dest = Q.of_list [`r]
+  } ;
+  compute_forms_simp goal (List.rev !deriv)
+
+let contract_d () =
+  let deriv = ref [] in
+  let emit rule = deriv := rule :: !deriv in
+  let goal = Types.triv @@ mk_imp a b in
+  compute_derivation ~emit @@ Contract (goal, Q.empty) ;
+  compute_forms_simp goal (List.rev !deriv)
+
 let tests =
   "Form4" >::: [
     "K-combinator COS" >:: begin fun _ ->
@@ -133,5 +151,17 @@ let tests =
                          (mk_and
                            (mk_eq (dbx 2) (dbx 1) K.ty_i)
                            (mk_eq (dbx 0) (dbx 3) K.ty_i))))) |@ qexch)
+    end ;
+    "and_ts_l" >:: begin fun _ ->
+      let (_, prem) = and_ts_l_d () in
+      let cmp f g = Term.eq_term f.data g.data in
+      assert_equal ~printer:LeanPP.to_string ~cmp prem
+        Core.(Types.triv mk_top)
+    end ;
+    "contract" >:: begin fun _ ->
+      let (_, prem) = contract_d () in
+      let cmp f g = Term.eq_term f.data g.data in
+      assert_equal ~printer:LeanPP.to_string ~cmp prem
+        Core.(Types.triv @@ mk_imp a (mk_imp a b))
     end ;
   ]

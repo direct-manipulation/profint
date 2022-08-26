@@ -5,8 +5,10 @@
  * See LICENSE for licensing details.
  *)
 
+open Util
 open Types
 open Form4_core
+open Form4_paths
 
 (******************************************************************************)
 (* Pretty Printing of Skeletons *)
@@ -16,25 +18,26 @@ module type SKEL_PARAMS = sig
   val term_to_exp : T.term incx -> Doc.exp
 
   val rep_app : Doc.doc
-  val rep_eq : ty -> Doc.doc
+  val rep_eq  : ty -> Doc.doc
   val rep_and : Doc.doc
   val rep_top : Doc.doc
-  val rep_or : Doc.doc
+  val rep_or  : Doc.doc
   val rep_bot : Doc.doc
   val rep_imp : Doc.doc
   val rep_all : typed_var -> Doc.doc
-  val rep_ex : typed_var -> Doc.doc
-  val wrap : Doc.exp -> Doc.exp
-  val wrap_src : Doc.exp -> Doc.exp
+  val rep_ex  : typed_var -> Doc.doc
+
+  val wrap      : path -> Doc.exp -> Doc.exp
+  val wrap_src  : Doc.exp -> Doc.exp
   val wrap_dest : Doc.exp -> Doc.exp
 end
 
 exception Unprintable of fskel incx
 
 module SkelPP (Params : SKEL_PARAMS) = struct
-  let skel_to_exp (f2e : formx -> Doc.exp) (skel : fskel incx) =
+  let skel_to_exp (f2e : formx -> path -> Doc.exp) (skel : fskel incx) (path : path) =
     let fail () = raise @@ Unprintable skel in
-    Params.wrap begin
+    Params.wrap path begin
       match skel.data with
       | Atom a -> begin
           match a with
@@ -50,33 +53,33 @@ module SkelPP (Params : SKEL_PARAMS) = struct
           let t = Params.term_to_exp (t |@ skel) in
           Doc.(Appl (40, Infix (Params.rep_eq ty, Non, [s ; t])))
       | And (a, b) ->
-          let a = f2e (a |@ skel) in
-          let b = f2e (b |@ skel) in
+          let a = f2e (a |@ skel) (Q.snoc path `l) in
+          let b = f2e (b |@ skel) (Q.snoc path `r) in
           Doc.(Appl (30, Infix (Params.rep_and, Right, [a ; b])))
       | Top -> Doc.(Atom Params.rep_top)
       | Or (a, b) ->
-          let a = f2e (a |@ skel) in
-          let b = f2e (b |@ skel) in
+          let a = f2e (a |@ skel) (Q.snoc path `l) in
+          let b = f2e (b |@ skel) (Q.snoc path `r) in
           Doc.(Appl (20, Infix (Params.rep_or, Right, [a ; b])))
       | Bot -> Doc.(Atom Params.rep_bot)
       | Imp (a, b) ->
-          let a = f2e (a |@ skel) in
-          let b = f2e (b |@ skel) in
+          let a = f2e (a |@ skel) (Q.snoc path `l) in
+          let b = f2e (b |@ skel) (Q.snoc path `r) in
           Doc.(Appl (10, Infix (Params.rep_imp, Right, [a ; b])))
       | Forall (vty, b) ->
           with_var ~fresh:true skel.tycx vty begin fun vty tycx ->
             let q = Params.rep_all vty in
-            let b = f2e { data = b ; tycx } in
+            let b = f2e { data = b ; tycx } (Q.snoc path (`i vty.var)) in
             Doc.(Appl (5, Prefix (q, b)))
           end
       | Exists (vty, b) ->
           with_var ~fresh:true skel.tycx vty begin fun vty tycx ->
             let q = Params.rep_ex vty in
-            let b = f2e { data = b ; tycx } in
+            let b = f2e { data = b ; tycx } (Q.snoc path (`i vty.var)) in
             Doc.(Appl (5, Prefix (q, b)))
           end
       | Mdata (md, _, f) -> begin
-          let fe = f2e { skel with data = f } in
+          let fe = f2e { skel with data = f } path in
           match md with
           | T.App { head = Const ("src", _) ; _ } ->
               Params.wrap_src fe
@@ -85,8 +88,8 @@ module SkelPP (Params : SKEL_PARAMS) = struct
           | _ -> fail ()
         end
     end
-  let rec to_exp (fx : formx) =
-    skel_to_exp to_exp (expose fx.data |@ fx)
+  let rec to_exp_ (fx : formx) path = skel_to_exp to_exp_ (expose fx.data |@ fx) path
+  let to_exp (fx : formx) = to_exp_ fx Q.empty
   let pp out fx = to_exp fx |> Doc.bracket |> Doc.pp_doc out
   let to_string fx = to_exp fx |> Doc.bracket |> Doc.lin_doc
 end
@@ -111,7 +114,7 @@ module LeanPP = SkelPP (
     let rep_ex vty =
       Doc.String (Printf.sprintf "∃ (%s : %s), "
                     vty.var (ty_to_string vty.ty))
-    let wrap e = e
+    let wrap _ e = e
     let wrap_src e =
       Doc.(Wrap (Opaque, String "〚", e, String "〛"))
     let wrap_dest e =
@@ -187,11 +190,23 @@ module TexPP = SkelPP (
     let rep_ex vty =
       Doc.String (Printf.sprintf {|{\exists}{%s{:}%s}.\,|}
                     vty.var (ty_to_string vty.ty))
-    let wrap e =
-      Doc.(Wrap (Transparent,
-                 StringAs (0, Printf.sprintf {|\htmlId{f%d}{|} @@ fresh_id ()),
-                 e,
-                 StringAs (0, {|}|})))
+    let dir_to_string (d : dir) =
+      match d with
+      | `l -> "l"
+      | `r -> "r"
+      | `d -> "d"
+      | `i x -> "i(" ^ x ^ ")"
+    let path_to_string path =
+      path
+      |> Q.to_list
+      |> List.map dir_to_string
+      |> String.concat ";"
+    let wrap path e =
+      let lbra = Printf.sprintf {|\htmlId{f%d}{\htmlData{path=%s}{|}
+          (fresh_id ())
+          (path_to_string path)
+      in
+      Doc.(Wrap (Transparent, StringAs (0, lbra), e, StringAs (0, {|}}|})))
     let wrap_src e =
       Doc.(Wrap (Transparent, StringAs (0, {|\lnsrc{|}), e, StringAs (0, "}")))
     let wrap_dest e =
