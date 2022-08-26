@@ -64,3 +64,10 @@ let range ?(step = 1) x y =
 
 module Q = CCFQueue
 type 'a q = 'a Q.t
+
+let pp_to_string pp thing =
+  let buf = Buffer.create 19 in
+  let out = Format.formatter_of_buffer buf in
+  pp out thing ;
+  Format.pp_print_flush out () ;
+  Buffer.contents buf

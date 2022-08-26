@@ -18,6 +18,8 @@
       const macros = {
           "\\o": "\\mathsf{o}",
           "\\i": "\\mathsf{i}",
+          "\\lnsrc": "{\\color{orange}#1}",
+          "\\lndest": "{\\color{blue}#1}",
       };
 
       const katex_options = {
@@ -189,7 +191,7 @@
           clearLinks();
           $('#output').html(function(){
               const expr = profint.formulaHTML();
-              // console.log(expr);
+              console.log('render: ' + expr);
               return katex.renderToString(expr, katex_options);
           });
           $('#output .enclosing').on("click", function(ev){

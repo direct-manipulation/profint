@@ -426,6 +426,13 @@ type mstep =
   | Contract  of formx * path
   | Weaken    of formx * path
 
+let goal_of_mstep = function
+  | Pristine fx
+  | Point_form (fx, _)
+  | Link_form { goal = fx ; _ }
+  | Contract (fx, _)
+  | Weaken (fx, _) -> fx
+
 exception Bad_link of mstep
 
 let compute_derivation ~emit mstep =

@@ -24,22 +24,23 @@ let sig_change text =
     true
   end with _ -> false
 
-let to_trail str =
+let to_trail str : Form4.path =
   let str = Js.to_string str in
   range 0 (String.length str)
   |> Seq.map begin fun i ->
     match str.[i] with
-      | 'L' -> Form3.L
-      | 'R' -> Form3.R
-      | 'D' -> Form3.D
+      | 'L' -> `l
+      | 'R' -> `r
+      | 'D' -> `d
       | _   -> invalid_arg ("to_trail: " ^ str)
-  end |> List.of_seq
+  end |> Q.of_seq
 
 let change_formula text =
   try
     state.goal <- Form4.Pristine (Types.triv (Uterm.form_of_string text)) ;
     state.history <- [] ;
     state.future <- [] ;
+    (* Format.printf "state: %a@." (Form4.pp_mstep ~ppfx:Form4.Pp.LeanPP.pp) state.goal ; *)
     true
   with _ -> false
 
@@ -59,10 +60,10 @@ let profint_object =
       change_formula @@ Js.to_string text
 
     method formulaOrd =
-      Form4.Pp.LeanPP.to_string state.goal |> Js.string
+      pp_to_string (Form4.pp_mstep ~ppfx:Form4_pp.LeanPP.pp) state.goal |> Js.string
 
     method formulaHTML =
-      Form3.form_to_html state.goal |> Js.string
+      pp_to_string (Form4.pp_mstep ~ppfx:Form4_pp.TexPP.pp) state.goal |> Js.string
 
     method convertToHTML text =
       try
@@ -73,7 +74,7 @@ let profint_object =
     method historyHTML =
       let contents =
         state.history
-        |> List.map Form3.form_to_html
+        |> List.map (pp_to_string (Form4.pp_mstep ~ppfx:Form4_pp.TexPP.pp))
         |> String.concat {| \mathstrut \\ \hline |}
       in
       {| \begin{array}{c} \hline |} ^ contents ^ {| \end{array} |}
@@ -88,7 +89,7 @@ let profint_object =
         | _ ->
             let contents =
               state.future
-              |> List.rev_map Form3.form_to_html
+              |> List.rev_map (pp_to_string (Form4.pp_mstep ~ppfx:Form4_pp.TexPP.pp))
               |> String.concat {| \mathstrut \\ \hline |}
             in
             {| \begin{array}{c} |} ^ contents ^ {| \\ \hline \end{array} |}
@@ -113,28 +114,49 @@ let profint_object =
           true
       | _ -> false
 
-    method makeLink src dest contr =
-      let src = to_trail src in
-      let dest = to_trail dest in
+    method makeLink src dest (_contr : bool) =
+      let old_goal = state.goal in
+      let fx = ref @@ Form4.goal_of_mstep old_goal in
       try
-        Form3.resolve state.goal src dest contr |> push_goal ;
+        state.goal <- Form4.Link_form { goal = !fx ;
+                                        src = to_trail src ;
+                                        dest = to_trail dest } ;
+        let emit_cos crule = fx := Form4.Cos.compute_premise !fx crule in
+        Form4.compute_derivation ~emit:emit_cos state.goal ;
+        let _ = Form4.recursive_simplify ~emit:emit_cos !fx Q.empty `r in
+        push_goal (Form4.Pristine !fx) ;
         true
-      with _ -> false
+      with _ ->
+        state.goal <- old_goal ;
+        false
 
     method doContraction src =
-      let src = to_trail src in
+      let old_goal = state.goal in
+      let fx = ref @@ Form4.goal_of_mstep old_goal in
       try
-        Form3.contract state.goal src |> push_goal ;
+        state.goal <- Form4.Contract (!fx, to_trail src) ;
+        let emit crule = fx := Form4.Cos.compute_premise !fx crule in
+        Form4.compute_derivation ~emit state.goal ;
+        push_goal (Form4.Pristine !fx) ;
         true
-      with _ -> false
+      with _ ->
+        state.goal <- old_goal ;
+        false
 
     method doWeakening src =
-      let src = to_trail src in
+      let old_goal = state.goal in
+      let fx = ref @@ Form4.goal_of_mstep old_goal in
       try
-        Form3.weaken state.goal src |> push_goal ;
+        state.goal <- Form4.Weaken (!fx, to_trail src) ;
+        let emit crule = fx := Form4.Cos.compute_premise !fx crule in
+        Form4.compute_derivation ~emit state.goal ;
+        push_goal (Form4.Pristine !fx) ;
         true
-      with _ -> false
+      with _ ->
+        state.goal <- old_goal ;
+        false
 
+(*
     method testWitness trail =
       let trail = to_trail trail in
       let open Form3 in
@@ -154,6 +176,7 @@ let profint_object =
         push_goal @@ Form3.witness state.goal trail text ;
         true
       with _ -> false
+*)
   end
 
 let () = Js.export "profint" profint_object

@@ -44,10 +44,10 @@ let expose (form : form) =
   | App { head = Const (k, Arrow (ty, _)) ; spine = [t1 ; t2] } when k = K.k_eq ->
       Eq (t1, t2, ty)
   | App { head = Const (k, Arrow (Arrow (ty, _), _)) ;
-         spine = [Abs { var ; body }] } when k = K.k_all ->
+          spine = [Abs { var ; body }] } when k = K.k_all ->
       Forall ({ var ; ty }, body)
   | App { head = Const (k, Arrow (Arrow (ty, _), _)) ;
-         spine = [Abs { var ; body }] } when k = K.k_ex ->
+          spine = [Abs { var ; body }] } when k = K.k_ex ->
       Exists ({ var ; ty }, body)
   | _ ->
       Atom form
