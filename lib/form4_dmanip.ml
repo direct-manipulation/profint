@@ -38,11 +38,13 @@ let try_goal_init ~emit concl =
   abort_unless (concl.lpath = Q.of_list [`l]) ;
   abort_unless (concl.rpath = Q.of_list [`r]) ;
   match expose concl.fx.data with
-  | Imp (App {head = Const (a1, _) ; spine = _},
-         App {head = Const (a2, _) ; spine = _})
-      when a1 = a2 && not (IdMap.mem a1 !sigma.consts) ->
-        emit { name = Init ; path = concl.cpath } ;
-        Done
+  | Imp (a, b) -> begin
+      match expose a, expose b with
+      | Atom (App a), Atom (App b) when a.head = b.head ->
+          emit { name = Init ; path = concl.cpath } ;
+          Done
+      | _ -> abort ()
+    end
   | _ -> abort ()
 
 let try_goal_release ~emit:_ concl =
@@ -167,10 +169,12 @@ let try_goal_ts_allex ~qsel ~emit concl =
   match expose concl.fx.data, Q.take_front concl.rpath with
   | Imp (a, f), Some (`r, rpath) -> begin
       match expose f, Q.take_front rpath with
-      | (Forall (vty, b) as fexp), Some (`d, rpath)
-      | (Exists (vty, b) as fexp), Some (`d, rpath)
+      | (Forall ({ var ; ty }, b) as fexp), Some (`d, rpath)
+      | (Forall ({ ty ; _ }, b) as fexp), Some (`i var, rpath)
+      | (Exists ({ var ; ty }, b) as fexp), Some (`d, rpath)
+      | (Exists ({ ty ; _ }, b) as fexp), Some (`i var, rpath)
         when qsel fexp ->
-          with_var concl.fx.tycx vty begin fun _ tycx ->
+          with_var concl.fx.tycx { var ; ty } begin fun _ tycx ->
             let name = if is_forall fexp then Goal_ts_all else Goal_ts_ex in
             emit { name ; path = concl.cpath } ;
             let fx = { data = mk_imp (shift 1 a) b ; tycx } in
@@ -187,10 +191,12 @@ let try_goal_allex_ts ~qsel ~emit concl =
   match expose concl.fx.data, Q.take_front concl.lpath with
   | Imp (f, b), Some (`l, lpath) -> begin
       match expose f, Q.take_front lpath with
-      | (Forall (vty, a) as fexp), Some (`d, lpath)
-      | (Exists (vty, a) as fexp), Some (`d, lpath)
+      | (Forall ({ var ; ty }, a) as fexp), Some (`d, lpath)
+      | (Forall ({ ty ; _ }, a) as fexp), Some (`i var, lpath)
+      | (Exists ({ var ; ty }, a) as fexp), Some (`d, lpath)
+      | (Exists ({ ty ; _ }, a) as fexp), Some (`i var, lpath)
         when qsel fexp ->
-          with_var concl.fx.tycx vty begin fun _ tycx ->
+          with_var concl.fx.tycx { var ; ty } begin fun _ tycx ->
             let name = if is_forall fexp then Goal_all_ts else Goal_ex_ts in
             emit { name ; path = concl.cpath } ;
             let fx = { data = mk_imp a (shift 1 b) ; tycx } in

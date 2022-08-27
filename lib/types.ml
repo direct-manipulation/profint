@@ -30,6 +30,9 @@ let rec ty_to_exp ty =
       | Some ty -> ty_to_exp ty
     end
 
+let pp_ty out ty =
+  ty_to_exp ty |> Doc.bracket |> Doc.pp_doc out
+
 let ty_to_string ty =
   ty_to_exp ty |> Doc.bracket |> Doc.lin_doc
 
@@ -80,13 +83,17 @@ let check_well_formed sigma pty =
 exception Invalid_sigma_extension
 
 let add_basic sigma b =
-  if IdSet.mem b sigma.basics then
-    raise Invalid_sigma_extension ;
+  if IdSet.mem b sigma.basics then begin
+    Format.eprintf "Basic type %S already declared@." b ;
+    raise Invalid_sigma_extension
+  end ;
   { sigma with basics = IdSet.add b sigma.basics }
 
 let add_const sigma k pty =
-  if IdMap.mem k sigma.consts then
-    raise Invalid_sigma_extension ;
+  if IdMap.mem k sigma.consts then begin
+    Format.eprintf "Constant %S already declared@." k ;
+    raise Invalid_sigma_extension
+  end ;
   check_well_formed sigma pty ;
   { sigma with consts = IdMap.add k pty sigma.consts }
 
@@ -130,6 +137,14 @@ let thaw_ty pty =
     | Tyvar {id ; _} -> Array.get tab id
   in
   aux pty.ty
+
+let pp_sigma out sigma =
+  IdSet.iter begin fun i ->
+    Format.fprintf out "%s : \\type.@." i
+  end sigma.basics ;
+  IdMap.iter begin fun k pty ->
+    Format.fprintf out "%s : %a.@." k pp_ty (thaw_ty pty)
+  end sigma.consts
 
 let lookup_ty k = thaw_ty @@ IdMap.find k !sigma.consts
 let lookup_ty_or_fresh k =

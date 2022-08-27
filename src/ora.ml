@@ -25,7 +25,9 @@ let sig_change text =
     let sigma = Uterm.thing_of_string Proprs.signature text in
     Types.sigma := sigma ;
     true
-  end with _ -> false
+  end with e ->
+    Format.eprintf "sig_change: %s@." (Printexc.to_string e) ;
+    false
 
 let to_trail str : Form4.path =
   let path = Js.to_string str |> String.split_on_char ';' in
@@ -75,8 +77,12 @@ let profint_object =
     method convertToHTML text =
       try
         let f = Uterm.form_of_string @@ Js.to_string text in
-        Js.string @@ Form3.form_to_html f
-      with _ -> Js.string "!!ERROR!!"
+        Js.string @@ pp_to_string Form4_pp.TexPP.pp @@ Types.triv f
+      with e ->
+        Format.eprintf "converToHTML: %S: %s@."
+          (Js.to_string text)
+          (Printexc.to_string e) ;
+        Js.string "!!ERROR!!"
 
     method historyHTML =
       let contents =
