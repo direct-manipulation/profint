@@ -446,13 +446,18 @@ type mstep =
   (*                  dest : path } *)
   | Contract  of formx * path
   | Weaken    of formx * path
+  | Inst      of { goal  : formx ;
+                   path  : path ;
+                   termx : T.term incx }
 
 let goal_of_mstep = function
   | Pristine fx
   | Point_form (fx, _)
   | Link_form { goal = fx ; _ }
   | Contract (fx, _)
-  | Weaken (fx, _) -> fx
+  | Weaken (fx, _)
+  | Inst { goal = fx ; _ }
+    -> fx
 
 exception Bad_link of mstep
 
@@ -473,19 +478,19 @@ let compute_derivation ~emit mstep =
   match mstep with
   | Pristine _
   | Point_form _
-  (* | Point_term _ *)
     -> ()
   | Contract (_, path) ->
       emit { name = Contract ; path }
   | Weaken (_, path) ->
       emit { name = Weaken ; path }
+  | Inst { termx ; path ; _ } ->
+      emit { name = Inst termx.data ; path }
   | Link_form { goal ; src ; dest } -> begin
       let (cpath, lpath, rpath, dest_in) = analyze_link Q.empty src dest in
       let (fx, side) = formx_at goal cpath in
       let concl = { cpath ; fx ; side ; lpath ; rpath ; dest_in } in
       spin_rules ~emit concl
     end
-  (* | Link_eq _ -> failwith "unfinished" *)
 
 let mk_src f =
   mk_mdata (T.App { head = Const ("src", K.ty_i) ; spine = [] }) K.ty_i f
@@ -500,6 +505,10 @@ let pp_mstep ?(ppfx = Form4_pp.LeanPP.pp) out mstep =
   | Weaken (fx, path) ->
       let fx = transform_at fx.data path mk_src |@ fx in
       ppfx out fx
+  | Inst { goal ; path ; termx = _ } ->
+      let fx = transform_at goal.data path mk_src |@ goal in
+      ppfx out fx
+      (* Format.fprintf out " [%a]" (Term.pp_term ~cx:termx.tycx) termx.data *)
   | Link_form lf ->
       let fx = lf.goal in
       let fx = transform_at fx.data lf.src mk_src |@ fx in

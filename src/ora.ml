@@ -49,7 +49,6 @@ let change_formula text =
     state.goal <- Form4.Pristine (Types.triv (Uterm.form_of_string text)) ;
     state.history <- [] ;
     state.future <- [] ;
-    (* Format.printf "state: %a@." (Form4.pp_mstep ~ppfx:Form4.Pp.LeanPP.pp) state.goal ; *)
     true
   with _ -> false
 
@@ -170,31 +169,38 @@ let profint_object =
         state.goal <- old_goal ;
         false
 
-(*
-    method testWitness trail =
+    method testWitness src =
+      let fail () = Format.eprintf "testWitness: failure@." ; Js.null in
+      try
+        let fx = Form4.goal_of_mstep state.goal in
+        let ex, side = Form4.Paths.formx_at fx @@ to_trail src in
+        match Form4.expose ex.data, side with
+        | Form4.Exists ({ var ; _ }, _), `r -> Js.some @@ Js.string var
+        | _ -> fail ()
+      with _ -> fail ()
+
+    method doWitness path text =
       let old_goal = state.goal in
       let fx = ref @@ Form4.goal_of_mstep old_goal in
+      let fail reason =
+        Format.printf "doWitness: failure: %s@." reason ;
+        state.goal <- old_goal ;
+        false
+      in
       try
-        state.goal <- Form4.
-      let trail = to_trail trail in
-      let open Form3 in
-      match go state.goal trail with
-      | context when context.pos -> begin
-          match expose context.form with
-          | Exists (v, _, _) -> Js.some @@ Js.string v
-          | _ -> Js.null
-        end
-      | _
-      | exception _ -> Js.null
-
-    method doWitness trail text =
-      try
-        let trail = to_trail trail in
-        let text = Js.to_string text in
-        push_goal @@ Form3.witness state.goal trail text ;
-        true
-      with _ -> false
-*)
+        let path = to_trail path in
+        let (ex, side) = Form4.Paths.formx_at !fx path in
+        let term, given_ty = Uterm.term_of_string ~cx:ex.tycx @@ Js.to_string text in
+        let termx = { ex with data = term } in
+        match Form4.expose ex.data, side with
+        | Form4.Exists ({ ty ; _ }, _), `r when ty = given_ty ->
+            state.goal <- Form4.Inst { goal = !fx ; path ; termx } ;
+            let emit crule = fx := Form4.Cos.compute_premise !fx crule in
+            Form4.compute_derivation ~emit state.goal ;
+            push_goal (Form4.Pristine !fx) ;
+            true
+        | _ -> fail "not an exists"
+      with e -> fail (Printexc.to_string e)
   end
 
 let () = Js.export "profint" profint_object

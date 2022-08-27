@@ -80,8 +80,8 @@
               $(this).attr('size', Math.max(ev.target.value.length, 1));
             })
             .on('change', function(ev){
-              console.log('path: ' + $(ev.target).data('path'));
-              console.log('new witness: ' + ev.target.value);
+              // console.log('path: ' + $(ev.target).data('path'));
+              // console.log('new witness: ' + ev.target.value);
               const res = profint.doWitness($(ev.target).data('path'),
                                             ev.target.value);
               if (res) {
