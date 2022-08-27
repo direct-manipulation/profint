@@ -80,9 +80,8 @@ let try_goal_and_ts ~emit concl =
       | And (_, a), Some (`r as dir, lpath) ->
           emit { name = Goal_and_ts dir ; path = concl.cpath } ;
           let fx = mk_imp a b |@ concl.fx in
-          (* let cpath = Q.snoc concl.cpath `l in *)
           let lpath = Q.cons `l lpath in
-          Continue { concl with fx (* ; cpath *) ; lpath }
+          Continue { concl with fx ; lpath }
       | _ -> abort ()
     end
   | _ -> abort ()
@@ -96,9 +95,8 @@ let try_goal_ts_or ~emit concl =
       | Or (_, b), Some (`r as dir, rpath) ->
           emit { name = Goal_ts_or dir ; path = concl.cpath } ;
           let fx = mk_imp a b |@ concl.fx in
-          let cpath = Q.snoc concl.cpath `r in
           let rpath = Q.cons `r rpath in
-          Continue { concl with fx ; cpath ; rpath }
+          Continue { concl with fx ; rpath }
       | _ -> abort ()
     end
   | _ -> abort ()

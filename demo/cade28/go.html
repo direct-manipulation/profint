@@ -43,7 +43,7 @@
           elem = $(elem).parent();
         }
         if (!path) path = '';
-        console.log('findPath: ' + path);
+        // console.log('findPath: ' + path);
         return path;
       }
 
@@ -184,7 +184,7 @@
         clearLinks();
         $('#output').html(function(){
           const expr = profint.formulaHTML();
-          console.log('render: ' + expr);
+          // console.log('render: ' + expr);
           return katex.renderToString(expr, katex_options);
         });
         $('#output .enclosing').on("click", function(ev){

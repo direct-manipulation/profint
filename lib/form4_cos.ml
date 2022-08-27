@@ -31,6 +31,7 @@ type cos_rule_name =
   | Asms_all of { minor : side }
   | Asms_ex  of { minor : side }
   | Simp_imp_true
+  | Simp_true_imp
   | Simp_false_imp
   | Simp_and_true of side
   | Simp_or_true  of side
@@ -90,6 +91,8 @@ let pp_rule_name ?(cx = empty) out rn =
         (side_to_string minor)
   | Simp_imp_true ->
       Format.fprintf out "simp_imp_true"
+  | Simp_true_imp ->
+      Format.fprintf out "simp_true_imp"
   | Simp_false_imp ->
       Format.fprintf out "simp_false_imp"
   | Simp_and_true side ->
@@ -307,6 +310,11 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
     | `r, Imp (_, f), Simp_imp_true -> begin
         match expose f with
         | Top -> f
+        | _ -> bad_match ()
+      end
+    | _, Imp (f, a), Simp_true_imp -> begin
+        match expose f with
+        | Top -> a
         | _ -> bad_match ()
       end
     | `r, Imp (f, _), Simp_false_imp -> begin
