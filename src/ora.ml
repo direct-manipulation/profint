@@ -135,7 +135,7 @@ let profint_object =
                                         dest = to_trail dest } ;
         let emit_cos crule = fx := Form4.Cos.compute_premise !fx crule in
         Form4.compute_derivation ~emit:emit_cos state.goal ;
-        let _ = Form4.recursive_simplify ~emit:emit_cos !fx Q.empty `r in
+        ignore @@ Form4.recursive_simplify ~emit:emit_cos !fx Q.empty `r ;
         push_goal (Form4.Pristine !fx) ;
         true
       with _ ->
@@ -197,6 +197,7 @@ let profint_object =
             state.goal <- Form4.Inst { goal = !fx ; path ; termx } ;
             let emit crule = fx := Form4.Cos.compute_premise !fx crule in
             Form4.compute_derivation ~emit state.goal ;
+            ignore @@ Form4.recursive_simplify ~emit !fx Q.empty `r ;
             push_goal (Form4.Pristine !fx) ;
             true
         | _ -> fail "not an exists"
