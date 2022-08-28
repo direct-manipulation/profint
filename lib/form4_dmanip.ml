@@ -11,6 +11,7 @@ open T
 open Form4_core
 open Form4_paths
 open Form4_cos
+open Form4_simplify
 
 (******************************************************************************)
 (* Direct Manipulation Rules *)
@@ -174,11 +175,11 @@ let try_goal_ts_allex ~qsel ~emit concl =
       | (Exists ({ var ; ty }, b) as fexp), Some (`d, rpath)
       | (Exists ({ ty ; _ }, b) as fexp), Some (`i var, rpath)
         when qsel fexp ->
-          with_var concl.fx.tycx { var ; ty } begin fun _ tycx ->
+          with_var concl.fx.tycx { var ; ty } begin fun vty tycx ->
             let name = if is_forall fexp then Goal_ts_all else Goal_ts_ex in
             emit { name ; path = concl.cpath } ;
             let fx = { data = mk_imp (shift 1 a) b ; tycx } in
-            let cpath = Q.snoc concl.cpath `d in
+            let cpath = Q.snoc concl.cpath (`i vty.var) in
             let rpath = Q.cons `r rpath in
             Continue { concl with fx ; cpath ; rpath }
           end
@@ -196,11 +197,11 @@ let try_goal_allex_ts ~qsel ~emit concl =
       | (Exists ({ var ; ty }, a) as fexp), Some (`d, lpath)
       | (Exists ({ ty ; _ }, a) as fexp), Some (`i var, lpath)
         when qsel fexp ->
-          with_var concl.fx.tycx { var ; ty } begin fun _ tycx ->
+          with_var concl.fx.tycx { var ; ty } begin fun vty tycx ->
             let name = if is_forall fexp then Goal_all_ts else Goal_ex_ts in
             emit { name ; path = concl.cpath } ;
             let fx = { data = mk_imp a (shift 1 b) ; tycx } in
-            let cpath = Q.snoc concl.cpath `d in
+            let cpath = Q.snoc concl.cpath (`i vty.var) in
             let lpath = Q.cons `l lpath in
             Continue { concl with fx ; cpath ; lpath }
           end
@@ -356,16 +357,19 @@ let try_asms_allex ~emit concl =
   | And (f, b), Some (`l, lpath), _
     when can_descend `l concl -> begin
       match expose f, Q.take_front lpath with
-      | (Forall (vty, a) as fexp), Some (`d, lpath)
-      | (Exists (vty, a) as fexp), Some (`d, lpath) ->
-          with_var concl.fx.tycx vty begin fun _ tycx ->
+      | (Forall ({ var ; ty }, a) as fexp), Some (`d, lpath)
+      | (Forall ({ ty ; _ }, a) as fexp), Some (`i var, lpath)
+      | (Exists ({ var ; ty }, a) as fexp), Some (`d, lpath)
+      | (Exists ({ ty ; _ }, a) as fexp), Some (`i var, lpath)
+        ->
+          with_var concl.fx.tycx { var ; ty } begin fun vty tycx ->
             let name = match fexp with
               | Forall _ -> Asms_all { minor = `r }
               | _ -> Asms_ex { minor = `r }
             in
             emit { name ; path = concl.cpath } ;
             let fx = { data = mk_and a (shift 1 b) ; tycx } in
-            let cpath = Q.snoc concl.cpath `d in
+            let cpath = Q.snoc concl.cpath (`i vty.var) in
             let lpath = Q.cons `l lpath in
             Continue { concl with fx ; cpath ; lpath }
           end
@@ -374,16 +378,19 @@ let try_asms_allex ~emit concl =
   | And (a, f), _, Some (`r, rpath)
     when can_descend `r concl -> begin
       match expose f, Q.take_front rpath with
-      | (Forall (vty, b) as fexp), Some (`d, rpath)
-      | (Exists (vty, b) as fexp), Some (`d, rpath) ->
-          with_var concl.fx.tycx vty begin fun _ tycx ->
+      | (Forall ({ var ; ty }, b) as fexp), Some (`d, rpath)
+      | (Forall ({ ty ; _ }, b) as fexp), Some (`i var, rpath)
+      | (Exists ({ var ; ty }, b) as fexp), Some (`d, rpath)
+      | (Exists ({ ty ; _ }, b) as fexp), Some (`i var, rpath)
+        ->
+          with_var concl.fx.tycx { var ; ty } begin fun vty tycx ->
             let name = match fexp with
               | Forall _ -> Asms_all { minor = `l }
               | _ -> Asms_ex { minor = `l }
             in
             emit { name ; path = concl.cpath } ;
             let fx = { data = mk_and (shift 1 a) b ; tycx } in
-            let cpath = Q.snoc concl.cpath `d in
+            let cpath = Q.snoc concl.cpath (`i vty.var) in
             let rpath = Q.cons `r rpath in
             Continue { concl with fx ; cpath ; rpath }
           end
@@ -435,34 +442,38 @@ let rec spin_rules ~emit concl =
   try_all concl all_rules
 
 type mstep =
-  | Pristine of formx
-  | Point_form of formx * path
-  (* | Point_term of path *)
-  | Link_form of { goal : formx ;
-                   src   : path ;
-                   dest  : path }
-  (* | Link_eq   of { goal : formx ; *)
-  (*                  src : path ; *)
-  (*                  dest : path } *)
-  | Contract  of formx * path
-  | Weaken    of formx * path
-  | Inst      of { goal  : formx ;
-                   path  : path ;
-                   termx : T.term incx }
+  | Pristine of { goal  : formx }
+  | Contract of { goal  : formx ;
+                  path  : path }
+  | Weaken   of { goal  : formx ;
+                  path  : path }
+  | Link     of { goal  : formx ;
+                  src   : path ;
+                  dest  : path }
+  | Inst     of { goal  : formx ;
+                  path  : path ;
+                  termx : T.term incx }
 
 let goal_of_mstep = function
-  | Pristine fx
-  | Point_form (fx, _)
-  | Link_form { goal = fx ; _ }
-  | Contract (fx, _)
-  | Weaken (fx, _)
-  | Inst { goal = fx ; _ }
-    -> fx
+  | Pristine { goal ; _ }
+  | Link     { goal ; _ }
+  | Contract { goal ; _ }
+  | Weaken   { goal ; _ }
+  | Inst     { goal ; _ }
+    -> goal
 
-exception Bad_link of mstep
+exception Bad_mstep of mstep
 
-let compute_derivation ~emit mstep =
-  let fail () = raise @@ Bad_link mstep in
+let compute_derivation mstep =
+  let fail () = raise @@ Bad_mstep mstep in
+  let bottom = goal_of_mstep mstep in
+  let middle = ref [] in
+  let top = ref bottom in
+  let emit rule =
+    let premise = compute_premise !top rule in
+    middle := (premise, rule, !top) :: !middle ;
+    top := premise
+  in
   let rec analyze_link cpath src dest =
     match Q.take_front src, Q.take_front dest with
     | Some (ds, src), Some (dd, dest) when ds = dd ->
@@ -475,22 +486,24 @@ let compute_derivation ~emit mstep =
         else fail ()
     | _ -> fail ()
   in
-  match mstep with
-  | Pristine _
-  | Point_form _
-    -> ()
-  | Contract (_, path) ->
-      emit { name = Contract ; path }
-  | Weaken (_, path) ->
-      emit { name = Weaken ; path }
-  | Inst { termx ; path ; _ } ->
-      emit { name = Inst termx.data ; path }
-  | Link_form { goal ; src ; dest } -> begin
-      let (cpath, lpath, rpath, dest_in) = analyze_link Q.empty src dest in
-      let (fx, side) = formx_at goal cpath in
-      let concl = { cpath ; fx ; side ; lpath ; rpath ; dest_in } in
-      spin_rules ~emit concl
-    end
+  let () = match mstep with
+    | Pristine _ -> ()
+    | Contract { path ; _ } ->
+        emit { name = Contract ; path } ;
+    | Weaken { path ; _ } ->
+        emit { name = Weaken ; path }
+    | Inst { termx ; path ; _ } ->
+        emit { name = Inst termx ; path } ;
+        ignore @@ recursive_simplify ~emit !top Q.empty `r ;
+    | Link { goal ; src ; dest } -> begin
+        let (cpath, lpath, rpath, dest_in) = analyze_link Q.empty src dest in
+        let (fx, side) = formx_at goal cpath in
+        let concl = { cpath ; fx ; side ; lpath ; rpath ; dest_in } in
+        spin_rules ~emit concl ;
+        ignore @@ recursive_simplify ~emit !top Q.empty `r ;
+      end
+  in
+  Form4_cos.{ top = !top ; middle = !middle ; bottom }
 
 let mk_src f =
   mk_mdata (T.App { head = Const ("src", K.ty_i) ; spine = [] }) K.ty_i f
@@ -499,17 +512,15 @@ let mk_dest f =
 
 let pp_mstep ?(ppfx = Form4_pp.LeanPP.pp) out mstep =
   match mstep with
-  | Pristine fx -> ppfx out fx
-  | Point_form (fx, path)
-  | Contract (fx, path)
-  | Weaken (fx, path) ->
-      let fx = transform_at fx.data path mk_src |@ fx in
+  | Pristine { goal } -> ppfx out goal
+  | Contract { goal ; path }
+  | Weaken { goal ; path } ->
+      let fx = transform_at goal.data path mk_src |@ goal in
       ppfx out fx
   | Inst { goal ; path ; termx = _ } ->
       let fx = transform_at goal.data path mk_src |@ goal in
       ppfx out fx
-      (* Format.fprintf out " [%a]" (Term.pp_term ~cx:termx.tycx) termx.data *)
-  | Link_form lf ->
+  | Link lf ->
       let fx = lf.goal in
       let fx = transform_at fx.data lf.src mk_src |@ fx in
       let fx = transform_at fx.data lf.dest mk_dest |@ fx in

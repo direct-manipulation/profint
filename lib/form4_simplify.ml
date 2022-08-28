@@ -63,8 +63,8 @@ let rec recursive_simplify ~emit (fx : formx) (path : path) (side : side) =
       let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path `l) (flip side) in
       let b = recursive_simplify ~emit (b |@ fx) (Q.snoc path `r) side in
       match side, expose a.data, expose b.data with
-      | _, Top, _ ->
-          emit { name = Simp_true_imp ; path } ; b
+      | side, Top, _ ->
+          emit { name = Simp_true_imp side ; path } ; b
       | `r, _, Top ->
           emit { name = Simp_imp_true ; path } ; b
       | `r, Bot, _ ->

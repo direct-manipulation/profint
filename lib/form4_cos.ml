@@ -14,7 +14,7 @@ open Form4_paths
 (******************************************************************************)
 (* CoS rules *)
 
-type cos_rule_name =
+type rule_name =
   | Goal_ts_imp of side
   | Goal_imp_ts
   | Goal_ts_and of side
@@ -31,7 +31,7 @@ type cos_rule_name =
   | Asms_all of { minor : side }
   | Asms_ex  of { minor : side }
   | Simp_imp_true
-  | Simp_true_imp
+  | Simp_true_imp of side
   | Simp_false_imp
   | Simp_and_true of side
   | Simp_or_true  of side
@@ -40,10 +40,10 @@ type cos_rule_name =
   | Congr
   | Contract
   | Weaken
-  | Inst of term
+  | Inst of term incx
 
-and cos_rule = {
-  name : cos_rule_name ;
+and rule = {
+  name : rule_name ;
   path : path ;
 }
 
@@ -52,7 +52,7 @@ let side_to_string (side : side) =
   | `l -> "l"
   | `r -> "r"
 
-let pp_rule_name ?(cx = empty) out rn =
+let pp_rule_name out rn =
   match rn with
   | Goal_ts_imp side ->
       Format.fprintf out "goal_ts_imp_%s" (side_to_string side)
@@ -91,8 +91,9 @@ let pp_rule_name ?(cx = empty) out rn =
         (side_to_string minor)
   | Simp_imp_true ->
       Format.fprintf out "simp_imp_true"
-  | Simp_true_imp ->
-      Format.fprintf out "simp_true_imp"
+  | Simp_true_imp side ->
+      Format.fprintf out "simp_true_imp_%s"
+        (side_to_string side)
   | Simp_false_imp ->
       Format.fprintf out "simp_false_imp"
   | Simp_and_true side ->
@@ -111,8 +112,8 @@ let pp_rule_name ?(cx = empty) out rn =
       Format.fprintf out "contract"
   | Weaken ->
       Format.fprintf out "weaken"
-  | Inst term ->
-      Format.fprintf out "inst[@[%a@]]" (Term.pp_term ~cx) term
+  | Inst tx ->
+      Format.fprintf out "inst[@[%a@]]" (Term.pp_term ~cx:tx.tycx) tx.data
 
 let rec pp_path_list out path =
   match path with
@@ -127,19 +128,13 @@ let rec pp_path_list out path =
 let pp_path out (path : path) =
   pp_path_list out (Q.to_list path)
 
-let pp_rule out (goalx, rule) =
-  let (fx, _) = formx_at goalx rule.path in
+let pp_rule out rule =
   Format.fprintf out "@[%a%s:: %a@]"
     pp_path rule.path
     (if Q.size rule.path = 0 then "" else " ")
-    (pp_rule_name ~cx:fx.tycx) rule.name
+    pp_rule_name rule.name
 
-let rule_to_string goalx rule =
-  let buf = Buffer.create 19 in
-  let out = Format.formatter_of_buffer buf in
-  pp_rule out (goalx, rule) ;
-  Format.pp_print_flush out () ;
-  Buffer.contents buf
+let rule_to_string rule = pp_to_string pp_rule rule
 
 exception Bad_spines of {ty : ty ; ss : spine ; ts : spine}
 
@@ -158,13 +153,13 @@ let rec compute_spine_congruence (ty : ty) (ss : spine) (ts : spine) : form =
   | _ ->
       raise @@ Bad_spines {ty ; ss ; ts}
 
-exception Bad_match of {goal : formx ; rule : cos_rule}
+exception Bad_match of {goal : formx ; rule : rule}
 
 let shift n t = Term.(sub_term (Shift n) t) [@@inline]
 
-let compute_premise (goal : formx) (rule : cos_rule) : formx =
+let compute_premise (goal : formx) (rule : rule) : formx =
   let bad_match () =
-    Format.eprintf "Bad_match: %a@." pp_rule (goal, rule) ;
+    Format.eprintf "Bad_match: %a@." pp_rule rule ;
     raise @@ Bad_match {goal ; rule} in
   let (fx, side) = formx_at goal rule.path in
   let c = match side, expose fx.data, rule.name with
@@ -312,7 +307,7 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
         | Top -> f
         | _ -> bad_match ()
       end
-    | _, Imp (f, a), Simp_true_imp -> begin
+    | _, Imp (f, a), Simp_true_imp side_ when side = side_ -> begin
         match expose f with
         | Top -> a
         | _ -> bad_match ()
@@ -360,9 +355,64 @@ let compute_premise (goal : formx) (rule : cos_rule) : formx =
         mk_and fx.data fx.data
     | `r, Imp (_, b), Weaken ->
         b
-    | `r, Exists (vty, b), Inst wt ->
-        Term.ty_check fx.tycx wt vty.ty ;
-        Term.do_app (Abs {var = vty.var ; body = b}) [wt]
+    | `r, Exists (vty, b), Inst wtx ->
+        Term.ty_check fx.tycx wtx.data vty.ty ;
+        Term.do_app (Abs {var = vty.var ; body = b}) [wtx.data]
     | _ -> bad_match ()
   in
   { goal with data = replace_at goal.data rule.path c }
+
+(* quick access to top and bottom *)
+type deriv = {
+  top    : formx ;
+  middle : (formx * rule * formx) list ;
+  bottom : formx ;
+}
+
+exception Cannot_concat of deriv * deriv
+
+let concat d1 d2 =
+  (* [HACK] physical equality is probably overkill but whatevs *)
+  (* if d1.bottom != d2.top then *)
+  (*   raise @@ Cannot_concat (d1, d2) ; *)
+  { top = d1.top ;
+    middle = d1.middle @ d2.middle ;
+    bottom = d2.bottom }
+
+let pp_path_as_lean4 out path =
+  Q.to_seq path |>
+  Format.pp_print_seq
+    ~pp_sep:(fun out () -> Format.pp_print_string out ",")
+    (fun out -> function
+       | `l -> Format.pp_print_string out "l"
+       | `r -> Format.pp_print_string out "r"
+       | `d -> Format.pp_print_string out "d"
+       | `i x ->
+           Format.pp_print_string out "i " ;
+           Format.pp_print_string out x)
+    out
+
+let pp_rule_name_as_lean4 out rn =
+  match rn with
+  | Inst tx ->
+      Format.fprintf out "inst (%a)"
+        Form4_pp.LeanPP.pp_termx tx
+  | _ ->
+      pp_rule_name out rn
+
+let pp_deriv_as_lean4 out deriv =
+  Format.fprintf out "import Profint@." ;
+  Format.fprintf out "open Profint@." ;
+  Format.fprintf out "section Example@." ;
+  Form4_pp.LeanPP.pp_sigma out ;
+  Format.fprintf out "example (_ : %a) : %a := by@."
+    Form4_pp.LeanPP.pp deriv.top
+    Form4_pp.LeanPP.pp deriv.bottom ;
+  List.iter begin fun (prem, rule, _) ->
+    Format.fprintf out "  within %a use %a@."
+      pp_path_as_lean4 rule.path
+      pp_rule_name_as_lean4 rule.name ;
+    Format.fprintf out "  /- @[%a@] -/@." Form4_pp.LeanPP.pp prem ;
+  end @@ List.rev deriv.middle ;
+  Format.fprintf out "  rename_i u ; exact u@." ;
+  Format.fprintf out "end Example@."

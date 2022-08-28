@@ -3,7 +3,7 @@ open Util
 open Js_of_ocaml
 
 let mstep_to_string mstep =
-  pp_to_string (Form4.pp_mstep ~ppfx:Form4_pp.LeanPP.pp) mstep
+  pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.LeanPP.pp) mstep
 
 type state = {
   mutable goal : Form4.mstep ;
@@ -11,7 +11,7 @@ type state = {
   mutable future : Form4.mstep list ;
 }
 
-let state = { goal = Form4.Pristine (Types.triv Form4.Core.mk_top) ;
+let state = { goal = Form4.Pristine { goal = Types.triv Form4.Core.mk_top } ;
               future = [] ; history = [] }
 
 let push_goal goal =
@@ -46,7 +46,7 @@ let to_trail str : Form4.path =
 
 let change_formula text =
   try
-    state.goal <- Form4.Pristine (Types.triv (Uterm.form_of_string text)) ;
+    state.goal <- Form4.Pristine { goal = Types.triv (Uterm.form_of_string text) } ;
     state.history <- [] ;
     state.future <- [] ;
     true
@@ -68,15 +68,15 @@ let profint_object =
       change_formula @@ Js.to_string text
 
     method formulaOrd =
-      pp_to_string (Form4.pp_mstep ~ppfx:Form4_pp.LeanPP.pp) state.goal |> Js.string
+      pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.LeanPP.pp) state.goal |> Js.string
 
     method formulaHTML =
-      pp_to_string (Form4.pp_mstep ~ppfx:Form4_pp.TexPP.pp) state.goal |> Js.string
+      pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.TexPP.pp) state.goal |> Js.string
 
     method convertToHTML text =
       try
         let f = Uterm.form_of_string @@ Js.to_string text in
-        Js.string @@ pp_to_string Form4_pp.TexPP.pp @@ Types.triv f
+        Js.string @@ pp_to_string Form4.Pp.TexPP.pp @@ Types.triv f
       with e ->
         Format.eprintf "converToHTML: %S: %s@."
           (Js.to_string text)
@@ -86,7 +86,7 @@ let profint_object =
     method historyHTML =
       let contents =
         state.history
-        |> List.map (pp_to_string (Form4.pp_mstep ~ppfx:Form4_pp.TexPP.pp))
+        |> List.map (pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.TexPP.pp))
         |> String.concat {| \mathstrut \\ \hline |}
       in
       {| \begin{array}{c} \hline |} ^ contents ^ {| \end{array} |}
@@ -101,7 +101,7 @@ let profint_object =
         | _ ->
             let contents =
               state.future
-              |> List.rev_map (pp_to_string (Form4.pp_mstep ~ppfx:Form4_pp.TexPP.pp))
+              |> List.rev_map (pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.TexPP.pp))
               |> String.concat {| \mathstrut \\ \hline |}
             in
             {| \begin{array}{c} |} ^ contents ^ {| \\ \hline \end{array} |}
@@ -128,42 +128,37 @@ let profint_object =
 
     method makeLink src dest (_contr : bool) =
       let old_goal = state.goal in
-      let fx = ref @@ Form4.goal_of_mstep old_goal in
+      let fx = Form4.goal_of_mstep old_goal in
       try
-        state.goal <- Form4.Link_form { goal = !fx ;
-                                        src = to_trail src ;
-                                        dest = to_trail dest } ;
-        let emit_cos crule = fx := Form4.Cos.compute_premise !fx crule in
-        Form4.compute_derivation ~emit:emit_cos state.goal ;
-        ignore @@ Form4.recursive_simplify ~emit:emit_cos !fx Q.empty `r ;
-        push_goal (Form4.Pristine !fx) ;
+        state.goal <- Form4.Link { goal = fx ;
+                                   src = to_trail src ;
+                                   dest = to_trail dest } ;
+        let deriv = Form4.compute_derivation state.goal in
+        push_goal (Form4.Pristine { goal = deriv.top }) ;
         true
       with _ ->
         state.goal <- old_goal ;
         false
 
-    method doContraction src =
+    method doContraction path =
       let old_goal = state.goal in
-      let fx = ref @@ Form4.goal_of_mstep old_goal in
+      let fx = Form4.goal_of_mstep old_goal in
       try
-        state.goal <- Form4.Contract (!fx, to_trail src) ;
-        Format.printf "doContraction: %s@." (mstep_to_string state.goal) ;
-        let emit crule = fx := Form4.Cos.compute_premise !fx crule in
-        Form4.compute_derivation ~emit state.goal ;
-        push_goal (Form4.Pristine !fx) ;
+        state.goal <- Form4.Contract { goal = fx ; path = to_trail path } ;
+        let deriv = Form4.compute_derivation state.goal in
+        push_goal (Form4.Pristine { goal = deriv.top }) ;
         true
       with _ ->
         state.goal <- old_goal ;
         false
 
-    method doWeakening src =
+    method doWeakening path =
       let old_goal = state.goal in
-      let fx = ref @@ Form4.goal_of_mstep old_goal in
+      let fx = Form4.goal_of_mstep old_goal in
       try
-        state.goal <- Form4.Weaken (!fx, to_trail src) ;
-        let emit crule = fx := Form4.Cos.compute_premise !fx crule in
-        Form4.compute_derivation ~emit state.goal ;
-        push_goal (Form4.Pristine !fx) ;
+        state.goal <- Form4.Weaken { goal = fx ; path = to_trail path } ;
+        let deriv = Form4.compute_derivation state.goal in
+        push_goal (Form4.Pristine { goal = deriv.top }) ;
         true
       with _ ->
         state.goal <- old_goal ;
@@ -181,7 +176,7 @@ let profint_object =
 
     method doWitness path text =
       let old_goal = state.goal in
-      let fx = ref @@ Form4.goal_of_mstep old_goal in
+      let fx = Form4.goal_of_mstep old_goal in
       let fail reason =
         Format.printf "doWitness: failure: %s@." reason ;
         state.goal <- old_goal ;
@@ -189,18 +184,33 @@ let profint_object =
       in
       try
         let path = to_trail path in
-        let (ex, side) = Form4.Paths.formx_at !fx path in
+        let (ex, side) = Form4.Paths.formx_at fx path in
         let term, given_ty = Uterm.term_of_string ~cx:ex.tycx @@ Js.to_string text in
         let termx = { ex with data = term } in
         match Form4.expose ex.data, side with
         | Form4.Exists ({ ty ; _ }, _), `r when ty = given_ty ->
-            state.goal <- Form4.Inst { goal = !fx ; path ; termx } ;
-            let emit crule = fx := Form4.Cos.compute_premise !fx crule in
-            Form4.compute_derivation ~emit state.goal ;
-            ignore @@ Form4.recursive_simplify ~emit !fx Q.empty `r ;
-            push_goal (Form4.Pristine !fx) ;
+            state.goal <- Form4.Inst { goal = fx ; path ; termx } ;
+            let deriv = Form4.compute_derivation state.goal in
+            push_goal (Form4.Pristine { goal = deriv.top }) ;
             true
         | _ -> fail "not an exists"
+      with e -> fail (Printexc.to_string e)
+
+    method getLean4 =
+      let fail reason =
+        Format.eprintf "getLean4: failure: %s@." reason ;
+        Js.null
+      in
+      try
+        match List.rev_append state.history (state.goal :: state.future) with
+        | last_mstep :: msteps ->
+            let deriv = Form4.compute_derivation last_mstep in
+            let deriv = List.fold_left begin fun deriv mstep ->
+                Form4.Cos.concat (Form4.compute_derivation mstep) deriv
+              end deriv msteps in
+            let str = pp_to_string Form4.Cos.pp_deriv_as_lean4 deriv in
+            Js.some @@ Js.string str
+        | _ -> fail "!!missing msteps!!"
       with e -> fail (Printexc.to_string e)
   end
 

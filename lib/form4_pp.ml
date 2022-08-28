@@ -90,36 +90,86 @@ module SkelPP (Params : SKEL_PARAMS) = struct
     end
   let rec to_exp_ (fx : formx) path = skel_to_exp to_exp_ (expose fx.data |@ fx) path
   let to_exp (fx : formx) = to_exp_ fx Q.empty
-  let pp out fx = to_exp fx |> Doc.bracket |> Doc.pp_doc out
+  (* let pp out fx = to_exp fx |> Doc.bracket |> Doc.pp_doc out *)
   let to_string fx = to_exp fx |> Doc.bracket |> Doc.lin_doc
+  let pp out fx = Format.pp_print_string out @@ to_string fx
 end
 
 (******************************************************************************)
 (* Lean Pretty-Printing *)
 
-module LeanPP = SkelPP (
-  struct
-    let ty_to_exp ty = Doc.(Atom (String (ty_to_string ty)))
-    let term_to_exp tx = Term.term_to_exp ~cx:tx.tycx tx.data
-    let rep_app = Doc.String " "
-    let rep_eq _ = Doc.String " ≐ "
-    let rep_and = Doc.String " ∧ "
-    let rep_top = Doc.String "⊤"
-    let rep_or  = Doc.String " ∨ "
-    let rep_bot = Doc.String "⊥"
-    let rep_imp = Doc.String " → "
-    let rep_all vty =
-      Doc.String (Printf.sprintf "∀ (%s : %s), "
-                    vty.var (ty_to_string vty.ty))
-    let rep_ex vty =
-      Doc.String (Printf.sprintf "∃ (%s : %s), "
-                    vty.var (ty_to_string vty.ty))
-    let wrap _ e = e
-    let wrap_src e =
-      Doc.(Wrap (Opaque, String "〚", e, String "〛"))
-    let wrap_dest e =
-      Doc.(Wrap (Opaque, String "⟨", e, String "⟩"))
-  end)
+module LeanPP = struct
+  let rec ty_to_exp ty =
+    match ty with
+    | Basic a ->
+        let rep =
+          if a = K.k_o then "Prop" else
+          if a = K.k_i then "ι" else a
+        in
+        Doc.(Atom (String rep))
+    | Arrow (ta, tb) ->
+        Doc.(Appl (1, Infix (StringAs (3, " → "), Right,
+                             [ty_to_exp ta ; ty_to_exp tb])))
+    | Tyvar v -> begin
+        match v.subst with
+        | None -> Doc.(Atom (String "_"))
+        | Some ty -> ty_to_exp ty
+      end
+  let rec term_to_exp_ ~cx t =
+    match t with
+    | T.Abs { var ; body } ->
+        with_var ~fresh:true cx { var ; ty = K.ty_i } begin fun vty cx ->
+          let rep = Doc.String (Printf.sprintf "fun %s => " vty.var) in
+          Doc.(Appl (1, Prefix (rep, term_to_exp_  ~cx body)))
+        end
+    | T.App { head ; spine } ->
+        let head = Term.head_to_exp ~cx head in
+        let spine = List.map (term_to_exp_ ~cx) spine in
+        List.fold_left begin fun f x ->
+          Doc.Appl (100, Infix (String " ", Left, [f ; x]))
+        end head spine
+  let ty_to_string ty =
+    ty_to_exp ty |> Doc.bracket |> Doc.lin_doc
+
+  let pp_sigma out =
+    Format.fprintf out "universe u@." ;
+    Format.fprintf out "variable {ι : Type u}@." ;
+    IdSet.iter begin fun i ->
+      if IdSet.mem i sigma0.basics then () else
+        Format.fprintf out "variable {%s : Type u}@." i
+    end !sigma.basics ;
+    IdMap.iter begin fun k ty ->
+      if IdMap.mem k sigma0.consts then () else
+        Format.fprintf out "variable {%s : %s}@." k (ty_to_string @@ thaw_ty ty)
+    end !sigma.consts
+
+  let termx_to_exp tx = term_to_exp_ ~cx:tx.tycx tx.data
+  let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_doc out
+
+  include SkelPP (
+    struct
+      let ty_to_exp = ty_to_exp
+      let term_to_exp = termx_to_exp
+      let rep_app = Doc.String " "
+      let rep_eq _ = Doc.String " = "
+      let rep_and = Doc.String " ∧ "
+      let rep_top = Doc.String "True"
+      let rep_or  = Doc.String " ∨ "
+      let rep_bot = Doc.String "False"
+      let rep_imp = Doc.String " → "
+      let rep_all vty =
+        Doc.String (Printf.sprintf "∀ (%s : %s), "
+                      vty.var (ty_to_string vty.ty))
+      let rep_ex vty =
+        Doc.String (Printf.sprintf "∃ (%s : %s), "
+                      vty.var (ty_to_string vty.ty))
+      let wrap _ e = e
+      let wrap_src e =
+        Doc.(Wrap (Opaque, String "〚", e, String "〛"))
+      let wrap_dest e =
+        Doc.(Wrap (Opaque, String "⟨", e, String "⟩"))
+    end)
+end
 
 (******************************************************************************)
 (* KaTeX Pretty Printing *)

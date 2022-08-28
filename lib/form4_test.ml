@@ -11,37 +11,31 @@ let rec compute_forms_simp ?(hist = []) goal deriv =
   match deriv with
   | [] -> (LeanPP.to_string goal :: hist, goal)
   | rule :: deriv ->
-      Format.printf "CoS: %a@." Cos.pp_rule (goal, rule) ;
+      Format.printf "CoS: %a@." Cos.pp_rule rule ;
       let prem = ref @@ Cos.compute_premise goal rule in
-      let hist = ref @@ Cos.rule_to_string goal rule ::
+      let hist = ref @@ Cos.rule_to_string rule ::
                         LeanPP.to_string goal :: hist in
       let emit rule =
         hist := LeanPP.to_string !prem :: !hist ;
-        hist := Cos.rule_to_string !prem rule :: !hist ;
+        hist := Cos.rule_to_string rule :: !hist ;
         prem := Cos.compute_premise !prem rule
       in
       let _simp_prem = recursive_simplify ~emit !prem Q.empty `r in
       compute_forms_simp !prem deriv ~hist:!hist
 
 let and_ts_l_d () =
-  let deriv = ref [] in
-  let emit rule = deriv := rule :: !deriv in
   let goal = Types.triv @@ mk_imp (mk_and a b) a in
-  compute_derivation ~emit @@ Link_form {
+  compute_derivation @@ Link {
     goal ;
     src = Q.of_list [`l ; `l] ;
     dest = Q.of_list [`r]
-  } ;
-  compute_forms_simp goal (List.rev !deriv)
+  }
 
 let a_to_bot_to_b_or_c () =
-  let deriv = ref [] in
-  let emit rule = deriv := rule :: !deriv in
   let goal = Types.triv @@
     mk_imp (mk_imp a mk_bot) (mk_or b c) in
-  compute_derivation ~emit @@ Link_form {
+  compute_derivation @@ Link {
     goal ;
     src = Q.of_list [`l ; `r] ;
     dest = Q.of_list [`r ; `l]
   } ;
-  compute_forms_simp goal (List.rev !deriv)
