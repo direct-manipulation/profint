@@ -3,8 +3,9 @@
   <head>
     <meta charset="utf-8">
     <!-- START icons -->
-    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+    <link rel="shortcut icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
     <!-- END icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
@@ -252,13 +253,13 @@
       function copyProof() {
         var proof = getProof();
         if (proof) {
-          const type = "text/plain";
-          const blob = new Blob([proof], { type });
-          const data = [new ClipboardItem({ [type]: blob })];
-          navigator.clipboard.write(data).then(
-            () => { /* success */ },
-            () => { /* failure */ }
-          );
+          navigator.clipboard.writeText(proof)
+            // .then(() => {
+            //   console.log('copied');
+            // })
+            .catch(() => {
+              console.error('Copy failed');
+            });
         }
       }
 
