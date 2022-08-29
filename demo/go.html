@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <!-- START icons -->
+    <link rel="shortcut icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+    <!-- END icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/color/jquery.color-2.2.0.min.js" integrity="sha256-aSe2ZC5QeunlL/w/7PsVKmV+fa0eDbmybn/ptsKHR6I=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.css" integrity="sha384-Um5gpz1odJg5Z4HAmzPtgZKdTBHZdw8S29IecapCSB31ligYPhHQZMIlWLYQGVoc" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.js" integrity="sha384-YNHdsYkH6gMx9y3mRkmcJ2mFUjTd0qNQQvY9VYZgQd7DcN7env35GzlmFaZ23JGp" crossorigin="anonymous"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous"
+         onload="renderMathInElement(document.body);"></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js" integrity="sha384-UXw3wi5BiYWZhzAanFWIr5Y05huSNCRyCeO9MFq9Z7TErfqx+G/jttCrEdjyLxK4" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js" integrity="sha512-csNcFYJniKjJxRWRV1R7fvnXrycHP6qDR21mgz1ZP55xY5d+aHLfo9/FcGDQLfn2IfngbAHd8LdfsagcCqgTcQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="ora.bc.js"></script>
+    <script src="https://unpkg.com/hotkeys-js/dist/hotkeys.min.js"></script>
+    <script>
+      var initial_form = "(\\A [x] \\E [y] r (f x) y) & (\\A [z] r (f j) z => p (f z)) => \\E [u] p (f u)";
+
+      const macros = {
+        "\\o": "\\mathsf{o}",
+        "\\i": "\\mathsf{i}",
+        "\\lnsrc": "{\\color{orange}#1}",
+        "\\lndest": "{\\color{blue}#1}",
+      };
+
+      const katex_options = {
+        trust: true,
+        output: 'html',
+        strict: false,
+        macros
+      };
+
+      const formLink = {
+        src: null,
+        dest: null
+      };
+
+      function findPath(elem) {
+        var path;
+        var outputDiv = $('#output');
+        while (elem && !$(elem).is(outputDiv)) {
+          path = $(elem).data('path');
+          if (path) break;
+          elem = $(elem).parent();
+        }
+        if (!path) path = '';
+        // console.log('findPath: ' + path);
+        return path;
+      }
+
+      function clearLinks() {
+        formLink.src = null;
+        formLink.dest = null;
+        $('#output .enclosing').removeClass('f-src');
+        $('#output .enclosing').removeClass('f-dest');
+      }
+
+      var witnessBox = null;
+
+      function makeWitnessBox(ev) {
+        if (witnessBox) {
+          console.log('there is already a witness box');
+          return;
+        }
+        var hlForm = $('.hl-range');
+        if (hlForm.length != 1) {
+          console.log('there is more than one hl!');
+          return;
+        }
+        const path = findPath(hlForm);
+        const txt = profint.testWitness(path);
+        if (txt) {
+          witnessBox = $('<input>')
+            .attr('placeholder', txt)
+            .attr('value', '')
+            .attr('size', Math.max(txt.length, 1))
+            .data('path', path)
+            .css({'font-family': 'monospace',
+                  'font-size': 'inherit'})
+            .on('input', function(ev){
+              $(this).attr('size', Math.max(ev.target.value.length, 1));
+            })
+            .on('change', function(ev){
+              // console.log('path: ' + $(ev.target).data('path'));
+              // console.log('new witness: ' + ev.target.value);
+              const res = profint.doWitness($(ev.target).data('path'),
+                                            ev.target.value);
+              if (res) {
+                witnessBox = null;
+                renderFormula();
+              } else {
+                console.log('witness was not accepted');
+                witnessBox.css({'background-color': 'red'})
+                  .animate({'background-color': 'inherit'}, 'slow');
+              }
+            })
+            .on('keyup', function(ev){
+              if (ev.key === 'Escape') {
+                witnessBox = null;
+                renderFormula();
+                ev.stopPropagation();
+              }
+            });
+          $('.hl-range > span:nth-child(2) > span:first-child')
+            .replaceWith(witnessBox);
+          witnessBox.focus();
+        }
+      }
+
+      function linkSubformula(elem, doContract) {
+        if (witnessBox) return;
+        if (formLink.src) {
+          if (formLink.dest || $(elem).is(formLink.src)) {
+            // do nothing
+          } else {
+            formLink.dest = elem;
+            $(elem).addClass('f-dest');
+            // console.log('dest: ' + findPath(elem));
+            // $('#destId').text(findPath(elem));
+            var res = profint.makeLink(findPath(formLink.src),
+                                       findPath(formLink.dest),
+                                       doContract);
+            if (res) renderFormula();
+            else {
+              console.log('link failed');
+              clearLinks();
+              $('#output').css({
+                'background-color': 'red'
+              }).animate({
+                'background-color': 'white'
+              }, 'fast');
+            }
+          }
+        } else {
+          formLink.src = elem;
+          $(elem).addClass('f-src');
+          // console.log('src: ' + findPath(elem));
+          // $('#srcId').text(findPath(elem));
+        }
+      }
+
+      function contractSubformula(elem) {
+        var res = profint.doContraction(findPath(elem));
+        if (res) renderFormula();
+        else {
+          console.log('contaction failed');
+        }
+      }
+
+      function weakenSubformula(elem) {
+        var res = profint.doWeakening(findPath(elem));
+        if (res) renderFormula();
+        else {
+          console.log('weakening failed');
+        }
+      }
+
+      function substituteWitness(elem) {
+        var res = profint.doWitness(findPath(elem));
+        if (res) renderFormula();
+        else {
+          console.log('witness failed');
+        }
+      }
+
+      function changeFormula() {
+        var text = window.prompt('Enter the new formula');
+        setFormula(text);
+        return false;
+      }
+
+      function doUndo() {
+        var res = profint.doUndo();
+        if (res) renderFormula();
+        else console.log('undo failed');
+      }
+
+      function doRedo() {
+        var res = profint.doRedo();
+        if (res) renderFormula();
+        else console.log('redo failed');
+      }
+
+      function renderFormula() {
+        clearLinks();
+        $('#output').html(function(){
+          const expr = profint.formulaHTML();
+          // console.log('render: ' + expr);
+          return katex.renderToString(expr, katex_options);
+        });
+        $('#output .enclosing').on("click", function(ev){
+          // console.log('clicked: ' + $(this).attr('id'));
+          if (ev.ctrlKey) {
+            if (formLink.src)
+              linkSubformula(this, true);
+            else
+              contractSubformula(this);
+          }
+          else if (ev.altKey) weakenSubformula(this);
+          else if (ev.shiftKey) substituteWitness(this);
+          else linkSubformula(this, false);
+          ev.stopPropagation();
+        });
+        $("#output .enclosing").mouseover(function(ev) {
+          $('#output .enclosing').removeClass('hl-range');
+          $(this).addClass('hl-range');
+          // $("span.enclosing").css({"border-bottom": "0"});
+          // $(this).css({"border-bottom": "3px solid red"});
+          ev.stopPropagation();
+        });
+        $("#output .enclosing").mouseout(function(ev) {
+          $(this).removeClass('hl-range');
+          // $("span.enclosing").css({"border-bottom": "0"});
+        });
+        $('#history').html(function(){
+          const expr = profint.historyHTML();
+          return katex.renderToString(expr, katex_options);
+        });
+        $('#doUndo').prop('disabled', profint.countHistory() <= 0);
+        $('#future').html(function(){
+          const expr = profint.futureHTML();
+          return katex.renderToString(expr, katex_options);
+        });
+        $('#doRedo').prop('disabled', profint.countFuture() <= 0);
+      }
+      
+      function setFormula(text) {
+        var res = profint.formulaChange(text);
+        if (res) renderFormula();
+        else {
+          // console.log('formChange() failed');
+          $('#output').css({'background-color': 'red'});
+          $('#output').animate({'background-color': 'white'}, 'slow');
+        }
+      }
+
+      function getProof() {
+        var choice = $('#proofSystem').val();
+        if (choice) {
+          if (choice === 'lean4')
+            return profint.getLean4();
+        }
+        return null;
+      }
+
+      function copyProof() {
+        var proof = getProof();
+        if (proof) {
+          navigator.clipboard.writeText(proof)
+            // .then(() => {
+            //   console.log('copied');
+            // })
+            .catch(() => {
+              console.error('Copy failed');
+            });
+        }
+      }
+
+      function downProof() {
+        var proof = getProof();
+        if (proof) {
+          fetch('lean4/proof.zip')
+            .then((response) => {
+              if (!response.ok)
+                throw new Error('fetch(lean4/proof.zip) failed');
+              return response.blob();
+            })
+            .then((blob) => {
+              var zip = new JSZip();
+              zip.loadAsync(blob)
+                .then((zip) => {
+                  zip.file('Proof.lean').async('text')
+                    .then((plfile) => {
+                      plfile = plfile.replace("/-PROOF-/\n", proof);
+                      zip.file('Proof.lean', plfile);
+                      zip.generateAsync({ type: 'blob' })
+                        .then((blob) => {
+                          saveAs(blob, 'proof.zip');
+                        });
+                    });
+                });
+            })
+            .catch((error) => {
+              console.error('downProof:', error);
+            });
+        }
+      }
+
+      $(document).ready(function(){
+        hotkeys('ctrl+up,ctrl+y,ctrl+down,ctrl+z,w', function (event, handler){
+          switch (handler.key) {
+          case 'ctrl+z':
+          case 'ctrl+down':
+            doUndo(); break;
+          case 'ctrl+y':
+          case 'ctrl+up':
+            doRedo(); break;
+          case 'w':
+            makeWitnessBox(event);
+            return false;
+          }
+        });
+        profint.signatureChange(document.sigEditor.getValue());
+        if (profint.startup()) renderFormula();
+        else setFormula(initial_form);
+      });
+    </script>
+    <style>
+      body {
+          padding-left: 40px;
+          padding-top: 40px;
+      }
+      #signature {
+          margin: 0;
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+      }
+      .icon { font-family:'Material Icons'; font-size: inherit; vertical-align: middle; }
+      #output {margin-top: 10px; font-size: 300%; white-space: pre;}
+      #output .enclosing {border-bottom: 0;}
+      #output .hl-range {border-bottom: 3px solid red;}
+      .f-src {background-color: #f2bf88;}
+      .f-dest {background-color: #9cc3f0;}
+      #history { margin-top: 10px; font-size: 150%; }
+      #future { margin-top: 10px; margin-bottom: 10px; font-size: 150%; }
+      .center-screen {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          text-align: center;
+          min-height: 50vh;
+      }
+    </style>
+  </head>
+  <body>
+    <pre id="signature">i : \type.
+
+f : i -> i.
+g : i -> i -> i.
+
+j, k : i.
+
+a, b, c : \o.
+
+p, q : i -> \o.
+r : i -> i -> \o.</pre>
+    <script>
+      var sigEditor = ace.edit("signature");
+      sigEditor.setTheme("ace/theme/twilight");
+      sigEditor.setOptions({
+          minLines: 5,
+          maxLines: 20,
+          showLineNumbers: false,
+          showGutter: true,
+      });
+      document.sigEditor = sigEditor;
+      sigEditor.on("change", function(e) {
+          var res = profint.signatureChange(sigEditor.getValue());
+          if (!res)
+              $('#signature').css({'border': '2px solid red'});
+          else
+              $('#signature').css({'border': 'none'});
+      });
+      // sigEditor.session.setMode("ace/mode/javascript");
+    </script>
+
+    <div id="buttons" style="position:relative">
+      <button onclick="changeFormula()">Change Formula</button>
+      <button id="doUndo" onclick="doUndo()">&nbsp;◁&nbsp;</button>
+      <button id="doRedo" onclick="doRedo()">&nbsp;▷&nbsp;</button>
+      <div style="position:absolute;right:20px;top:0px;margin:0 0">
+        <button id="copyProof" onclick="copyProof()" style="margin-left:auto;padding:2px 2px;"><span class="icon">&#xe14d;</span> Copy</button>
+        /
+        <button id="downProof" onclick="downProof()" style="margin-left:auto;padding:2px 2px;"><span class="icon">&#xf090;</span> Download</button>
+        proof as
+        <select id="proofSystem">
+          <option value="lean4">Lean4</option>
+          <option value="lean3" disabled>Lean3</option>
+          <option value="coq" disabled>Coq</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="center-screen">
+      <div id="future">
+        ...
+      </div>
+
+      <div id="output">
+        ...
+      </div>
+
+      <div id="history">
+        ...
+      </div>
+    </div>
+  </body>
+</html>

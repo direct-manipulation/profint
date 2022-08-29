@@ -24,56 +24,56 @@ type fskel =
 
 let expose form =
   match form with
-  | App {head = Const (k, _) ; spine = []} when k = k_top ->
+  | App {head = Const (k, _) ; spine = []} when k = K.k_top ->
       Top
-  | App {head = Const (k, _) ; spine = []} when k = k_bot ->
+  | App {head = Const (k, _) ; spine = []} when k = K.k_bot ->
       Bot
-  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = k_and ->
+  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = K.k_and ->
       And (fa, fb)
-  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = k_or ->
+  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = K.k_or ->
       Or (fa, fb)
-  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = k_imp ->
+  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = K.k_imp ->
       Imp (fa, fb)
-  | App {head = Const (k, Arrow (ty, _)) ; spine = [t1 ; t2]} when k = k_eq ->
+  | App {head = Const (k, Arrow (ty, _)) ; spine = [t1 ; t2]} when k = K.k_eq ->
       Eq (t1, t2, ty)
-  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = k_neg_int ->
+  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = K.k_neg_int ->
       Neg_int (fa, fb)
-  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = k_pos_int ->
+  | App {head = Const (k, _) ; spine = [fa ; fb]} when k = K.k_pos_int ->
       Pos_int (fa, fb)
   | App {head = Const (k, Arrow (Arrow (ty, _), _)) ;
-         spine = [Abs {var ; body}]} when k = k_all ->
+         spine = [Abs {var ; body}]} when k = K.k_all ->
       Forall (var, ty, body)
   | App {head = Const (k, Arrow (Arrow (ty, _), _)) ;
-         spine = [Abs {var ; body}]} when k = k_ex ->
+         spine = [Abs {var ; body}]} when k = K.k_ex ->
       Exists (var, ty, body)
   | _ ->
       Atom form
 
-let ty_ooo = Arrow (ty_o, Arrow (ty_o, ty_o))
+let ty_ooo = Arrow (K.ty_o, Arrow (K.ty_o, K.ty_o))
 
 let reform0 fsk =
   match fsk with
   | Atom f -> f
   | Eq (t1, t2, ty) ->
-      App {head = Const (k_eq, Arrow (ty, Arrow (ty, ty_o))) ;
+      App {head = Const (K.k_eq, Arrow (ty, Arrow (ty, K.ty_o))) ;
            spine = [t1 ; t2]}
   | And (fa, fb) ->
-      App {head = Const (k_and, ty_ooo) ; spine = [fa ; fb]}
-  | Top -> App {head = Const (k_top, ty_o) ; spine = []}
+      App {head = Const (K.k_and, ty_ooo) ; spine = [fa ; fb]}
+  | Top -> App {head = Const (K.k_top, K.ty_o) ; spine = []}
   | Neg_int (fa, fb) ->
-      App {head = Const (k_neg_int, ty_ooo) ; spine = [fa ; fb]}
+      App {head = Const (K.k_neg_int, ty_ooo) ; spine = [fa ; fb]}
   | Or (fa, fb) ->
-      App {head = Const (k_or, ty_ooo) ; spine = [fa ; fb]}
-  | Bot -> App {head = Const (k_bot, ty_o) ; spine = []}
+      App {head = Const (K.k_or, ty_ooo) ; spine = [fa ; fb]}
+  | Bot -> App {head = Const (K.k_bot, K.ty_o) ; spine = []}
   | Imp (fa, fb) ->
-      App {head = Const (k_imp, ty_ooo) ; spine = [fa ; fb]}
+      App {head = Const (K.k_imp, ty_ooo) ; spine = [fa ; fb]}
   | Pos_int (fa, fb) ->
-      App {head = Const (k_pos_int, ty_ooo) ; spine = [fa ; fb]}
+      App {head = Const (K.k_pos_int, ty_ooo) ; spine = [fa ; fb]}
   | Forall (var, ty, body) ->
-      App {head = Const (k_all, Arrow (Arrow (ty, ty_o), ty_o)) ;
+      App {head = Const (K.k_all, Arrow (Arrow (ty, K.ty_o), K.ty_o)) ;
            spine = [Abs {var ; body}]}
   | Exists (var, ty, body) ->
-      App {head = Const (k_ex, Arrow (Arrow (ty, ty_o), ty_o)) ;
+      App {head = Const (K.k_ex, Arrow (Arrow (ty, K.ty_o), K.ty_o)) ;
            spine = [Abs {var ; body}]}
 
 let rec big_and fs =
@@ -204,7 +204,7 @@ let enter form = {frames = [] ; form ; pos = true}
 let go_left context =
   match context.form with
   | App {head = Const (k, _) as conn ; spine = [lform ; rform]} ->
-      let pos = if k = Types.k_imp then not context.pos else context.pos in
+      let pos = if k = K.k_imp then not context.pos else context.pos in
       { frames = Left {conn ; right = rform} :: context.frames ;
         form = lform ;
         pos }
@@ -236,11 +236,11 @@ let go_up context =
   match context.frames with
   | Right ff :: frames ->
       let form = App {head = ff.conn ; spine = [ff.left ; context.form]} in
-      let form = reform (expose form) context.pos in
+      (* let form = reform (expose form) context.pos in *)
       {context with frames ; form}
   | Left ff :: frames ->
       let pos = match ff.conn with
-        | Const (k, _) when k = Types.k_imp -> not context.pos
+        | Const (k, _) when k = K.k_imp -> not context.pos
         | _ -> context.pos
       in
       let form = App {head = ff.conn ; spine = [context.form ; ff.right]} in
@@ -262,13 +262,14 @@ let rec leave context =
       if not context.pos then
         traversal_failure ~context "parity mismatch" ;
       recursive_reform context.form true
+      (* context.form *)
   | _ ->
       go_up context |> leave
 
 let get_cx context : tycx =
   let rec spin cx frames =
     match frames with
-    | [] -> List.rev cx
+    | [] -> { cx with linear = List.rev cx.linear }
     | ( Left _ | Right _ ) :: frames ->
         spin cx frames
     | Down ff :: frames ->
@@ -276,14 +277,13 @@ let get_cx context : tycx =
           | Const (_, Arrow (Arrow (ty, _), _)) -> ty
           | _ -> traversal_failure ~context "recovering typing context"
         in
-        let cx = {var = ff.var ; ty = ty} :: cx in
-        spin cx frames
+        with_var cx { var = ff.var ; ty } (fun _ cx -> spin cx frames)
   in
-  spin [] context.frames
+  spin empty context.frames
 
 let k_cx = "\\cx"
 
-let rec form_to_exp ?(cx = []) form =
+let rec form_to_exp ?(cx = empty) form =
   let open Doc in
   match expose form with
   | Top ->
@@ -309,13 +309,15 @@ let rec form_to_exp ?(cx = []) form =
       Appl (10, Infix (String " |> ", Non,
                        [form_to_exp ~cx fa ; form_to_exp ~cx fb]))
   | Forall (var, ty, body) ->
-      let qstr = Printf.sprintf "\\A [%s:%s] " var (ty_to_string ty) in
-      Appl (5, Prefix (String qstr,
-                       form_to_exp ~cx:((var, ty) :: cx) body))
+      with_var ~fresh:true cx { var ; ty } begin fun vty cx ->
+        let qstr = Printf.sprintf "\\A [%s:%s] " vty.var (ty_to_string ty) in
+        Appl (5, Prefix (String qstr, form_to_exp ~cx body))
+      end
   | Exists (var, ty, body) ->
-      let qstr = Printf.sprintf "\\E [%s:%s] " var (ty_to_string ty) in
-      Appl (5, Prefix (String qstr,
-                       form_to_exp ~cx:((var, ty) :: cx) body))
+      with_var ~fresh:true cx { var ; ty } begin fun vty cx ->
+        let qstr = Printf.sprintf "\\E [%s:%s] " vty.var (ty_to_string ty) in
+        Appl (5, Prefix (String qstr, form_to_exp ~cx body))
+      end
   | Atom f -> begin
       match f with
       | App {head = Const (k, _) ; spine = [f]} when k = k_cx ->
@@ -339,7 +341,7 @@ let fresh_id =
   let count = ref 0 in
   fun () -> incr count ; string_of_int !count
 
-let rec form_to_exp_html ?(cx = []) form =
+let rec form_to_exp_html ?(cx = empty) form =
   let open Doc in
   let e = match expose form with
     | Top ->
@@ -366,13 +368,15 @@ let rec form_to_exp_html ?(cx = []) form =
         Appl (10, Infix (StringAs (1, " \\rhd "), Non,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Forall (var, ty, body) ->
-        let qstr = Printf.sprintf "\\forall{%s{:}%s}.\\," var (ty_to_string ty) in
-        Appl (5, Prefix (StringAs (1, qstr),
-                         form_to_exp_html ~cx:((var, ty) :: cx) body))
+        with_var ~fresh:true cx { var ; ty } begin fun vty cx ->
+          let qstr = Printf.sprintf "\\forall{%s{:}%s}.\\," vty.var (ty_to_string ty) in
+          Appl (5, Prefix (StringAs (1, qstr), form_to_exp_html ~cx body))
+        end
     | Exists (var, ty, body) ->
-        let qstr = Printf.sprintf "\\exists{%s{:}%s}.\\," var (ty_to_string ty) in
-        Appl (5, Prefix (StringAs (1, qstr),
-                         form_to_exp_html ~cx:((var, ty) :: cx) body))
+        with_var ~fresh:true cx { var ; ty } begin fun vty cx ->
+          let qstr = Printf.sprintf "\\exists{%s{:}%s}.\\," vty.var (ty_to_string ty) in
+          Appl (5, Prefix (StringAs (1, qstr), form_to_exp_html ~cx body))
+        end
     | Atom f -> begin
         match f with
         | App {head = Const (k, _) ; spine = [f]} when k = k_cx ->
@@ -396,7 +400,7 @@ let form_to_html ?cx form =
   |> Doc.lin_doc
 
 let marked_leave context =
-  let form = App {head = Const (k_cx, Arrow (ty_o, ty_o)) ;
+  let form = App {head = Const (k_cx, Arrow (K.ty_o, K.ty_o)) ;
                   spine = [context.form]} in
   leave {context with form}
 
@@ -481,7 +485,7 @@ and conclusion = {
   rt : position
 }
 
-let dprintf0 msg fin =
+let dprintf msg fin =
   let () = match fin with
     | Ordinary context ->
         Format.printf "%s:@.  %a@."
@@ -493,7 +497,7 @@ let dprintf0 msg fin =
   in
   fin
 
-let dprintf _msg fin = fin
+(* let dprintf _msg fin = fin *)
 
 let r_pos_init concl =
   abort_unless concl.context.pos ;
@@ -502,7 +506,7 @@ let r_pos_init concl =
   match expose concl.context.form with
   | Pos_int (App {head = Const (a1, ty) ; spine = ts1},
              App {head = Const (a2, _)  ; spine = ts2})
-      when a1 = a2 && not (IdMap.mem a1 global_sig) ->
+      when a1 = a2 && not (IdMap.mem a1 !sigma.consts) ->
         let form = big_and @@ make_eqs ts1 ts2 ty in
         Ordinary {concl.context with form}
         |> dprintf "pos_init"
@@ -1025,11 +1029,11 @@ let rec spin_rules concl =
 let pos_interaction concl =
   match concl.context.form with
   | App {head = Const (k, kty) ; spine}
-    when k = Types.k_imp ->
+    when k = K.k_imp ->
       let concl = {
         concl with
         context = {concl.context with
-                   form = App {head = Const (Types.k_pos_int, kty) ;
+                   form = App {head = Const (K.k_pos_int, kty) ;
                                spine}} ;
       } in
       dprintf "pos_int" (Continue concl) |> ignore ;
@@ -1041,11 +1045,11 @@ let pos_interaction concl =
 let neg_interaction concl =
   match concl.context.form with
   | App {head = Const (k, kty) ; spine}
-    when k = Types.k_and ->
+    when k = K.k_and ->
       let concl = {
         concl with
         context = {concl.context with
-                   form = App {head = Const (Types.k_neg_int, kty) ;
+                   form = App {head = Const (K.k_neg_int, kty) ;
                                spine}} ;
       } in
       dprintf "neg_int" (Continue concl) |> ignore ;
@@ -1169,6 +1173,6 @@ module TestFn () = struct
      accept_term cx "f (f y)",
      leave {cx with form = accept_form cx "p (f (f y))"})
 
-  let () = Uterm.clear_declarations ()
+  let () = reset_sigma ()
 end
 (* module Test = TestFn () *)

@@ -4,7 +4,7 @@
 
 (version 0.8.1)
 
-(license CECILL-B)
+(license BSD-2-Clause)
 
 (authors "Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>")
 (maintainers "Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>")
@@ -22,4 +22,7 @@
  (synopsis "Profound: Intuitionistic Version")
  (depends
   (ocaml (>= 4.12))
-  (js_of_ocaml (>= 3.9.0))))
+  (containers-data (>= 3.8))
+  (ounit2 (>= 2.2.6))
+  (js_of_ocaml (>= 3.9.0))
+  (js_of_ocaml-ppx (>= 4.0.0))))

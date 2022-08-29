@@ -2,13 +2,16 @@ open Profint
 open Util
 open Js_of_ocaml
 
+let mstep_to_string mstep =
+  pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.LeanPP.pp) mstep
+
 type state = {
-  mutable goal : Form3.form ;
-  mutable history : Form3.form list ;
-  mutable future : Form3.form list ;
+  mutable goal : Form4.mstep ;
+  mutable history : Form4.mstep list ;
+  mutable future : Form4.mstep list ;
 }
 
-let state = { goal = Form3.(reform0 Top) ;
+let state = { goal = Form4.Pristine { goal = Types.triv Form4.Core.mk_top } ;
               future = [] ; history = [] }
 
 let push_goal goal =
@@ -17,32 +20,33 @@ let push_goal goal =
   state.goal <- goal
 
 let sig_change text =
-  Uterm.local_sig := IdMap.empty ;
   try begin
     let text = Js.to_string text in
-    let vtys = Uterm.thing_of_string Proprs.signature text in
-    Uterm.local_sig := IdMap.empty ;
-    List.iter begin fun (v, ty) ->
-      let pty = Types.{nvars = 0 ; ty} in
-      Uterm.(local_sig := IdMap.add v pty !local_sig)
-    end vtys ;
+    let sigma = Uterm.thing_of_string Proprs.signature text in
+    Types.sigma := sigma ;
     true
-  end with _ -> false
+  end with e ->
+    Format.eprintf "sig_change: %s@." (Printexc.to_string e) ;
+    false
 
-let to_trail str =
-  let str = Js.to_string str in
-  range 0 (String.length str)
-  |> Seq.map begin fun i ->
-    match str.[i] with
-      | 'L' -> Form3.L
-      | 'R' -> Form3.R
-      | 'D' -> Form3.D
-      | _   -> invalid_arg ("to_trail: " ^ str)
-  end |> List.of_seq
+let to_trail str : Form4.path =
+  let path = Js.to_string str |> String.split_on_char ';' in
+  match path with
+  | [""] -> Q.empty
+  | dirs ->
+      Q.of_list dirs |>
+      Q.map begin function
+      | "l" -> `l
+      | "r" -> `r
+      | "d" -> `d
+      | dir when dir.[0] = 'i' ->
+          `i (String.sub dir 2 (String.length dir - 3))
+      | dir -> failwith @@ "invalid direction: " ^ dir
+      end
 
 let change_formula text =
   try
-    state.goal <- Uterm.form_of_string text ;
+    state.goal <- Form4.Pristine { goal = Types.triv (Uterm.form_of_string text) } ;
     state.history <- [] ;
     state.future <- [] ;
     true
@@ -64,21 +68,25 @@ let profint_object =
       change_formula @@ Js.to_string text
 
     method formulaOrd =
-      Form3.form_to_string state.goal |> Js.string
+      pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.LeanPP.pp) state.goal |> Js.string
 
     method formulaHTML =
-      Form3.form_to_html state.goal |> Js.string
+      pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.TexPP.pp) state.goal |> Js.string
 
     method convertToHTML text =
       try
         let f = Uterm.form_of_string @@ Js.to_string text in
-        Js.string @@ Form3.form_to_html f
-      with _ -> Js.string "!!ERROR!!"
+        Js.string @@ pp_to_string Form4.Pp.TexPP.pp @@ Types.triv f
+      with e ->
+        Format.eprintf "converToHTML: %S: %s@."
+          (Js.to_string text)
+          (Printexc.to_string e) ;
+        Js.string "!!ERROR!!"
 
     method historyHTML =
       let contents =
         state.history
-        |> List.map Form3.form_to_html
+        |> List.map (pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.TexPP.pp))
         |> String.concat {| \mathstrut \\ \hline |}
       in
       {| \begin{array}{c} \hline |} ^ contents ^ {| \end{array} |}
@@ -93,7 +101,7 @@ let profint_object =
         | _ ->
             let contents =
               state.future
-              |> List.rev_map Form3.form_to_html
+              |> List.rev_map (pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.TexPP.pp))
               |> String.concat {| \mathstrut \\ \hline |}
             in
             {| \begin{array}{c} |} ^ contents ^ {| \\ \hline \end{array} |}
@@ -118,47 +126,92 @@ let profint_object =
           true
       | _ -> false
 
-    method makeLink src dest contr =
-      let src = to_trail src in
-      let dest = to_trail dest in
+    method makeLink src dest (_contr : bool) =
+      let old_goal = state.goal in
+      let fx = Form4.goal_of_mstep old_goal in
       try
-        Form3.resolve state.goal src dest contr |> push_goal ;
+        state.goal <- Form4.Link { goal = fx ;
+                                   src = to_trail src ;
+                                   dest = to_trail dest } ;
+        let deriv = Form4.compute_derivation state.goal in
+        push_goal (Form4.Pristine { goal = deriv.top }) ;
         true
-      with _ -> false
+      with _ ->
+        state.goal <- old_goal ;
+        false
 
-    method doContraction src =
-      let src = to_trail src in
+    method doContraction path =
+      let old_goal = state.goal in
+      let fx = Form4.goal_of_mstep old_goal in
       try
-        Form3.contract state.goal src |> push_goal ;
+        state.goal <- Form4.Contract { goal = fx ; path = to_trail path } ;
+        let deriv = Form4.compute_derivation state.goal in
+        push_goal (Form4.Pristine { goal = deriv.top }) ;
         true
-      with _ -> false
+      with _ ->
+        state.goal <- old_goal ;
+        false
 
-    method doWeakening src =
-      let src = to_trail src in
+    method doWeakening path =
+      let old_goal = state.goal in
+      let fx = Form4.goal_of_mstep old_goal in
       try
-        Form3.weaken state.goal src |> push_goal ;
+        state.goal <- Form4.Weaken { goal = fx ; path = to_trail path } ;
+        let deriv = Form4.compute_derivation state.goal in
+        push_goal (Form4.Pristine { goal = deriv.top }) ;
         true
-      with _ -> false
+      with _ ->
+        state.goal <- old_goal ;
+        false
 
-    method testWitness trail =
-      let trail = to_trail trail in
-      let open Form3 in
-      match go state.goal trail with
-      | context when context.pos -> begin
-          match expose context.form with
-          | Exists (v, _, _) -> Js.some @@ Js.string v
-          | _ -> Js.null
-        end
-      | _
-      | exception _ -> Js.null
-
-    method doWitness trail text =
+    method testWitness src =
+      let fail () = Format.eprintf "testWitness: failure@." ; Js.null in
       try
-        let trail = to_trail trail in
-        let text = Js.to_string text in
-        push_goal @@ Form3.witness state.goal trail text ;
-        true
-      with _ -> false
+        let fx = Form4.goal_of_mstep state.goal in
+        let ex, side = Form4.Paths.formx_at fx @@ to_trail src in
+        match Form4.expose ex.data, side with
+        | Form4.Exists ({ var ; _ }, _), `r -> Js.some @@ Js.string var
+        | _ -> fail ()
+      with _ -> fail ()
+
+    method doWitness path text =
+      let old_goal = state.goal in
+      let fx = Form4.goal_of_mstep old_goal in
+      let fail reason =
+        Format.printf "doWitness: failure: %s@." reason ;
+        state.goal <- old_goal ;
+        false
+      in
+      try
+        let path = to_trail path in
+        let (ex, side) = Form4.Paths.formx_at fx path in
+        let term, given_ty = Uterm.term_of_string ~cx:ex.tycx @@ Js.to_string text in
+        let termx = { ex with data = term } in
+        match Form4.expose ex.data, side with
+        | Form4.Exists ({ ty ; _ }, _), `r when ty = given_ty ->
+            state.goal <- Form4.Inst { goal = fx ; path ; termx } ;
+            let deriv = Form4.compute_derivation state.goal in
+            push_goal (Form4.Pristine { goal = deriv.top }) ;
+            true
+        | _ -> fail "not an exists"
+      with e -> fail (Printexc.to_string e)
+
+    method getLean4 =
+      let fail reason =
+        Format.eprintf "getLean4: failure: %s@." reason ;
+        Js.null
+      in
+      try
+        match List.rev_append state.history (state.goal :: state.future) with
+        | last_mstep :: msteps ->
+            let deriv = Form4.compute_derivation last_mstep in
+            let deriv = List.fold_left begin fun deriv mstep ->
+                Form4.Cos.concat (Form4.compute_derivation mstep) deriv
+              end deriv msteps in
+            let str = pp_to_string Form4.Cos.pp_deriv_as_lean4 deriv in
+            Js.some @@ Js.string str
+        | _ -> fail "!!missing msteps!!"
+      with e -> fail (Printexc.to_string e)
   end
 
 let () = Js.export "profint" profint_object

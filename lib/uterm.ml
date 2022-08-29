@@ -11,47 +11,18 @@ open! Util
 open! Types
 open! U
 
-(* The constructors of uty need to be in the same order as in Term.ty;
-   otherwise we will not get the O(1) transformations. *)
-
-let fresh_tyvar =
-  let count = ref 0 in
-  fun () ->
-    incr count ;
-    Tyvar {id = !count ; subst = None}
-
-let rec map_on_tyvars tab uty =
-  match uty with
-  | Arrow (utya, utyb) ->
-      Arrow (map_on_tyvars tab utya, map_on_tyvars tab utyb)
-  | Basic _ -> uty
-  | Tyvar v -> begin
-      match ITab.find tab v.id with
-      | uty -> uty
-      | exception Not_found -> uty
-    end
-
-let freshen pty =
-  if pty.nvars = 0 then pty.ty else
-  let tab = ITab.create pty.nvars in
-  range 0 pty.nvars
-  |> Seq.iter (fun k -> ITab.replace tab k (fresh_tyvar ())) ;
-  map_on_tyvars tab pty.ty
-
 exception TypeError of {ty : ty option ; msg : string}
 
 let ty_error ?ty fmt =
   Printf.ksprintf (fun msg -> raise (TypeError {ty ; msg})) fmt
 
-let local_sig : poly_ty IdMap.t ref = ref IdMap.empty
-
 let rec tygen ~emit (cx : tycx) tm ty_expected =
   match tm with
   | Idx n ->
-      emit (List.nth cx n).ty ty_expected ;
+      emit (List.nth cx.linear n).ty ty_expected ;
       Idx n
   | Var x -> begin
-      match tyget cx x with
+      match tyget cx.linear x with
       | (n, ty) ->
           emit ty ty_expected ;
           Idx n
@@ -62,15 +33,9 @@ let rec tygen ~emit (cx : tycx) tm ty_expected =
       emit ty ty_expected ;
       Kon (k, Some ty)
   | Kon (k, None) -> begin
-      match lookup k !local_sig with
-      | pty ->
-          emit (freshen pty) ty_expected ;
-          Kon (k, Some ty_expected)
-      | exception Not_found ->
-          (* ty_error "unknown constant %s" k *)
-          let ty = fresh_tyvar () in
-          emit ty ty_expected ;
-          Kon (k, Some ty)
+      let k_ty = lookup_ty_or_fresh k in
+      emit k_ty ty_expected ;
+      Kon (k, Some k_ty)
     end
   | App (tm, tn) ->
       let tyarg = fresh_tyvar () in
@@ -85,9 +50,11 @@ let rec tygen ~emit (cx : tycx) tm ty_expected =
         | None -> fresh_tyvar ()
       in
       let tyres = fresh_tyvar () in
-      let bod = tygen ~emit ({var = x ; ty = tyarg} :: cx) bod tyres in
-      emit (Arrow (tyarg, tyres)) ty_expected ;
-      Abs (x, xty, bod)
+      with_var cx { var = x ; ty = tyarg } begin fun vty cx ->
+        let bod = tygen ~emit cx bod tyres in
+        emit (Arrow (tyarg, tyres)) ty_expected ;
+        Abs (vty.var, xty, bod)
+      end
 
 and tyget ?(depth = 0) cx x =
   match cx with
@@ -135,13 +102,15 @@ let solve eqns =
   in
   spin ()
 
+exception Free_tyvar of { id : int }
+
 let rec norm_ty ty =
   match ty with
   | Basic a -> Basic a
   | Arrow (tya, tyb) -> Arrow (norm_ty tya, norm_ty tyb)
   | Tyvar v -> begin
       match v.subst with
-      | None -> raise Not_found
+      | None -> raise @@ Free_tyvar { id = v.id }
       | Some ty -> norm_ty ty
     end
 
@@ -152,7 +121,7 @@ let rec norm_term tm =
   | Kon (k, Some ty) -> begin
       match norm_ty ty with
       | ty -> T.(App {head = Const (k, ty) ; spine = []})
-      | exception Not_found ->
+      | exception Free_tyvar _ ->
           ty_error "inferred non-monomorphic type for %s: %s"
             k (ty_to_string ty)
     end
@@ -171,7 +140,7 @@ let ty_check cx term =
   solve !eqns ;
   match norm_ty ty with
     | ty -> (norm_term term, ty)
-    | exception Not_found ->
+    | exception Free_tyvar _ ->
         ty_error "inferred non-monomorphic type: %s"
           (ty_to_string ty)
 
@@ -179,40 +148,38 @@ exception Parsing of string
 
 let thing_of_string prs str =
   let lb = Lexing.from_string str in
-  try
-    let t = prs Prolex.token lb in
-    t
-  with
+  try prs Prolex.token lb with
   | Proprs.Error -> raise (Parsing "")
 
 let ty_of_string str =
   thing_of_string Proprs.one_ty str
   |> norm_ty
 
-let term_of_string ?(cx = []) str =
+let term_of_string ?(cx = empty) str =
   thing_of_string Proprs.one_term str
   |> ty_check cx
 
-let form_of_string ?(cx = []) str =
+let form_of_string ?(cx = empty) str =
   let t = thing_of_string Proprs.one_form str in
   let f, ty = ty_check cx t in
-  if ty <> ty_o then
+  if ty <> K.ty_o then
     ty_error "form must have type \\o" ;
   f
 
+let declare_basic k =
+  sigma := add_basic !sigma k
+
 let declare_const k str =
   let pty = {nvars = 0 ; ty = ty_of_string str} in
-  local_sig := IdMap.add k pty !local_sig
+  sigma := add_const !sigma k pty
 
-let clear_declarations () =
-  local_sig := IdMap.empty
-
-(* module Test = struct
- *   let () = declare_const "p" {| \i -> \i -> \o |} ;;
- *   let () = declare_const "f" {| \i -> \i -> \i |} ;;
- *   let t1 = term_of_string {| [x] f x x |}
- *   let t2 = term_of_string {| [x, y] f x y |}
- *   let t3 = term_of_string {| [x, y] [z:\o] f x (f y x) |}
- *   let f1 = form_of_string {| \A [x, y, z] p x (f y z) |}
- *   let () = local_sig := IdMap.empty
- * end *)
+(* module Test () = struct *)
+(*   let () = declare_basic "i" *)
+(*   let () = declare_const "p" {| i -> i -> \o |} *)
+(*   let () = declare_const "f" {| i -> i -> i |} *)
+(*   let t1 = term_of_string {| [x] f x x |} *)
+(*   let t2 = term_of_string {| [x, y] f x y |} *)
+(*   let t3 = term_of_string {| [x, y] [z:\o] f x (f y x) |} *)
+(*   let f1 = form_of_string {| \A [x, y, z] p x (f y z) |} *)
+(*   let () = reset_sigma () *)
+(* end *)

@@ -3,5 +3,6 @@
  (modes js)
  (libraries js_of_ocaml profint)
  (preprocess (pps js_of_ocaml-ppx))
- (js_of_ocaml (flags --source-map --pretty))
 )
+
+; (js_of_ocaml (flags --source-map))

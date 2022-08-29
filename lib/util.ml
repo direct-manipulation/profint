@@ -35,8 +35,19 @@ module IdMap : Stdlib.Map.S with type key := ident =
 module IdTab : Stdlib.Hashtbl.S with type key := ident =
   Stdlib.Hashtbl.Make(IdHashEq)
 
-let failwith_s fmt   = Printf.ksprintf failwith fmt
-let failwith_fmt fmt = Format.ksprintf failwith fmt
+let panic =
+  (* hiding the exception in a local module to make it impossible to
+   * handle except with a catchall handler *)
+  let module P = struct
+    exception Panic of string
+  end in
+  fun msg -> raise @@ P.Panic msg
+
+let failwith_s fmt = Printf.ksprintf failwith fmt
+let failwith_fmt fmt =
+  let buf = Buffer.create 19 in
+  let out = Format.formatter_of_buffer buf in
+  Format.kfprintf (fun _ -> failwith (Buffer.contents buf)) out fmt
 
 let rec range_up step lo hi : int Seq.t = fun () ->
   if lo >= hi then Seq.Nil else
@@ -50,3 +61,13 @@ let range ?(step = 1) x y =
   if step >= 0
   then range_up step x y
   else range_down step x y
+
+module Q = CCFQueue
+type 'a q = 'a Q.t
+
+let pp_to_string pp thing =
+  let buf = Buffer.create 19 in
+  let out = Format.formatter_of_buffer buf in
+  pp out thing ;
+  Format.pp_print_flush out () ;
+  Buffer.contents buf

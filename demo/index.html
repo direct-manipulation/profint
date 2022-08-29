@@ -2,12 +2,15 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Some test cases</title>
+    <!-- START icons -->
+    <link rel="shortcut icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+    <!-- END icons -->
+    <title>Profint Launcher</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.css" integrity="sha384-Um5gpz1odJg5Z4HAmzPtgZKdTBHZdw8S29IecapCSB31ligYPhHQZMIlWLYQGVoc" crossorigin="anonymous">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.js" integrity="sha384-YNHdsYkH6gMx9y3mRkmcJ2mFUjTd0qNQQvY9VYZgQd7DcN7env35GzlmFaZ23JGp" crossorigin="anonymous"></script>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous"
-         onload="renderMathInElement(document.body);"></script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js" integrity="sha384-UXw3wi5BiYWZhzAanFWIr5Y05huSNCRyCeO9MFq9Z7TErfqx+G/jttCrEdjyLxK4" crossorigin="anonymous"></script>
     <script src="ora.bc.js"></script>
     <script>
@@ -55,10 +58,6 @@
   </head>
   <body>
     <h1>Profint: illustrative examples</h1>
-    <p>
-      <strong><a href="https://chaudhuri.info">Kaustuv Chaudhuri</a></strong><br>
-      (Also see the <a href="index_cade28.html">CADE-28 examples page</a>)
-    </p>
 
     <h4 id="interfacelink" style="display:none">Default interface</h4>
 
@@ -100,18 +99,17 @@
       <li>(\A [x] p x) \to \A [y] p y</li>
     </ul>
 
-    <pre id="signature">p : \i -> \o.
-q : \i -> \i -> \o.
+    <pre id="signature">i : \type.
 
-f : \i -> \i.
-g : \i -> \i -> \i.
+f : i -> i.
+g : i -> i -> i.
 
-j, k : \i.
+j, k : i.
 
 a, b, c : \o.
 
-p, q : \i -> \o.
-r : \i -> \i -> \o.</pre>
+p, q : i -> \o.
+r : i -> i -> \o.</pre>
     <script>
       var sigEditor = ace.edit("signature");
       sigEditor.setTheme("ace/theme/twilight");

@@ -1,0 +1,5 @@
+proof.zip
+Test.lean
+build
+lean_packages/*
+!lean_packages/manifest.json

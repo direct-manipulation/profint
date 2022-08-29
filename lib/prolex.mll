@@ -43,7 +43,7 @@ rule token = parse
 | ident            { process_ident @@ Lexing.lexeme lexbuf }
 
 | "\\o"            { P.OMICRON }
-| "\\i"            { P.IOTA }
+| "\\type"         { P.TYPE }
 | "\\A"            { P.FORALL }
 | "\\E"            { P.EXISTS }
 | "\\and" | '&'    { P.AND }

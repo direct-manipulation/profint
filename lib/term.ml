@@ -50,8 +50,8 @@ and seq sub1 sub2 =
   | _, Shift k ->
       let rec peel sub1 k =
         match sub1, k with
-        | Shift j, _ -> Shift (j + k)
         | _, 0 -> sub1
+        | Shift j, _ -> Shift (j + k)
         | Dot (sub1, _), _ -> peel sub1 (k - 1)
       in
       peel sub1 k
@@ -65,7 +65,7 @@ let type_error fmt =
 
 let rec ty_infer cx head =
   match head with
-  | Index n -> (ty_lookup cx n).ty
+  | Index n -> (ty_lookup cx.linear n).ty
   | Const (_, ty) -> ty
 
 and ty_lookup cx n =
@@ -77,8 +77,9 @@ and ty_lookup cx n =
 let rec ty_check cx term ty =
   match term, ty with
   | Abs f, Arrow (tya, tyb) ->
-      let cx = {var = f.var ; ty = tya} :: cx in
-      ty_check cx f.body tyb
+      with_var cx {var = f.var ; ty = tya} begin fun _ cx ->
+        ty_check cx f.body tyb
+      end
   | Abs _, _ ->
       type_error "ty_check: abs"
   | App u, _ ->
@@ -121,12 +122,14 @@ and eq_spine spine1 spine2 =
       eq_term t1 t2 && eq_spine spine1 spine2
   | _ -> false
 
-let rec term_to_exp ?(cx = []) term =
+let rec term_to_exp ?(cx = empty) term =
   let open Doc in
   match term with
   | Abs {var ; body} ->
-      let rep = String (Printf.sprintf "[%s] " var) in
-      Appl (1, Prefix (rep, term_to_exp ~cx:((var, Types.ty_i) :: cx) body))
+      with_var ~fresh:true cx { var ; ty = K.ty_any } begin fun vty cx ->
+        let rep = String (Printf.sprintf "[%s] " vty.var) in
+        Appl (1, Prefix (rep, term_to_exp ~cx body))
+      end
   | App {head ; spine = []} ->
       head_to_exp ~cx head
   | App {head ; spine} ->
@@ -142,14 +145,17 @@ let rec term_to_exp ?(cx = []) term =
       in
       Appl (2, Infix (String " ", Non, [left ; right]))
 
-and head_to_exp ?(cx = []) head =
+and head_to_exp ?(cx = empty) head =
   let open Doc in
   match head with
   | Index n ->
       (* let vstr = Printf.sprintf "%s_{%d}" (fst (List.nth cx n)) n in *)
-      let vstr = fst (List.nth cx n) in
+      let vstr = (List.nth cx.linear n).var in
       Atom (String vstr)
   | Const (k, _) -> Atom (String k)
+
+let termx_to_exp tx = term_to_exp ~cx:tx.tycx tx.data
+let headx_to_exp hx = head_to_exp ~cx:hx.tycx hx.data
 
 (* let sym_spine_left = Doc.String "[" *)
 (* let sym_spine_right = Doc.String "]" *)
@@ -158,12 +164,14 @@ let sym_spine_left = Doc.String "("
 let sym_spine_right = Doc.String ")"
 let sym_app = Doc.StringAs (0, "")
 
-let rec term_to_exp_html ?(cx = []) term =
+let rec term_to_exp_html ?(cx = empty) term =
   let open Doc in
   match term with
   | Abs {var ; body} ->
-      let rep = StringAs (1, Printf.sprintf "\\lambda{%s}.\\," var) in
-      Appl (5, Prefix (rep, term_to_exp_html ~cx:((var, Types.ty_i) :: cx) body))
+      with_var ~fresh:true cx { var ; ty = K.ty_any } begin fun vty cx ->
+        let rep = StringAs (1, Printf.sprintf "\\lambda{%s}.\\," vty.var) in
+        Appl (5, Prefix (rep, term_to_exp_html ~cx body))
+      end
   | App {head ; spine = []} ->
       head_to_exp ~cx head
   | App {head ; spine} ->

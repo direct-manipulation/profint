@@ -6,6 +6,7 @@
  *)
 
 %{
+  open Util
   open Types
 
   let make_quant q vs bod =
@@ -18,13 +19,27 @@
     | [] -> assert false
     | [t] -> t
     | f :: t :: ts -> make_app (U.App (f, t) :: ts)
+
+  type sig_one =
+    | Basic of ident
+    | Const of ident * ty
+
+  let assemble_signature things =
+    let rec aux sigma = function
+      | [] -> sigma
+      | Basic t :: things ->
+         aux (add_basic sigma t) things
+      | Const (k, ty) :: things ->
+         aux (add_const sigma k { nvars = 0 ; ty }) things
+    in
+    aux sigma0 things
 %}
 
 %token  EOS PREC_MIN
 (* %token  PREC_MAX *)
 %token  <Util.ident> IDENT
 %token  LPAREN RPAREN LBRACK RBRACK COMMA COLON DOT
-%token  ARROW OMICRON IOTA
+%token  ARROW OMICRON TYPE
 (* %token  EQ NEQ *)
 %token  AND OR TO FROM BOT TOP
 %token  FORALL EXISTS
@@ -39,7 +54,7 @@
 %start <U.term> one_term
 %start <ty> one_ty
 %start <U.term> one_form
-%start <(string * ty) list> signature
+%start <Types.sigma> signature
 
 %%
 
@@ -82,21 +97,21 @@ wrapped_term:
 
 form:
 | TOP
-  { U.(Kon (k_top, None)) }
+  { U.(Kon (K.k_top, None)) }
 | BOT
-  { U.(Kon (k_bot, None)) }
+  { U.(Kon (K.k_bot, None)) }
 | fa=form AND fb=form
-  { U.(App (App (Kon (k_and, None), fa), fb)) }
+  { U.(App (App (Kon (K.k_and, None), fa), fb)) }
 | fa=form OR fb=form
-  { U.(App (App (Kon (k_or, None), fa), fb)) }
+  { U.(App (App (Kon (K.k_or, None), fa), fb)) }
 | fa=form TO fb=form
-  { U.(App (App (Kon (k_imp, None), fa), fb)) }
+  { U.(App (App (Kon (K.k_imp, None), fa), fb)) }
 | fa=form FROM fb=form
-  { U.(App (App (Kon (k_imp, None), fb), fa)) }
+  { U.(App (App (Kon (K.k_imp, None), fb), fa)) }
 | FORALL vs=lambda bod=form %prec PREC_MIN
-  { make_quant k_all vs bod }
+  { make_quant K.k_all vs bod }
 | EXISTS vs=lambda bod=form %prec PREC_MIN
-  { make_quant k_ex vs bod }
+  { make_quant K.k_ex vs bod }
 | a=IDENT ts=list(wrapped_term)
   { make_app (U.Kon (a, None) :: ts) }
 | LPAREN f=form RPAREN
@@ -104,9 +119,7 @@ form:
 
 ty:
 | OMICRON
-  { ty_o }
-| IOTA
-  { ty_i }
+  { K.ty_o }
 | b=IDENT
   { Basic b }
 | a=ty ARROW b=ty
@@ -115,9 +128,11 @@ ty:
   { ty }
 
 signature:
-| vtyss=list(signature_one) EOS
-  { List.concat vtyss }
+| sss=list(signature_elem) EOS
+  { assemble_signature (List.concat sss) }
 
-signature_one:
+signature_elem:
 | vs=separated_nonempty_list(COMMA, IDENT) COLON ty=ty DOT
-  { List.map (fun v -> (v, ty)) vs }
+  { List.map (fun v -> Const (v, ty)) vs }
+| vs=separated_nonempty_list(COMMA, IDENT) COLON TYPE DOT
+  { List.map (fun v -> Basic v) vs }
