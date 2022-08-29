@@ -14,11 +14,11 @@ let rec compute_forms_simp ?(hist = []) goal deriv =
   | [] -> (LeanPP.to_string goal :: hist, goal)
   | rule :: deriv ->
       let prem = ref @@ Cos.compute_premise goal rule in
-      let hist = ref @@ Cos.rule_to_string goal rule ::
+      let hist = ref @@ Cos.rule_to_string rule ::
                         LeanPP.to_string goal :: hist in
       let emit rule =
         hist := LeanPP.to_string !prem :: !hist ;
-        hist := Cos.rule_to_string !prem rule :: !hist ;
+        hist := Cos.rule_to_string rule :: !hist ;
         prem := Cos.compute_premise !prem rule
       in
       let _simp_prem = recursive_simplify ~emit !prem Q.empty `r in
@@ -49,7 +49,6 @@ let run_scomb () =
     Cos.{ name = Goal_imp_ts ; path = Q.of_list [`r ; `r] } ;
     Cos.{ name = Goal_imp_ts ; path = Q.of_list [`r ; `r ; `r] } ;
     Cos.{ name = Init ; path = Q.of_list [`r ; `r ; `r ; `r] } ;
-    Cos.{ name = Goal_imp_ts ; path = Q.of_list [] } ;
     Cos.{ name = Goal_ts_imp `r ; path = Q.of_list [] } ;
     Cos.{ name = Goal_ts_and `r ; path = Q.of_list [`r] } ;
     Cos.{ name = Goal_ts_and `l ; path = Q.of_list [] } ;
@@ -71,54 +70,48 @@ let qexch = Core.{
            (mk_ex { var = "x" ; ty = K.ty_i } (r (dbx 0) (dbx 1)))) }
 
 let run_qexch () =
+  let (t0, t1) =
+    with_var empty { var = "x" ; ty = K.ty_i } begin fun _ tycx ->
+      with_var tycx { var = "y" ; ty = K.ty_i } begin fun _ tycx ->
+        ({ tycx ; data = dbx 0 }, { tycx ; data = dbx 1 })
+      end
+    end in
   let deriv = [
     Cos.{ name = Goal_ts_all ; path = Q.of_list [] } ;
     Cos.{ name = Goal_ex_ts ; path = Q.of_list [`d] } ;
     Cos.{ name = Goal_ts_ex ; path = Q.of_list [`d ; `d] } ;
     Cos.{ name = Goal_all_ts ; path = Q.of_list [`d ; `d ; `d] } ;
     Cos.{ name = Init ; path = Q.of_list [`d ; `d ; `d ; `d] } ;
-    Cos.{ name = Inst (dbx 0) ; path = Q.of_list [`d ; `d] } ;
-    Cos.{ name = Inst (dbx 1) ; path = Q.of_list [`d ; `d] } ;
+    Cos.{ name = Inst t0 ; path = Q.of_list [`d ; `d] } ;
+    Cos.{ name = Inst t1 ; path = Q.of_list [`d ; `d] } ;
   ] in
   compute_forms_simp qexch deriv
 
 let scomb_d () =
-  let deriv = ref [] in
-  let emit rule = deriv := rule :: !deriv in
-  compute_derivation ~emit @@ Link_form {
+  compute_derivation @@ Link {
     goal = scomb ;
     src = Q.of_list [`l ; `r ; `r] ;
     dest = Q.of_list [`r ; `r ; `r] ;
-  } ;
-  compute_forms_simp scomb (List.rev !deriv)
+  }
 
 let qexch_d () =
-  let deriv = ref [] in
-  let emit rule = deriv := rule :: !deriv in
-  compute_derivation ~emit @@ Link_form {
+  compute_derivation @@ Link {
     goal = qexch ;
     src = Q.of_list [`l ; `d ; `d] ;
     dest = Q.of_list [`r ; `d ; `d] ;
-  } ;
-  compute_forms_simp qexch (List.rev !deriv)
+  }
 
 let and_ts_l_d () =
-  let deriv = ref [] in
-  let emit rule = deriv := rule :: !deriv in
   let goal = Types.triv @@ mk_imp (mk_and a b) a in
-  compute_derivation ~emit @@ Link_form {
+  compute_derivation @@ Link {
     goal ;
     src = Q.of_list [`l ; `l] ;
     dest = Q.of_list [`r]
-  } ;
-  compute_forms_simp goal (List.rev !deriv)
+  }
 
 let contract_d () =
-  let deriv = ref [] in
-  let emit rule = deriv := rule :: !deriv in
   let goal = Types.triv @@ mk_imp a b in
-  compute_derivation ~emit @@ Contract (goal, Q.empty) ;
-  compute_forms_simp goal (List.rev !deriv)
+  compute_derivation @@ Contract { goal ; path = Q.empty }
 
 let tests =
   "Form4" >::: [
@@ -135,13 +128,13 @@ let tests =
       assert_equal ~msg:"Premise" ~printer:LeanPP.to_string prem (Core.mk_top |@ qexch)
     end ;
     "S-combinator DManip" >:: begin fun _ ->
-      let (_, prem) = scomb_d () in
+      let Cos.{ top = prem ; _ } = scomb_d () in
       let cmp f g = Term.eq_term f.data g.data in
       assert_equal ~printer:LeanPP.to_string ~cmp prem
         Core.(mk_imp (mk_imp a b) (mk_imp a (mk_and a b)) |@ scomb)
     end ;
     "qexch DManip" >:: begin fun _ ->
-      let (_, prem) = qexch_d () in
+      let Cos.{ top = prem ; _ } = qexch_d () in
       let cmp f g = Term.eq_term f.data g.data in
       assert_equal ~printer:LeanPP.to_string ~cmp prem
         Core.(mk_all { var = "x" ; ty = K.ty_i }
@@ -153,13 +146,13 @@ let tests =
                            (mk_eq (dbx 0) (dbx 3) K.ty_i))))) |@ qexch)
     end ;
     "and_ts_l" >:: begin fun _ ->
-      let (_, prem) = and_ts_l_d () in
+      let Cos.{ top = prem ; _ } = and_ts_l_d () in
       let cmp f g = Term.eq_term f.data g.data in
       assert_equal ~printer:LeanPP.to_string ~cmp prem
         Core.(Types.triv mk_top)
     end ;
     "contract" >:: begin fun _ ->
-      let (_, prem) = contract_d () in
+      let Cos.{ top = prem ; _ } = contract_d () in
       let cmp f g = Term.eq_term f.data g.data in
       assert_equal ~printer:LeanPP.to_string ~cmp prem
         Core.(Types.triv @@ mk_imp a (mk_imp a b))

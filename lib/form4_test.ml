@@ -11,7 +11,7 @@ let rec compute_forms_simp ?(hist = []) goal deriv =
   match deriv with
   | [] -> (LeanPP.to_string goal :: hist, goal)
   | rule :: deriv ->
-      Format.printf "CoS: %a@." Cos.pp_rule rule ;
+      (* Format.printf "CoS: %a [[ %a ]]@." Cos.pp_rule rule LeanPP.pp goal ; *)
       let prem = ref @@ Cos.compute_premise goal rule in
       let hist = ref @@ Cos.rule_to_string rule ::
                         LeanPP.to_string goal :: hist in
@@ -22,6 +22,30 @@ let rec compute_forms_simp ?(hist = []) goal deriv =
       in
       let _simp_prem = recursive_simplify ~emit !prem Q.empty `r in
       compute_forms_simp !prem deriv ~hist:!hist
+
+let scomb = Core.{ tycx = empty ;
+                   data = mk_imp (mk_imp a (mk_imp b c))
+                       (mk_imp (mk_imp a b) (mk_imp a c)) }
+
+let run_scomb () =
+  let sderiv = [
+    Cos.{ name = Contract ; path = Q.of_list [`r ; `r] } ;
+    Cos.{ name = Goal_ts_imp `l ; path = Q.of_list [`r] } ;
+    Cos.{ name = Asms_imp { minor = `r ; pick = `l } ;
+          path = Q.of_list [`r ; `l] } ;
+    Cos.{ name = Init ; path = Q.of_list [`r ; `l ; `l] } ;
+    Cos.{ name = Goal_ts_imp `r ; path = Q.of_list [] } ;
+    Cos.{ name = Goal_ts_imp `r ; path = Q.of_list [`r] } ;
+    Cos.{ name = Goal_imp_ts ; path = Q.of_list [`r ; `r] } ;
+    Cos.{ name = Goal_imp_ts ; path = Q.of_list [`r ; `r ; `r] } ;
+    Cos.{ name = Init ; path = Q.of_list [`r ; `r ; `r ; `r] } ;
+    Cos.{ name = Goal_ts_imp `r ; path = Q.of_list [] } ;
+    Cos.{ name = Goal_ts_and `r ; path = Q.of_list [`r] } ;
+    Cos.{ name = Goal_ts_and `l ; path = Q.of_list [] } ;
+    Cos.{ name = Init ; path = Q.of_list [`l] } ;
+    Cos.{ name = Init ; path = Q.of_list [] } ;
+  ] in
+  compute_forms_simp scomb sderiv
 
 let and_ts_l_d () =
   let goal = Types.triv @@ mk_imp (mk_and a b) a in

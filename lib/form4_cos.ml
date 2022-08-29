@@ -159,7 +159,9 @@ let shift n t = Term.(sub_term (Shift n) t) [@@inline]
 
 let compute_premise (goal : formx) (rule : rule) : formx =
   let bad_match () =
-    Format.eprintf "Bad_match: %a@." pp_rule rule ;
+    Format.eprintf "Bad_match: %a :: %a@."
+      pp_rule rule
+      Form4_pp.LeanPP.pp goal ;
     raise @@ Bad_match {goal ; rule} in
   let (fx, side) = formx_at goal rule.path in
   let c = match side, expose fx.data, rule.name with
