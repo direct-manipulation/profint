@@ -11,6 +11,7 @@
     <!-- <script src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous"
          onload="renderMathInElement(document.body);"></script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js" integrity="sha384-UXw3wi5BiYWZhzAanFWIr5Y05huSNCRyCeO9MFq9Z7TErfqx+G/jttCrEdjyLxK4" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="ora.bc.js"></script>
     <script src="https://unpkg.com/hotkeys-js/dist/hotkeys.min.js"></script>
     <script>
@@ -259,13 +260,35 @@
       function downProof() {
         var proof = getProof();
         if (proof) {
-          const blob = new Blob([proof], { type: "text/plain;charset=utf-8" });
-          var el = document.createElement('a');
-          el.href = URL.createObjectURL(blob);
-          el.target = '_blank';
-          el.download = "Proof.lean";
-          el.click();
-          URL.revokeObjectURL(el.href);
+          fetch('lean4/proof.zip')
+            .then((response) => {
+              if (!response.ok)
+                throw new Error('fetch(lean4/proof.zip) failed');
+              return response.blob();
+            })
+            .then((blob) => {
+              var zip = new JSZip();
+              zip.loadAsync(blob)
+                .then((zip) => {
+                  console.log('downProof: loaded', zip.files);
+                  zip.file('Proof.lean').async('text')
+                    .then((plfile) => {
+                      plfile = plfile.replace("/-PROOF-/\n", proof);
+                      zip.file('Proof.lean', plfile);
+                      zip.generateAsync({ type: 'blob' })
+                        .then((blob) => {
+                          var el = document.createElement('a');
+                          el.href = URL.createObjectURL(blob);
+                          el.download = 'proof.zip';
+                          el.click();
+                          URL.revokeObjectURL(el.href);
+                        });
+                    });
+                });
+            })
+            .catch((error) => {
+              console.error('downProof:', error);
+            });
         }
       }
 

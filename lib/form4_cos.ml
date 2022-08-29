@@ -401,8 +401,6 @@ let pp_rule_name_as_lean4 out rn =
       pp_rule_name out rn
 
 let pp_deriv_as_lean4 out deriv =
-  Format.fprintf out "import Profint@." ;
-  Format.fprintf out "open Profint@." ;
   Format.fprintf out "section Example@." ;
   Form4_pp.LeanPP.pp_sigma out ;
   Format.fprintf out "example (_ : %a) : %a := by@."
