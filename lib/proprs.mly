@@ -39,7 +39,7 @@
 (* %token  PREC_MAX *)
 %token  <Util.ident> IDENT
 %token  LPAREN RPAREN LBRACK RBRACK COMMA COLON DOT
-%token  ARROW OMICRON IOTA TYPE
+%token  ARROW OMICRON TYPE
 (* %token  EQ NEQ *)
 %token  AND OR TO FROM BOT TOP
 %token  FORALL EXISTS
@@ -120,8 +120,6 @@ form:
 ty:
 | OMICRON
   { K.ty_o }
-| IOTA
-  { K.ty_i }
 | b=IDENT
   { Basic b }
 | a=ty ARROW b=ty
@@ -130,10 +128,10 @@ ty:
   { ty }
 
 signature:
-| sss=list(signature_one) EOS
+| sss=list(signature_elem) EOS
   { assemble_signature (List.concat sss) }
 
-signature_one:
+signature_elem:
 | vs=separated_nonempty_list(COMMA, IDENT) COLON ty=ty DOT
   { List.map (fun v -> Const (v, ty)) vs }
 | vs=separated_nonempty_list(COMMA, IDENT) COLON TYPE DOT

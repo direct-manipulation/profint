@@ -506,9 +506,9 @@ let compute_derivation mstep =
   Form4_cos.{ top = !top ; middle = !middle ; bottom }
 
 let mk_src f =
-  mk_mdata (T.App { head = Const ("src", K.ty_i) ; spine = [] }) K.ty_i f
+  mk_mdata (T.App { head = Const ("src", K.ty_any) ; spine = [] }) K.ty_any f
 let mk_dest f =
-  mk_mdata (T.App { head = Const ("dest", K.ty_i) ; spine = [] }) K.ty_i f
+  mk_mdata (T.App { head = Const ("dest", K.ty_any) ; spine = [] }) K.ty_any f
 
 let pp_mstep ?(ppfx = Form4_pp.LeanPP.pp) out mstep =
   match mstep with

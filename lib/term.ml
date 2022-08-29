@@ -126,7 +126,7 @@ let rec term_to_exp ?(cx = empty) term =
   let open Doc in
   match term with
   | Abs {var ; body} ->
-      with_var ~fresh:true cx { var ; ty = K.ty_i } begin fun vty cx ->
+      with_var ~fresh:true cx { var ; ty = K.ty_any } begin fun vty cx ->
         let rep = String (Printf.sprintf "[%s] " vty.var) in
         Appl (1, Prefix (rep, term_to_exp ~cx body))
       end
@@ -168,7 +168,7 @@ let rec term_to_exp_html ?(cx = empty) term =
   let open Doc in
   match term with
   | Abs {var ; body} ->
-      with_var ~fresh:true cx { var ; ty = K.ty_i } begin fun vty cx ->
+      with_var ~fresh:true cx { var ; ty = K.ty_any } begin fun vty cx ->
         let rep = StringAs (1, Printf.sprintf "\\lambda{%s}.\\," vty.var) in
         Appl (5, Prefix (rep, term_to_exp_html ~cx body))
       end

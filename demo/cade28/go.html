@@ -12,6 +12,7 @@
          onload="renderMathInElement(document.body);"></script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js" integrity="sha384-UXw3wi5BiYWZhzAanFWIr5Y05huSNCRyCeO9MFq9Z7TErfqx+G/jttCrEdjyLxK4" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js" integrity="sha512-csNcFYJniKjJxRWRV1R7fvnXrycHP6qDR21mgz1ZP55xY5d+aHLfo9/FcGDQLfn2IfngbAHd8LdfsagcCqgTcQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="ora.bc.js"></script>
     <script src="https://unpkg.com/hotkeys-js/dist/hotkeys.min.js"></script>
     <script>
@@ -270,18 +271,13 @@
               var zip = new JSZip();
               zip.loadAsync(blob)
                 .then((zip) => {
-                  console.log('downProof: loaded', zip.files);
                   zip.file('Proof.lean').async('text')
                     .then((plfile) => {
                       plfile = plfile.replace("/-PROOF-/\n", proof);
                       zip.file('Proof.lean', plfile);
                       zip.generateAsync({ type: 'blob' })
                         .then((blob) => {
-                          var el = document.createElement('a');
-                          el.href = URL.createObjectURL(blob);
-                          el.download = 'proof.zip';
-                          el.click();
-                          URL.revokeObjectURL(el.href);
+                          saveAs(blob, 'proof.zip');
                         });
                     });
                 });
@@ -293,11 +289,17 @@
       }
 
       $(document).ready(function(){
-        hotkeys('ctrl+up,ctrl+down,w', function (event, handler){
+        hotkeys('ctrl+up,ctrl+y,ctrl+down,ctrl+z,w', function (event, handler){
           switch (handler.key) {
-          case 'ctrl+down': doUndo(); break;
-          case 'ctrl+up': doRedo(); break;
-          case 'w': makeWitnessBox(event); return false;
+          case 'ctrl+z':
+          case 'ctrl+down':
+            doUndo(); break;
+          case 'ctrl+y':
+          case 'ctrl+up':
+            doRedo(); break;
+          case 'w':
+            makeWitnessBox(event);
+            return false;
           }
         });
         profint.signatureChange(document.sigEditor.getValue());
@@ -336,15 +338,17 @@
     </style>
   </head>
   <body>
-    <pre id="signature">f : \i -> \i.
-g : \i -> \i -> \i.
+    <pre id="signature">i : \type.
 
-j, k : \i.
+f : i -> i.
+g : i -> i -> i.
+
+j, k : i.
 
 a, b, c : \o.
 
-p, q : \i -> \o.
-r : \i -> \i -> \o.</pre>
+p, q : i -> \o.
+r : i -> i -> \o.</pre>
     <script>
       var sigEditor = ace.edit("signature");
       sigEditor.setTheme("ace/theme/twilight");

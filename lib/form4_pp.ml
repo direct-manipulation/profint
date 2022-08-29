@@ -104,7 +104,8 @@ module LeanPP = struct
     | Basic a ->
         let rep =
           if a = K.k_o then "Prop" else
-          if a = K.k_i then "ι" else a
+          (* if a = K.k_i then "ι" else *)
+            a
         in
         Doc.(Atom (String rep))
     | Arrow (ta, tb) ->
@@ -118,7 +119,7 @@ module LeanPP = struct
   let rec term_to_exp_ ~cx t =
     match t with
     | T.Abs { var ; body } ->
-        with_var ~fresh:true cx { var ; ty = K.ty_i } begin fun vty cx ->
+        with_var ~fresh:true cx { var ; ty = K.ty_any } begin fun vty cx ->
           let rep = Doc.String (Printf.sprintf "fun %s => " vty.var) in
           Doc.(Appl (1, Prefix (rep, term_to_exp_  ~cx body)))
         end
@@ -133,7 +134,6 @@ module LeanPP = struct
 
   let pp_sigma out =
     Format.fprintf out "universe u@." ;
-    Format.fprintf out "variable {ι : Type u}@." ;
     IdSet.iter begin fun i ->
       if IdSet.mem i sigma0.basics then () else
         Format.fprintf out "variable {%s : Type u}@." i
@@ -184,7 +184,7 @@ module TexPP = SkelPP (
       | Basic a ->
           let a =
             if ty = K.ty_o then Doc.StringAs (1, {|\omicron|}) else
-            if ty = K.ty_i then Doc.StringAs (1, {|\iota|}) else
+            (* if ty = K.ty_i then Doc.StringAs (1, {|\iota|}) else *)
             Doc.StringAs (String.length a, {|\mathsf{|} ^ a ^ {|}|}) in
           Doc.Atom a
       | Arrow (ta, tb) ->
@@ -201,7 +201,7 @@ module TexPP = SkelPP (
       let open Doc in
       match t with
       | T.Abs { var ; body } ->
-          with_var ~fresh:true cx { var ; ty = K.ty_i } begin fun vty cx ->
+          with_var ~fresh:true cx { var ; ty = K.ty_any } begin fun vty cx ->
             let rep = StringAs (3 + String.length vty.var,
                                 Printf.sprintf "\\lambda{%s}.\\," vty.var) in
             Appl (5, Prefix (rep, term_to_exp_ ~cx body))

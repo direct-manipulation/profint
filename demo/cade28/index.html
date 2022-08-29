@@ -100,15 +100,17 @@
       <li>(\A [x] p x) \to \A [y] p y</li>
     </ul>
 
-    <pre id="signature">f : \i -> \i.
-g : \i -> \i -> \i.
+    <pre id="signature">i : \type.
 
-j, k : \i.
+f : i -> i.
+g : i -> i -> i.
+
+j, k : i.
 
 a, b, c : \o.
 
-p, q : \i -> \o.
-r : \i -> \i -> \o.</pre>
+p, q : i -> \o.
+r : i -> i -> \o.</pre>
     <script>
       var sigEditor = ace.edit("signature");
       sigEditor.setTheme("ace/theme/twilight");

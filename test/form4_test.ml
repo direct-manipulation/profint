@@ -57,22 +57,22 @@ let run_scomb () =
   ] in
   compute_forms_simp scomb sderiv
 
-let r x y = T.(App { head = Const ("r", Arrow (K.ty_i, Arrow (K.ty_i, K.ty_o))) ;
+let r x y = T.(App { head = Const ("r", Arrow (K.ty_any, Arrow (K.ty_any, K.ty_o))) ;
                      spine = [x ; y] })
 let dbx n = T.(App { head = Index n ; spine = [] })
 
 let qexch = Core.{
     tycx = empty ;
     data = mk_imp
-        (mk_ex { var = "x" ; ty = K.ty_i }
-           (mk_all { var = "y" ; ty = K.ty_i } (r (dbx 1) (dbx 0))))
-        (mk_all { var = "y" ; ty = K.ty_i }
-           (mk_ex { var = "x" ; ty = K.ty_i } (r (dbx 0) (dbx 1)))) }
+        (mk_ex { var = "x" ; ty = K.ty_any }
+           (mk_all { var = "y" ; ty = K.ty_any } (r (dbx 1) (dbx 0))))
+        (mk_all { var = "y" ; ty = K.ty_any }
+           (mk_ex { var = "x" ; ty = K.ty_any } (r (dbx 0) (dbx 1)))) }
 
 let run_qexch () =
   let (t0, t1) =
-    with_var empty { var = "x" ; ty = K.ty_i } begin fun _ tycx ->
-      with_var tycx { var = "y" ; ty = K.ty_i } begin fun _ tycx ->
+    with_var empty { var = "x" ; ty = K.ty_any } begin fun _ tycx ->
+      with_var tycx { var = "y" ; ty = K.ty_any } begin fun _ tycx ->
         ({ tycx ; data = dbx 0 }, { tycx ; data = dbx 1 })
       end
     end in
@@ -137,13 +137,13 @@ let tests =
       let Cos.{ top = prem ; _ } = qexch_d () in
       let cmp f g = Term.eq_term f.data g.data in
       assert_equal ~printer:LeanPP.to_string ~cmp prem
-        Core.(mk_all { var = "x" ; ty = K.ty_i }
-                (mk_all { var = "y" ; ty = K.ty_i }
-                   (mk_ex { var = "x_1" ; ty = K.ty_i }
-                      (mk_ex { var = "y_1" ; ty = K.ty_i }
+        Core.(mk_all { var = "x" ; ty = K.ty_any }
+                (mk_all { var = "y" ; ty = K.ty_any }
+                   (mk_ex { var = "x_1" ; ty = K.ty_any }
+                      (mk_ex { var = "y_1" ; ty = K.ty_any }
                          (mk_and
-                           (mk_eq (dbx 2) (dbx 1) K.ty_i)
-                           (mk_eq (dbx 0) (dbx 3) K.ty_i))))) |@ qexch)
+                           (mk_eq (dbx 2) (dbx 1) K.ty_any)
+                           (mk_eq (dbx 0) (dbx 3) K.ty_any))))) |@ qexch)
     end ;
     "and_ts_l" >:: begin fun _ ->
       let Cos.{ top = prem ; _ } = and_ts_l_d () in

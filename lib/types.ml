@@ -54,9 +54,10 @@ module K = struct
   let k_pos_int = next_internal "posint"
   let k_neg_int = next_internal "negint"
   let k_o  = next_internal "o"
-  let k_i  = next_internal "i"
   let ty_o = Basic k_o
-  let ty_i = Basic k_i
+  (* let k_i  = next_internal "i" *)
+  (* let ty_i = Basic k_i *)
+  let ty_any = Basic (next_internal "?")
 end
 
 type poly_ty = {nvars : int ; ty : ty}
@@ -82,16 +83,19 @@ let check_well_formed sigma pty =
 
 exception Invalid_sigma_extension
 
+let is_declared sigma k =
+  IdSet.mem k sigma.basics || IdMap.mem k sigma.consts
+
 let add_basic sigma b =
-  if IdSet.mem b sigma.basics then begin
-    Format.eprintf "Basic type %S already declared@." b ;
+  if is_declared sigma b then begin
+    (* Format.eprintf "Basic type %S already declared@." b ; *)
     raise Invalid_sigma_extension
   end ;
   { sigma with basics = IdSet.add b sigma.basics }
 
 let add_const sigma k pty =
-  if IdMap.mem k sigma.consts then begin
-    Format.eprintf "Constant %S already declared@." k ;
+  if is_declared sigma k then begin
+    (* Format.eprintf "Constant %S already declared@." k ; *)
     raise Invalid_sigma_extension
   end ;
   check_well_formed sigma pty ;
@@ -113,7 +117,7 @@ let sigma0 : sigma =
   ] in
   (* note: checks are being bypassed because these have been manually
      checked to be well-formed. *)
-  { basics = IdSet.of_list [K.k_o ; K.k_i] ;
+  { basics = IdSet.of_list [K.k_o (* ; K.k_i *)] ;
     consts =
       List.fold_left (fun consts (k, pty) -> IdMap.add k pty consts)
         IdMap.empty binds }
@@ -140,10 +144,12 @@ let thaw_ty pty =
 
 let pp_sigma out sigma =
   IdSet.iter begin fun i ->
-    Format.fprintf out "%s : \\type.@." i
+    if not @@ IdSet.mem i sigma0.basics then
+      Format.fprintf out "%s : \\type.@." i
   end sigma.basics ;
   IdMap.iter begin fun k pty ->
-    Format.fprintf out "%s : %a.@." k pp_ty (thaw_ty pty)
+    if not @@ IdMap.mem k sigma0.consts then
+      Format.fprintf out "%s : %a.@." k pp_ty (thaw_ty pty)
   end sigma.consts
 
 let lookup_ty k = thaw_ty @@ IdMap.find k !sigma.consts
