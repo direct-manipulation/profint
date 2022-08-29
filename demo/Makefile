@@ -1,4 +1,5 @@
 ROOT := $(shell git rev-parse --show-toplevel)
+# PROFILE := release
 PROFILE := dev
 
 .PHONY: all clean sync
