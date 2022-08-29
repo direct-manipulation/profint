@@ -26,6 +26,7 @@ val pp_doc : Format.formatter -> doc -> unit
 
 val lin_doc_buffer : Buffer.t -> doc -> unit
 val lin_doc : doc -> string
+val pp_lin_doc : Format.formatter -> doc -> unit
 
 type wrapping = Transparent | Opaque
 

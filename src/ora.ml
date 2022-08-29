@@ -2,9 +2,6 @@ open Profint
 open Util
 open Js_of_ocaml
 
-let mstep_to_string mstep =
-  pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.LeanPP.pp) mstep
-
 type state = {
   mutable goal : Form4.mstep ;
   mutable history : Form4.mstep list ;
@@ -68,15 +65,15 @@ let profint_object =
       change_formula @@ Js.to_string text
 
     method formulaOrd =
-      pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.LeanPP.pp) state.goal |> Js.string
+      pp_to_string (Form4.pp_mstep ~ppfx:Form4.pp_formx) state.goal |> Js.string
 
     method formulaHTML =
-      pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.TexPP.pp) state.goal |> Js.string
+      pp_to_string (Form4.pp_mstep ~ppfx:To_katex.pp_formx) state.goal |> Js.string
 
     method convertToHTML text =
       try
         let f = Uterm.form_of_string @@ Js.to_string text in
-        Js.string @@ pp_to_string Form4.Pp.TexPP.pp @@ Types.triv f
+        Js.string @@ pp_to_string To_katex.pp_formx @@ Types.triv f
       with e ->
         Format.eprintf "converToHTML: %S: %s@."
           (Js.to_string text)
@@ -86,7 +83,7 @@ let profint_object =
     method historyHTML =
       let contents =
         state.history
-        |> List.map (pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.TexPP.pp))
+        |> List.map (pp_to_string (Form4.pp_mstep ~ppfx:To_katex.pp_formx))
         |> String.concat {| \mathstrut \\ \hline |}
       in
       {| \begin{array}{c} \hline |} ^ contents ^ {| \end{array} |}
@@ -101,7 +98,7 @@ let profint_object =
         | _ ->
             let contents =
               state.future
-              |> List.rev_map (pp_to_string (Form4.pp_mstep ~ppfx:Form4.Pp.TexPP.pp))
+              |> List.rev_map (pp_to_string (Form4.pp_mstep ~ppfx:To_katex.pp_formx))
               |> String.concat {| \mathstrut \\ \hline |}
             in
             {| \begin{array}{c} |} ^ contents ^ {| \\ \hline \end{array} |}
@@ -173,7 +170,7 @@ let profint_object =
         let ex, side = Form4.Paths.formx_at fx @@ to_trail src in
         match Form4.expose ex.data, side with
         | Form4.Exists ({ var ; _ }, _), `r -> Js.some @@ Js.string var
-        | _ -> fail @@ "not an exists: " ^ Form4.Pp.LeanPP.to_string ex
+        | _ -> fail @@ "not an exists: " ^ Form4.formx_to_string ex
       with e -> fail (Printexc.to_string e)
 
     method doWitness path text =
@@ -210,7 +207,7 @@ let profint_object =
             let deriv = List.fold_left begin fun deriv mstep ->
                 Form4.Cos.concat (Form4.compute_derivation mstep) deriv
               end deriv msteps in
-            let str = pp_to_string Form4.Cos.pp_deriv_as_lean4 deriv in
+            let str = pp_to_string To_lean4.pp_deriv (!Types.sigma, deriv) in
             Js.some @@ Js.string str
         | _ -> fail "!!missing msteps!!"
       with e -> fail (Printexc.to_string e)

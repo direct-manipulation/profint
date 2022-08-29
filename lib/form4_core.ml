@@ -12,6 +12,15 @@ open! T
 type form = term
 type formx = form incx
 
+let form_to_exp = Term.term_to_exp
+let formx_to_exp (fx : formx) = Term.term_to_exp ~cx:fx.tycx fx.data
+
+let pp_form = Term.pp_term
+let pp_formx out (fx : formx) = Term.pp_term ~cx:fx.tycx out fx.data
+
+let form_to_string = Term.term_to_string
+let formx_to_string (fx : formx) = Term.term_to_string ~cx:fx.tycx fx.data
+
 (******************************************************************************)
 (* formula views *)
 

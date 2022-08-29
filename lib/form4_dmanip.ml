@@ -427,7 +427,7 @@ let rec spin_rules ~emit concl =
     match rules with
     | [] ->
         Format.eprintf "spin_rules: stuck on: @[%a@]@. lpath = %a@. rpath = %a@. cpath = %a@.%!"
-          Form4_pp.LeanPP.pp concl.fx
+          pp_formx concl.fx
           pp_path concl.lpath
           pp_path concl.rpath
           pp_path concl.cpath ;
@@ -510,7 +510,7 @@ let mk_src f =
 let mk_dest f =
   mk_mdata (T.App { head = Const ("dest", K.ty_any) ; spine = [] }) K.ty_any f
 
-let pp_mstep ?(ppfx = Form4_pp.LeanPP.pp) out mstep =
+let pp_mstep ?(ppfx = pp_formx) out mstep =
   match mstep with
   | Pristine { goal } -> ppfx out goal
   | Contract { goal ; path }

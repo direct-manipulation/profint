@@ -1,7 +1,6 @@
 open Util
 open Form4
 open Types
-open Pp
 
 let a = T.(App { head = Const ("a", K.ty_o) ; spine = [] })
 let b = T.(App { head = Const ("b", K.ty_o) ; spine = [] })
@@ -9,14 +8,14 @@ let c = T.(App { head = Const ("c", K.ty_o) ; spine = [] })
 
 let rec compute_forms_simp ?(hist = []) goal deriv =
   match deriv with
-  | [] -> (LeanPP.to_string goal :: hist, goal)
+  | [] -> (formx_to_string goal :: hist, goal)
   | rule :: deriv ->
       (* Format.printf "CoS: %a [[ %a ]]@." Cos.pp_rule rule LeanPP.pp goal ; *)
       let prem = ref @@ Cos.compute_premise goal rule in
       let hist = ref @@ Cos.rule_to_string rule ::
-                        LeanPP.to_string goal :: hist in
+                        formx_to_string goal :: hist in
       let emit rule =
-        hist := LeanPP.to_string !prem :: !hist ;
+        hist := formx_to_string !prem :: !hist ;
         hist := Cos.rule_to_string rule :: !hist ;
         prem := Cos.compute_premise !prem rule
       in

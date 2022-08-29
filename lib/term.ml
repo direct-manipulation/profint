@@ -149,46 +149,12 @@ and head_to_exp ?(cx = empty) head =
   let open Doc in
   match head with
   | Index n ->
-      (* let vstr = Printf.sprintf "%s_{%d}" (fst (List.nth cx n)) n in *)
       let vstr = (List.nth cx.linear n).var in
       Atom (String vstr)
   | Const (k, _) -> Atom (String k)
 
 let termx_to_exp tx = term_to_exp ~cx:tx.tycx tx.data
 let headx_to_exp hx = head_to_exp ~cx:hx.tycx hx.data
-
-(* let sym_spine_left = Doc.String "[" *)
-(* let sym_spine_right = Doc.String "]" *)
-(* let sym_app = Doc.StringAs (1, "{\\cdot}") *)
-let sym_spine_left = Doc.String "("
-let sym_spine_right = Doc.String ")"
-let sym_app = Doc.StringAs (0, "")
-
-let rec term_to_exp_html ?(cx = empty) term =
-  let open Doc in
-  match term with
-  | Abs {var ; body} ->
-      with_var ~fresh:true cx { var ; ty = K.ty_any } begin fun vty cx ->
-        let rep = StringAs (1, Printf.sprintf "\\lambda{%s}.\\," vty.var) in
-        Appl (5, Prefix (rep, term_to_exp_html ~cx body))
-      end
-  | App {head ; spine = []} ->
-      head_to_exp ~cx head
-  | App {head ; spine} ->
-      let left = head_to_exp ~cx head in
-      let right = match spine with
-        | [t] ->
-            Wrap (Opaque, sym_spine_left,
-                  term_to_exp_html ~cx t,
-                  sym_spine_right)
-        | _ ->
-            Wrap (Opaque,
-                  sym_spine_left,
-                  Appl (0, Infix (String ",", Left,
-                                  List.map (term_to_exp_html ~cx) spine)),
-                  sym_spine_right)
-      in
-      Appl (200, Infix (sym_app, Non, [left ; right]))
 
 let pp_term ?cx out term =
   term_to_exp ?cx term

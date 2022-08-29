@@ -359,8 +359,8 @@ let rec form_to_exp_html ?(cx = empty) form =
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
     | Eq (t1, t2, _) ->
         Appl (50, Infix (StringAs (1, " \\doteq "), Non,
-                         [Term.term_to_exp_html ~cx t1 ;
-                          Term.term_to_exp_html ~cx t2]))
+                         [Term.term_to_exp ~cx t1 ;
+                          Term.term_to_exp ~cx t2]))
     | Neg_int (fa, fb) ->
         Appl (30, Infix (StringAs (1, " \\circ "), Non,
                          [form_to_exp_html ~cx fa ; form_to_exp_html ~cx fb]))
@@ -386,7 +386,7 @@ let rec form_to_exp_html ?(cx = empty) form =
                   fe,
                   StringAs (1, "\\bigr\\}"))
         | _ ->
-            Term.term_to_exp_html ~cx form
+            Term.term_to_exp ~cx form
       end
   in
   Wrap (Transparent,

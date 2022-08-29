@@ -159,9 +159,7 @@ let shift n t = Term.(sub_term (Shift n) t) [@@inline]
 
 let compute_premise (goal : formx) (rule : rule) : formx =
   let bad_match () =
-    Format.eprintf "Bad_match: %a :: %a@."
-      pp_rule rule
-      Form4_pp.LeanPP.pp goal ;
+    Format.eprintf "Bad_match: %a@." pp_rule rule ;
     raise @@ Bad_match {goal ; rule} in
   let (fx, side) = formx_at goal rule.path in
   let c = match side, expose fx.data, rule.name with
@@ -380,39 +378,3 @@ let concat d1 d2 =
   { top = d1.top ;
     middle = d1.middle @ d2.middle ;
     bottom = d2.bottom }
-
-let pp_path_as_lean4 out path =
-  Q.to_seq path |>
-  Format.pp_print_seq
-    ~pp_sep:(fun out () -> Format.pp_print_string out ",")
-    (fun out -> function
-       | `l -> Format.pp_print_string out "l"
-       | `r -> Format.pp_print_string out "r"
-       | `d -> Format.pp_print_string out "d"
-       | `i x ->
-           Format.pp_print_string out "i " ;
-           Format.pp_print_string out x)
-    out
-
-let pp_rule_name_as_lean4 out rn =
-  match rn with
-  | Inst tx ->
-      Format.fprintf out "inst (%a)"
-        Form4_pp.LeanPP.pp_termx tx
-  | _ ->
-      pp_rule_name out rn
-
-let pp_deriv_as_lean4 out deriv =
-  Format.fprintf out "section Example@." ;
-  Form4_pp.LeanPP.pp_sigma out ;
-  Format.fprintf out "example (_ : %a) : %a := by@."
-    Form4_pp.LeanPP.pp deriv.top
-    Form4_pp.LeanPP.pp deriv.bottom ;
-  List.iter begin fun (prem, rule, _) ->
-    Format.fprintf out "  within %a use %a@."
-      pp_path_as_lean4 rule.path
-      pp_rule_name_as_lean4 rule.name ;
-    Format.fprintf out "  /- @[%a@] -/@." Form4_pp.LeanPP.pp prem ;
-  end @@ List.rev deriv.middle ;
-  Format.fprintf out "  rename_i u ; exact u@." ;
-  Format.fprintf out "end Example@."

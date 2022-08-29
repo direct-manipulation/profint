@@ -10,7 +10,6 @@
 
 module Core     = Form4_core
 include Core
-module Pp       = Form4_pp
 module Paths    = Form4_paths
 type dir = Paths.dir
 type path = Paths.path

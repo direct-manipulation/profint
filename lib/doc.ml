@@ -55,11 +55,15 @@ let rec pp_doc ff = function
 let lin_doc_buffer buf d =
   let out = Format.formatter_of_buffer buf in
   let rec output = function
-    | String s | StringAs (_, s) -> Buffer.add_string buf s
-    | Fmt fmt -> Format.fprintf out "%t" fmt
-    | Group (_, ds) -> List.iter output ds
+    | String s | StringAs (_, s) ->
+        Format.pp_print_string out s
+    | Fmt fmt ->
+        Format.fprintf out "%t" fmt
+    | Group (_, ds) ->
+        List.iter output ds
     | Break (0, _) -> ()
-    | Break _ | Newline -> Buffer.add_char buf ' '
+    | Break _ | Newline ->
+        Format.pp_print_char out ' '
   in
   output d ;
   Format.pp_print_flush out ()
@@ -68,6 +72,9 @@ let lin_doc d =
   let buf = Buffer.create 10 in
   lin_doc_buffer buf d ;
   Buffer.contents buf
+
+let pp_lin_doc out d =
+  lin_doc d |> Format.pp_print_string out
 
 type wrapping = Transparent | Opaque
 
