@@ -206,14 +206,14 @@
           else linkSubformula(this, false);
           ev.stopPropagation();
         });
-        $("#output .enclosing[id]").mouseover(function(ev) {
-          $('#output .enclosing[id]').removeClass('hl-range');
+        $("#output .enclosing").mouseover(function(ev) {
+          $('#output .enclosing').removeClass('hl-range');
           $(this).addClass('hl-range');
           // $("span.enclosing").css({"border-bottom": "0"});
           // $(this).css({"border-bottom": "3px solid red"});
           ev.stopPropagation();
         });
-        $("#output .enclosing[id]").mouseout(function(ev) {
+        $("#output .enclosing").mouseout(function(ev) {
           $(this).removeClass('hl-range');
           // $("span.enclosing").css({"border-bottom": "0"});
         });

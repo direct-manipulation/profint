@@ -165,14 +165,16 @@ let profint_object =
         false
 
     method testWitness src =
-      let fail () = Format.eprintf "testWitness: failure@." ; Js.null in
+      let fail reason =
+        Format.eprintf "testWitness: failure: %s@." reason ;
+        Js.null in
       try
         let fx = Form4.goal_of_mstep state.goal in
         let ex, side = Form4.Paths.formx_at fx @@ to_trail src in
         match Form4.expose ex.data, side with
         | Form4.Exists ({ var ; _ }, _), `r -> Js.some @@ Js.string var
-        | _ -> fail ()
-      with _ -> fail ()
+        | _ -> fail @@ "not an exists: " ^ Form4.Pp.LeanPP.to_string ex
+      with e -> fail (Printexc.to_string e)
 
     method doWitness path text =
       let old_goal = state.goal in
