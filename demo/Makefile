@@ -1,7 +1,8 @@
 ROOT := $(shell git rev-parse --show-toplevel)
 PROFILE := release
 # PROFILE := dev
-DELIVERABLES := $(wildcard *.html favicon.ico icons ora.bc.js lean4)
+PSYS := lean4 coq
+DELIVERABLES := $(wildcard *.html favicon.ico icons ora.bc.js $(PSYS))
 
 .PHONY: all clean sync list
 
@@ -11,10 +12,11 @@ all:
 	  --profile $(PROFILE) \
 	  src/ora.bc.js
 	$(RM) ora.bc.js
-	cd lean4 && $(MAKE)
+	for d in $(PSYS) ; do ( cd $$d ; $(MAKE) proof.zip ) ; done
 	cp $(ROOT)/_build/default/src/ora.bc.js .
 
 sync: all
+	for d in $(PSYS) ; do ( cd $$d ; git clean -fxd . ; $(MAKE) proof.zip ) ; done
 	rsync -avz $(DELIVERABLES) chaudhuri.info:chaudhuri/research/profint
 
 clean:

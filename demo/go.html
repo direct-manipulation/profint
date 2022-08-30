@@ -239,45 +239,51 @@
         }
       }
 
-      function getProof() {
-        var choice = $('#proofSystem').val();
-        if (choice) {
-          if (choice === 'lean4')
-            return profint.getLean4();
-        }
-        return null;
+      function getProofKind() {
+        return $('#proofSystem').val() || '-unknown-';
       }
 
       function copyProof() {
-        var proof = getProof();
+        var proof = profint.getProof(getProofKind());
         if (proof) {
           navigator.clipboard.writeText(proof)
-            // .then(() => {
-            //   console.log('copied');
-            // })
             .catch(() => {
               console.error('Copy failed');
             });
         }
       }
 
+      const proofSystems = {
+        'lean4': {
+          file: 'Proof.lean',
+          comment: '/-PROOF-/\n',
+        },
+        'coq': {
+          file: 'Proof.v',
+          comment: '(*PROOF*)\n',
+        }
+      };
+
       function downProof() {
-        var proof = getProof();
+        const kind = getProofKind();
+        const proof_zip = kind + '/proof.zip';
+        const psys = proofSystems[kind];
+        const proof = profint.getProof(kind);
         if (proof) {
-          fetch('lean4/proof.zip')
+          fetch(proof_zip)
             .then((response) => {
               if (!response.ok)
-                throw new Error('fetch(lean4/proof.zip) failed');
+                throw new Error('fetch(' + proof_zip + ') failed');
               return response.blob();
             })
             .then((blob) => {
               var zip = new JSZip();
               zip.loadAsync(blob)
                 .then((zip) => {
-                  zip.file('Proof.lean').async('text')
-                    .then((plfile) => {
-                      plfile = plfile.replace("/-PROOF-/\n", proof);
-                      zip.file('Proof.lean', plfile);
+                  zip.file(psys.file).async('text')
+                    .then((text) => {
+                      text = text.replace(psys.comment, proof);
+                      zip.file(psys.file, text);
                       zip.generateAsync({ type: 'blob' })
                         .then((blob) => {
                           saveAs(blob, 'proof.zip');
@@ -395,9 +401,9 @@ r : i -> i -> \o.</pre>
         <button id="downProof" onclick="downProof()" style="margin-left:auto;padding:2px 2px;"><span class="icon">&#xf090;</span> Download</button>
         proof as
         <select id="proofSystem">
-          <option value="lean4">Lean4</option>
+          <option value="lean4" selected>Lean4</option>
           <option value="lean3" disabled>Lean3</option>
-          <option value="coq" disabled>Coq</option>
+          <option value="coq">Coq</option>
         </select>
       </div>
     </div>

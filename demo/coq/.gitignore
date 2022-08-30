@@ -1,0 +1,10 @@
+*.aux
+CoqMakefile
+CoqMakefile.*
+proof.zip
+*.glob
+*.vo
+*.vok
+*.vos
+*.d
+Test.v

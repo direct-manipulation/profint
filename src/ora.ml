@@ -195,9 +195,10 @@ let profint_object =
         | _ -> fail "not an exists"
       with e -> fail (Printexc.to_string e)
 
-    method getLean4 =
+    method getProof kind =
+      let kind = Js.to_string kind in
       let fail reason =
-        Format.eprintf "getLean4: failure: %s@." reason ;
+        Format.eprintf "get_%s: failure: %s@." kind reason ;
         Js.null
       in
       try
@@ -207,7 +208,12 @@ let profint_object =
             let deriv = List.fold_left begin fun deriv mstep ->
                 Form4.Cos.concat (Form4.compute_derivation mstep) deriv
               end deriv msteps in
-            let str = pp_to_string To_lean4.pp_deriv (!Types.sigma, deriv) in
+            let pp_deriv = match kind with
+              | "lean4" -> To_lean4.pp_deriv
+              | "coq" -> To_coq.pp_deriv
+              | _ -> failwith "unknown formal system"
+            in
+            let str = pp_to_string pp_deriv (!Types.sigma, deriv) in
             Js.some @@ Js.string str
         | _ -> fail "!!missing msteps!!"
       with e -> fail (Printexc.to_string e)
