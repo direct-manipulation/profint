@@ -210,6 +210,7 @@ let profint_object =
               end deriv msteps in
             let pp_deriv = match kind with
               | "lean4" -> To_lean4.pp_deriv
+              | "lean3" -> To_lean3.pp_deriv
               | "coq" -> To_coq.pp_deriv
               | _ -> failwith "unknown formal system"
             in

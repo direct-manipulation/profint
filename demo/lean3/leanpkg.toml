@@ -1,0 +1,5 @@
+[package]
+name = "profint"
+version = "0.0.1"
+lean_version = "leanprover-community/lean:3.46.0"
+path = "src"

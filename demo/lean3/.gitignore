@@ -1,0 +1,4 @@
+leanpkg.path
+Test.lean
+*.olean
+proof.zip
