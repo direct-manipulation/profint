@@ -267,7 +267,7 @@ let pp_rule out (prem, rule, goal) =
   Format.fprintf out "refine (" ;
   pp_path 1 goal.tycx goal.data prem.data rule.path
 
-let pp_step out (prem, rule, concl as prc) =
+let pp_step out (prem, _, _ as prc) =
   pp_rule out prc ;
   Format.fprintf out "show %a,@." pp_formx prem
 

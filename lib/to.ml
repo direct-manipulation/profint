@@ -19,3 +19,9 @@ module type INTERFACE = sig
   val pp_sigma : Format.formatter -> sigma -> unit
   val pp_deriv : Format.formatter -> sigma * Form4.Cos.deriv -> unit
 end
+
+module Tex : INTERFACE = To_katex
+
+module Coq : INTERFACE = To_coq
+module Lean3 : INTERFACE = To_lean3
+module Lean4 : INTERFACE = To_lean4
