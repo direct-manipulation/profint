@@ -68,12 +68,12 @@ let profint_object =
       pp_to_string (Form4.pp_mstep ~ppfx:Form4.pp_formx) state.goal |> Js.string
 
     method formulaHTML =
-      pp_to_string (Form4.pp_mstep ~ppfx:To_katex.pp_formx) state.goal |> Js.string
+      pp_to_string (Form4.pp_mstep ~ppfx:To.Tex.pp_formx) state.goal |> Js.string
 
     method convertToHTML text =
       try
         let f = Uterm.form_of_string @@ Js.to_string text in
-        Js.string @@ pp_to_string To_katex.pp_formx @@ Types.triv f
+        Js.string @@ pp_to_string To.Tex.pp_formx @@ Types.triv f
       with e ->
         Format.eprintf "converToHTML: %S: %s@."
           (Js.to_string text)
@@ -83,7 +83,7 @@ let profint_object =
     method historyHTML =
       let contents =
         state.history
-        |> List.map (pp_to_string (Form4.pp_mstep ~ppfx:To_katex.pp_formx))
+        |> List.map (pp_to_string (Form4.pp_mstep ~ppfx:To.Tex.pp_formx))
         |> String.concat {| \mathstrut \\ \hline |}
       in
       {| \begin{array}{c} \hline |} ^ contents ^ {| \end{array} |}
@@ -98,7 +98,7 @@ let profint_object =
         | _ ->
             let contents =
               state.future
-              |> List.rev_map (pp_to_string (Form4.pp_mstep ~ppfx:To_katex.pp_formx))
+              |> List.rev_map (pp_to_string (Form4.pp_mstep ~ppfx:To.Tex.pp_formx))
               |> String.concat {| \mathstrut \\ \hline |}
             in
             {| \begin{array}{c} |} ^ contents ^ {| \\ \hline \end{array} |}
@@ -198,7 +198,7 @@ let profint_object =
     method getProof kind =
       let kind = Js.to_string kind in
       let fail reason =
-        Format.eprintf "get_%s: failure: %s@." kind reason ;
+        Format.eprintf "getProof: failure: %s@." reason ;
         Js.null
       in
       try
@@ -209,10 +209,11 @@ let profint_object =
                 Form4.Cos.concat (Form4.compute_derivation mstep) deriv
               end deriv msteps in
             let pp_deriv = match kind with
-              | "lean4" -> To_lean4.pp_deriv
-              | "lean3" -> To_lean3.pp_deriv
-              | "coq" -> To_coq.pp_deriv
-              | _ -> failwith "unknown formal system"
+              | "coq"         -> To.Coq.pp_deriv
+              | "coq_reflect" -> To.Coq_reflect.pp_deriv
+              | "lean3"       -> To.Lean3.pp_deriv
+              | "lean4"       -> To.Lean4.pp_deriv
+              | _ -> failwith @@ "unknown formal system " ^ kind
             in
             let str = pp_to_string pp_deriv (!Types.sigma, deriv) in
             Js.some @@ Js.string str

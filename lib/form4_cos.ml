@@ -138,20 +138,23 @@ let rule_to_string rule = pp_to_string pp_rule rule
 
 exception Bad_spines of {ty : ty ; ss : spine ; ts : spine}
 
-let rec compute_spine_congruence (ty : ty) (ss : spine) (ts : spine) : form =
+let rec spine_equations (ty : ty) (ss : spine) (ts : spine) : form list =
   let ty = ty_norm ty in
   match ty, ss, ts with
-  | Arrow (tya, ty), (s :: ss), (t :: tt) -> begin
-      match ss, tt with
-      | [], [] ->
-          mk_eq s t tya
-      | _ ->
-          mk_and (mk_eq s t tya) (compute_spine_congruence ty ss tt)
-    end
-  | _, [], [] ->
-      mk_top
-  | _ ->
-      raise @@ Bad_spines {ty ; ss ; ts}
+  | Arrow (tya, ty), (s :: ss), (t :: ts) ->
+      (if Term.eq_term s t then [] else [mk_eq s t tya]) @
+      spine_equations ty ss ts
+  | _, [], [] -> []
+  | _ -> raise @@ Bad_spines { ty ; ss ; ts }
+
+let rec mk_big_and fs =
+  match fs with
+  | [] -> mk_top
+  | [f] -> f
+  | f :: fs -> mk_and f (mk_big_and fs)
+
+let compute_spine_congruence (ty : ty) (ss : spine) (ts : spine) : form =
+  mk_big_and @@ spine_equations ty ss ts
 
 exception Bad_match of {goal : formx ; rule : rule}
 

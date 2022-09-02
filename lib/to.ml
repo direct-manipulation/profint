@@ -23,5 +23,6 @@ end
 module Tex : INTERFACE = To_katex
 
 module Coq : INTERFACE = To_coq
+module Coq_reflect : INTERFACE = To_coq_reflect
 module Lean3 : INTERFACE = To_lean3
 module Lean4 : INTERFACE = To_lean4

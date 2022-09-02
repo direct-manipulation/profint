@@ -1,7 +1,7 @@
 ROOT := $(shell git rev-parse --show-toplevel)
 PROFILE := release
 # PROFILE := dev
-PSYS := lean4 lean3 coq
+PSYS := lean4 lean3 coq coq_reflect
 DELIVERABLES := $(wildcard *.html favicon.ico icons ora.bc.js $(PSYS))
 
 .PHONY: all clean sync list

@@ -239,6 +239,25 @@
         }
       }
 
+      const proofSystems = {
+        'lean4': {
+          file: 'Proof.lean',
+          comment: '/-PROOF-/\n',
+        },
+        'lean3': {
+          file: 'src/Proof.lean',
+          comment: '/-PROOF-/\n',
+        },
+        'coq': {
+          file: 'Proof.v',
+          comment: '(*PROOF*)\n',
+        },
+        'coq_reflect': {
+          file: 'Proof.v',
+          comment: '(*PROOF*)\n',
+        },
+      };
+
       function getProofKind() {
         return $('#proofSystem').val() || '-unknown-';
       }
@@ -252,21 +271,6 @@
             });
         }
       }
-
-      const proofSystems = {
-        'lean4': {
-          file: 'Proof.lean',
-          comment: '/-PROOF-/\n',
-        },
-        'lean3': {
-          file: 'src/Proof.lean',
-          comment: '/-PROOF-/\n',
-        },
-        'coq': {
-          file: 'Proof.v',
-          comment: '(*PROOF*)\n',
-        }
-      };
 
       function downProof() {
         const kind = getProofKind();
@@ -405,9 +409,10 @@ r : i -> i -> \o.</pre>
         <button id="downProof" onclick="downProof()" style="margin-left:auto;padding:2px 2px;"><span class="icon">&#xf090;</span> Download</button>
         proof as
         <select id="proofSystem">
+          <option value="coq">Coq (trace)</option>
+          <option value="coq_reflect">Coq (reflective)</option>
+          <option value="lean3">Lean3 (trace)</option>
           <option value="lean4" selected>Lean4</option>
-          <option value="lean3">Lean3</option>
-          <option value="coq">Coq</option>
         </select>
       </div>
     </div>
