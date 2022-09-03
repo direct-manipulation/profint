@@ -3,7 +3,8 @@ open Profint
 open Util
 open Form4
 open Types
-open Pp
+
+let formx_to_string fx = pp_to_string To.Lean4.pp_formx fx
 
 let a = T.(App { head = Const ("a", K.ty_o) ; spine = [] })
 let b = T.(App { head = Const ("b", K.ty_o) ; spine = [] })
@@ -11,13 +12,13 @@ let c = T.(App { head = Const ("c", K.ty_o) ; spine = [] })
 
 let rec compute_forms_simp ?(hist = []) goal deriv =
   match deriv with
-  | [] -> (LeanPP.to_string goal :: hist, goal)
+  | [] -> (formx_to_string goal :: hist, goal)
   | rule :: deriv ->
       let prem = ref @@ Cos.compute_premise goal rule in
       let hist = ref @@ Cos.rule_to_string rule ::
-                        LeanPP.to_string goal :: hist in
+                        formx_to_string goal :: hist in
       let emit rule =
-        hist := LeanPP.to_string !prem :: !hist ;
+        hist := formx_to_string !prem :: !hist ;
         hist := Cos.rule_to_string rule :: !hist ;
         prem := Cos.compute_premise !prem rule
       in
@@ -117,26 +118,26 @@ let tests =
   "Form4" >::: [
     "K-combinator COS" >:: begin fun _ ->
       let (_, prem) = run_kcomb () in
-      assert_equal ~msg:"Premise" ~printer:LeanPP.to_string prem (Core.mk_top |@ kcomb)
+      assert_equal ~msg:"Premise" ~printer:formx_to_string prem (Core.mk_top |@ kcomb)
     end ;
     "S-combinator COS" >:: begin fun _ ->
       let (_, prem) = run_scomb () in
-      assert_equal ~msg:"Premise" ~printer:LeanPP.to_string prem (Core.mk_top |@ scomb)
+      assert_equal ~msg:"Premise" ~printer:formx_to_string prem (Core.mk_top |@ scomb)
     end ;
     "qexch COS" >:: begin fun _ ->
       let (_, prem) = run_qexch () in
-      assert_equal ~msg:"Premise" ~printer:LeanPP.to_string prem (Core.mk_top |@ qexch)
+      assert_equal ~msg:"Premise" ~printer:formx_to_string prem (Core.mk_top |@ qexch)
     end ;
     "S-combinator DManip" >:: begin fun _ ->
       let Cos.{ top = prem ; _ } = scomb_d () in
       let cmp f g = Term.eq_term f.data g.data in
-      assert_equal ~printer:LeanPP.to_string ~cmp prem
+      assert_equal ~printer:formx_to_string ~cmp prem
         Core.(mk_imp (mk_imp a b) (mk_imp a (mk_and a b)) |@ scomb)
     end ;
     "qexch DManip" >:: begin fun _ ->
       let Cos.{ top = prem ; _ } = qexch_d () in
       let cmp f g = Term.eq_term f.data g.data in
-      assert_equal ~printer:LeanPP.to_string ~cmp prem
+      assert_equal ~printer:formx_to_string ~cmp prem
         Core.(mk_all { var = "x" ; ty = K.ty_any }
                 (mk_all { var = "y" ; ty = K.ty_any }
                    (mk_ex { var = "x_1" ; ty = K.ty_any }
@@ -148,13 +149,13 @@ let tests =
     "and_ts_l" >:: begin fun _ ->
       let Cos.{ top = prem ; _ } = and_ts_l_d () in
       let cmp f g = Term.eq_term f.data g.data in
-      assert_equal ~printer:LeanPP.to_string ~cmp prem
+      assert_equal ~printer:formx_to_string ~cmp prem
         Core.(Types.triv mk_top)
     end ;
     "contract" >:: begin fun _ ->
       let Cos.{ top = prem ; _ } = contract_d () in
       let cmp f g = Term.eq_term f.data g.data in
-      assert_equal ~printer:LeanPP.to_string ~cmp prem
+      assert_equal ~printer:formx_to_string ~cmp prem
         Core.(Types.triv @@ mk_imp a (mk_imp a b))
     end ;
   ]
