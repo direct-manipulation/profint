@@ -4,7 +4,12 @@
 
 ## To build
 
-> $ opam install . --deps-only  
-> $ dune build
+>     $ dune build @check # this may fail -- that's OK!
+>     $ opam install . --deps-only
+>     $ npm install
+>     $ cd demo
+>     $ make
+>     $ python3 -m http.server 8000
 
-Open file:///path/to/this/repo/demo/cade28/go.html in a browser
+Then open https://localhost:8000 in a browser. Change the port number if `8000`
+is unavailable.
