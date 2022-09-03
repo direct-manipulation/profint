@@ -4,7 +4,7 @@ version: "0.8.1"
 synopsis: "Profound: Intuitionistic Version"
 maintainer: ["Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>"]
 authors: ["Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>"]
-license: "BSD-2-Clause"
+license: "Apache-2.0"
 homepage: "https://chaudhuri.info/research/profint"
 bug-reports: "https://github.com/chaudhuri/profound-intuitionistic/issues"
 depends: [

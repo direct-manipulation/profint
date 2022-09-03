@@ -4,7 +4,7 @@
 
 (version 0.8.1)
 
-(license BSD-2-Clause)
+(license Apache-2.0)
 
 (authors "Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>")
 (maintainers "Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>")
