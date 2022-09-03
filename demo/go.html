@@ -113,6 +113,19 @@
         }
       }
 
+      function flashRed() {
+        const op = $('#output');
+        const color = op.css('color');
+        const backColor = op.css('background-color');
+        $('#output').css({
+          'color': 'red',
+          'background-color': 'red',
+        }).animate({
+          'color': color,
+          'background-color': backColor,
+        }, 'fast');
+      }
+
       function linkSubformula(elem, doContract) {
         if (witnessBox) return;
         if (formLink.src) {
@@ -130,11 +143,7 @@
             else {
               console.log('link failed');
               clearLinks();
-              $('#output').css({
-                'background-color': 'red'
-              }).animate({
-                'background-color': 'white'
-              }, 'fast');
+              flashRed();
             }
           }
         } else {
@@ -194,19 +203,60 @@
           // console.log('render: ' + expr);
           return katex.renderToString(expr, katex_options);
         });
-        $('#output .enclosing').on("click", function(ev){
-          // console.log('clicked: ' + $(this).attr('id'));
-          if (ev.ctrlKey) {
-            if (formLink.src)
-              linkSubformula(this, true);
-            else
-              contractSubformula(this);
-          }
-          else if (ev.altKey) weakenSubformula(this);
-          else if (ev.shiftKey) substituteWitness(this);
-          else linkSubformula(this, false);
-          ev.stopPropagation();
-        });
+        $('#output .enclosing[data-path]')
+          .attr('draggable', true)
+          .on('dragstart', function (ev) {
+            // console.log('dragstart', this);
+            if (formLink.src) {
+              flashRed();
+              return false;
+            }
+            linkSubformula(this, false);
+            ev.stopPropagation();
+          })
+          .on('dragend', function (ev) {
+            // console.log('dragend', this);
+            clearLinks();
+            ev.stopPropagation();
+          })
+          .on('dragover', function(ev) {
+            ev.preventDefault();
+            $(this).addClass('link-droppable');
+            ev.stopPropagation();
+          })
+          .on('dragenter', function(ev) {
+            ev.preventDefault();
+            $(this).addClass('link-droppable');
+            ev.stopPropagation();
+          })
+          .on('dragleave', function(ev) {
+            $(this).removeClass('link-droppable');
+            ev.stopPropagation();
+          })
+          .on('drop', function(ev) {
+            // console.log('drop', this);
+            ev.preventDefault();
+            $(this).removeClass('link-droppable');
+            if (!formLink.src) {
+              flashRed();
+              return false;
+            }
+            linkSubformula(this, false);
+            ev.stopPropagation();
+          })
+          .on("click", function (ev) {
+            // console.log('clicked:', this);
+            if (ev.ctrlKey) {
+              if (formLink.src)
+                linkSubformula(this, true);
+              else
+                contractSubformula(this);
+            }
+            else if (ev.altKey) weakenSubformula(this);
+            else if (ev.shiftKey) substituteWitness(this);
+            else linkSubformula(this, false);
+            ev.stopPropagation();
+          });
         $("#output .enclosing").mouseover(function(ev) {
           $('#output .enclosing').removeClass('hl-range');
           $(this).addClass('hl-range');
@@ -342,8 +392,9 @@
       #output {margin-top: 10px; font-size: 300%; white-space: pre;}
       #output .enclosing {border-bottom: 0;}
       #output .hl-range {border-bottom: 3px solid red;}
-      .f-src {background-color: #f2bf88;}
-      .f-dest {background-color: #9cc3f0;}
+      .f-src {background-color: #f2cf98;}
+      .f-dest {background-color: #9cb3e0;}
+      .link-droppable {background-color: #9cc8f8;}
       #history { margin-top: 10px; font-size: 150%; }
       #future { margin-top: 10px; margin-bottom: 10px; font-size: 150%; }
       .center-screen {
