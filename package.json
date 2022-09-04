@@ -3,20 +3,8 @@
   "version": "0.9.1",
   "description": "A version of Profint that runs in a browser",
   "homepage": "https://github.com/chaudhuri/profound-intuitionistic",
-  "main": "demo/demo.js",
-  "directories": {
-    "demo": "demo"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/chaudhuri/profound-intuitionistic.git"
-  },
-  "keywords": [],
-  "author": "Kaustuv Chaudhuri <kaustuv@chaudhuri.info> (https://chaudhuri.info)",
-  "license": "(Apache-2.0 OR GPL-3.0-only",
-  "bugs": {
-    "url": "https://github.com/chaudhuri/profound-intuitionistic/issues"
-  },
+  "private": true,
+  "license": "Apache-2.0",
   "dependencies": {
     "ace-builds": "^1.10.0",
     "file-saver": "^2.0.5",

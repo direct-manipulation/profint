@@ -16,26 +16,6 @@ let rec ty_norm = function
   | Tyvar { subst = Some ty ; _ } -> ty_norm ty
   | ty -> ty
 
-let rec ty_to_exp ty =
-  match ty with
-  | Basic a -> Doc.(Atom (String a))
-  | Arrow (ta, tb) ->
-      Doc.(Appl (1, Infix (String " -> ", Right,
-                           [ty_to_exp ta ; ty_to_exp tb])))
-  | Tyvar v -> begin
-      match v.subst with
-      | None ->
-          let rep = "'a" ^ string_of_int v.id in
-          Doc.(Atom (String rep))
-      | Some ty -> ty_to_exp ty
-    end
-
-let pp_ty out ty =
-  ty_to_exp ty |> Doc.bracket |> Doc.pp_doc out
-
-let ty_to_string ty =
-  ty_to_exp ty |> Doc.bracket |> Doc.lin_doc
-
 module K = struct
   let next_internal =
     let count = ref 0 in
@@ -59,6 +39,29 @@ module K = struct
   (* let ty_i = Basic k_i *)
   let ty_any = Basic (next_internal "?")
 end
+
+let rec ty_to_exp ty =
+  match ty with
+  | Basic a ->
+      if a = K.k_o then Doc.(Atom (String "\\o"))
+      else Doc.(Atom (String a))
+  | Arrow (ta, tb) ->
+      Doc.(Appl (1, Infix (String " -> ", Right,
+                           [ty_to_exp ta ; ty_to_exp tb])))
+  | Tyvar v -> begin
+      match v.subst with
+      | None ->
+          let rep = "'a" ^ string_of_int v.id in
+          Doc.(Atom (String rep))
+      | Some ty -> ty_to_exp ty
+    end
+
+let pp_ty out ty =
+  ty_to_exp ty |> Doc.bracket |> Doc.pp_doc out
+
+let ty_to_string ty =
+  ty_to_exp ty |> Doc.bracket |> Doc.lin_doc
+
 
 type poly_ty = {nvars : int ; ty : ty}
 

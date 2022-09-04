@@ -40,6 +40,7 @@
           left: 0;
           right: 0;
       }
+      #interface { visibility: hidden; }
       .icon { font-family:'Material Icons'; font-size: inherit; vertical-align: middle; }
       #output {margin-top: 10px; font-size: 300%; white-space: pre;}
       #output .enclosing {border-bottom: 0;}
@@ -60,47 +61,7 @@
     </style>
   </head>
   <body>
-    <pre id="signature">i : \type.
-
-f : i -> i.
-g : i -> i -> i.
-
-j, k : i.
-
-a, b, c : \o.
-
-p, q : i -> \o.
-r : i -> i -> \o.</pre>
-    <script>
-      var sigEditor = ace.edit("signature");
-      sigEditor.setTheme("ace/theme/twilight");
-      sigEditor.setOptions({
-          minLines: 5,
-          maxLines: 20,
-          showLineNumbers: false,
-          showGutter: true,
-      });
-      document.sigEditor = sigEditor;
-      sigEditor.on("change", function(e) {
-          var res = profint.signatureChange(sigEditor.getValue());
-          if (!res)
-              $('#signature').css({'border': '2px solid red'});
-          else
-              $('#signature').css({'border': 'none'});
-      });
-      // sigEditor.session.setMode("ace/mode/javascript");
-      var signatureShown = true;
-      function toggleSignature() {
-        signatureShown = !signatureShown;
-        if (signatureShown) {
-          $('#signature').show();
-          $('#toggleSig').html('Hide Signature');
-        } else {
-          $('#signature').hide();
-          $('#toggleSig').html('Show Signature');
-        }
-      }
-    </script>
+    <pre id="signature"></pre>
 
     <div id="buttons" style="position:relative">
       <button onclick="demo.changeFormula()">Change Formula</button>
@@ -121,7 +82,7 @@ r : i -> i -> \o.</pre>
       </div>
     </div>
 
-    <div class="center-screen">
+    <div class="center-screen" id="interface">
       <div id="future">
         ...
       </div>

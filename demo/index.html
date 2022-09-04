@@ -33,34 +33,43 @@
 
       const interfaceUrl = 'go.html';
 
-      function complain(id) {
-        $(id).css({ border: "2px solid red" });
-        return false;
-      }
-      function acceptable(id) {
-        $(id).css({ border: "none" });
-        return true;
+      function makeCompact(str) {
+        return str.replaceAll(/s+/g, " ").trim();
       }
 
+      const premadeSignature = makeCompact(
+        String.raw`
+i : \type.
+f : i -> i.
+g : i -> i -> i.
+j, k : i.
+a, b, c : \o.
+p, q : i -> \o.
+r : i -> i -> \o.
+`);
+
       $(document).ready(function(){
-          profint.signatureChange(document.sigEditor.getValue());
-          $("#premade li").each(function(){
-              const txt = $(this).text().trim();
-              let anc =
-                  $('<a>')
-                  .attr('href', interfaceUrl + '?f=' + encodeURIComponent(txt))
-                  .html(function(){
-                      var expr = profint.convertToHTML(txt);
-                      return katex.renderToString(expr, katex_options);
-                  });
-              $(this).empty().append(anc);
-          });
+        profint.signatureChange(premadeSignature);
+        $("#premade li").each(function(){
+          const formulaText = makeCompact($(this).text());
+          const f = encodeURIComponent(formulaText);
+          const s = encodeURIComponent(premadeSignature);
+          const url = `${interfaceUrl}?s=${s}&f=${f}`;
+          let anc = $('<a>')
+              .attr('href', url)
+              .html(function(){
+                const formulaExpr = profint.formulaToHTML(formulaText);
+                return katex.renderToString(formulaExpr, katex_options);
+              });
+          $(this).empty().append(anc);
+        });
       });
     </script>
     <style>
       body {padding-left: 40px; padding-top: 40px;}
       a {text-decoration: none;}
       /* #signature {margin: 0; position: fixed; left: 80%; top: 0; right: 0;} */
+      .embed-editor { padding: 1px 1vh; background-color: black; }
       #maincontent {
           display: flex; gap: 4vh;
           width: 100%;
@@ -78,69 +87,72 @@
   <body>
     <h1>Profound:Intuitionistic Launcher</h1>
 
-    <!-- <h4 id="interfacelink" style="display:none">Default interface</h4> -->
-
     <div id="maincontent">
       <div id="yourown">
         <h2>State your conjecture:</h2>
 
-        <h4>Signature</h4>
-        <pre id="signature">
+        <div class="embed-editor">
+          <pre id="signature">
 i : \type.
-j : i.
 f : i -> i.
 p : i -> \o.</pre>
-        <script>
-          var sigEditor = ace.edit("signature");
-          sigEditor.setTheme("ace/theme/twilight");
-          sigEditor.setOptions({
-            minLines: 5,
-            maxLines: 20,
-            showLineNumbers: false,
-            showGutter: false,
-          });
-          document.sigEditor = sigEditor;
-          sigEditor.on("change", function(e) {
-            var res = profint.signatureChange(sigEditor.getValue());
-            if (!res)
-              $('#signature').css({'border': '2px solid red'});
-            else
-              $('#signature').css({'border': 'none'});
-          });
-        </script>
+        </div>
 
-        <h4>To prove:</h4>
+        <hr>
 
-        <pre id="formula">(\A [x] p x => p (f x)) => p j => p (f (f j))</pre>
+        <div class="embed-editor">
+          <pre id="formula">(\A [x] p x => p (f x)) => \A [u] p u => p (f (f u))</pre>
+        </div>
         <div style="margin:1vh auto;margin-left:2em;"><em>i.e.,</em></div>
         <div id="conjecture-output">
           ...
         </div>
 
         <script>
+          var sigEditor = ace.edit("signature");
+          sigEditor.setTheme("ace/theme/twilight");
+          sigEditor.setOptions({
+            minLines: 3,
+            maxLines: 20,
+            showLineNumbers: false,
+            showGutter: false,
+          });
           var formEditor = ace.edit("formula");
           formEditor.setTheme("ace/theme/twilight");
           formEditor.setOptions({
-            minLines: 3,
+            minLines: 1,
             maxLines: 5,
             showLineNumbers: false,
             showGutter: false,
           });
-          document.formEditor = formEditor;
+          const isOk = {
+            sig: true,
+            form: true,
+          };
+          function updateBordersAndButtons() {
+            $("#signature").parent()
+              .css({ border: isOk.sig ? "none" : "2px solid red" });
+            $("#formula").parent()
+              .css({ border: isOk.form ? "none" : "2px solid red" });
+            return isOk.sig && isOk.form;
+          }
           function formEditorChange(e) {
-            if (!profint.signatureChange(sigEditor.getValue()))
-              return complain("#signature");
-            let expr = "{\\color{red}\\text{ERROR}}";
-            if (profint.formulaChange(formEditor.getValue())) {
-              acceptable("#formula");
-              expr = profint.formulaHTML();
-            } else complain("#formula");
-            $('#conjecture-output').html(function() {
-              return katex.renderToString(expr, katex_options);
-            });
+            const formExpr = profint.formulaToHTML(formEditor.getValue());
+            isOk.form = false;
+            if (formExpr) {
+              isOk.form = true;
+              const htmlStr = katex.renderToString(formExpr, katex_options);
+              $('#conjecture-output').html(htmlStr);
+            }
+            return updateBordersAndButtons();
+          }
+          function sigEditorChange(e) {
+            isOk.sig = !!profint.signatureChange(sigEditor.getValue());
+            return formEditorChange();
           }
           formEditor.on("change", formEditorChange);
-          formEditorChange();
+          sigEditor.on("change", sigEditorChange);
+          sigEditorChange();
         </script>
 
       </div>
@@ -186,28 +198,6 @@ p : i -> \o.</pre>
         </ul>
       </div> <!-- premade -->
     </div> <!-- maincontent -->
-
-<!--
-    <script>
-      var sigEditor = ace.edit("signature");
-      sigEditor.setTheme("ace/theme/twilight");
-      sigEditor.setOptions({
-          minLines: 5,
-          maxLines: 20,
-          showLineNumbers: false,
-          showGutter: false,
-      });
-      document.sigEditor = sigEditor;
-      sigEditor.on("change", function(e) {
-          var res = profint.signatureChange(sigEditor.getValue());
-          if (!res)
-              $('#signature').css({'border': '2px solid red'});
-          else
-              $('#signature').css({'border': 'none'});
-      });
-      // sigEditor.session.setMode("ace/mode/javascript");
-    </script>
--->
 
   </body>
 </html>

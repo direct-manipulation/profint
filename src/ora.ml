@@ -18,12 +18,11 @@ let push_goal goal =
 
 let sig_change text =
   try begin
-    let text = Js.to_string text in
     let sigma = Uterm.thing_of_string Proprs.signature text in
     Types.sigma := sigma ;
     true
   end with e ->
-    Format.eprintf "sig_change: %s@." (Printexc.to_string e) ;
+    (* Format.eprintf "sig_change: %s@." (Printexc.to_string e) ; *)
     false
 
 let to_trail str : Form4.path =
@@ -49,36 +48,44 @@ let change_formula text =
     true
   with _ -> false
 
+exception Cannot_start
+
 let profint_object =
   object%js
     method startup =
-      let pmap = Url.Current.arguments |> List.to_seq |> IdMap.of_seq in
-      match IdMap.find "f" pmap with
-      | str ->
-          change_formula @@ Url.urldecode str
-      | exception Not_found -> false
+      try
+        let pmap = Url.Current.arguments |> List.to_seq |> IdMap.of_seq in
+        Option.iter begin fun sigText ->
+          if not @@ sig_change (Url.urldecode sigText) then
+            raise Cannot_start;
+        end @@ IdMap.find_opt "s" pmap ;
+        (* Printf.printf "signature initailized\n%!" ; *)
+        Option.iter begin fun formText ->
+          if not @@ change_formula (Url.urldecode formText) then
+            raise Cannot_start
+        end @@ IdMap.find_opt "f" pmap ;
+        (* Printf.printf "formula initailized\n%!" ; *)
+        Js.some @@ Js.string @@ pp_to_string Types.pp_sigma !Types.sigma
+      with Cannot_start -> Js.null
 
     method signatureChange text =
-      sig_change text
+      sig_change @@ Js.to_string text
 
     method formulaChange text =
       change_formula @@ Js.to_string text
 
-    method formulaOrd =
-      pp_to_string (Form4.pp_mstep ~ppfx:Form4.pp_formx) state.goal |> Js.string
-
-    method formulaHTML =
+    method getStateHTML =
       pp_to_string (Form4.pp_mstep ~ppfx:To.Tex.pp_formx) state.goal |> Js.string
 
-    method convertToHTML text =
+    method formulaToHTML text =
       try
         let f = Uterm.form_of_string @@ Js.to_string text in
-        Js.string @@ pp_to_string To.Tex.pp_formx @@ Types.triv f
+        Js.some @@ Js.string @@ pp_to_string To.Tex.pp_formx @@ Types.triv f
       with e ->
-        Format.eprintf "converToHTML: %S: %s@."
+        Format.eprintf "formulaToHTML: %S: %s@."
           (Js.to_string text)
           (Printexc.to_string e) ;
-        Js.string "!!ERROR!!"
+        Js.null
 
     method historyHTML =
       let contents =

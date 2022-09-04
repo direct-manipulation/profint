@@ -195,7 +195,7 @@ demo.doRedo = doRedo;
 function renderFormula() {
   clearLinks();
   $('#output').html(function(){
-    const expr = profint.formulaHTML();
+    const expr = profint.getStateHTML();
     // console.log('render: ' + expr);
     return katex.renderToString(expr, katex_options);
   });
@@ -356,6 +356,20 @@ function downProof() {
 
 demo.downProof = downProof;
 
+var signatureShown = true;
+
+function toggleSignature() {
+  signatureShown = !signatureShown;
+  if (signatureShown) {
+    $('#signature').show();
+    $('#toggleSig').html('Hide Signature');
+  } else {
+    $('#signature').hide();
+    $('#toggleSig').html('Show Signature');
+  }
+}
+demo.toggleSignature = toggleSignature;
+
 function demoSetup() {
   hotkeys('ctrl+up,ctrl+y,ctrl+down,ctrl+z,w,escape', function (event, handler){
     switch (handler.key) {
@@ -373,9 +387,33 @@ function demoSetup() {
       return false;
     }
   });
-  profint.signatureChange(document.sigEditor.getValue());
-  if (profint.startup()) renderFormula();
-  else setFormula(initial_form);
+  $("#interface").css({ visibility: "visible" });
+  const sigText = profint.startup();
+  if (!sigText) {
+    demo.toggleSignature = () => {};
+    $("button, select").prop("disabled", true);
+    $("#output").html("<h3><em>Invalid parameters!</em></h3><br>Could not initialize profint");
+    $("#future, #history").html("");
+    throw new Error("Could not initialize profint!");
+  }
+  renderFormula() ;
+  $("#signature").html(sigText);
+  var sigEditor = ace.edit("signature");
+  sigEditor.setTheme("ace/theme/twilight");
+  sigEditor.setOptions({
+    minLines: 5,
+    maxLines: 20,
+    showLineNumbers: false,
+    showGutter: true,
+  });
+  document.sigEditor = sigEditor;
+  sigEditor.on("change", function(e) {
+    var res = profint.signatureChange(sigEditor.getValue());
+    if (!res)
+      $('#signature').css({'border': '2px solid red'});
+    else
+      $('#signature').css({'border': 'none'});
+  });
   toggleSignature();
 }
 
