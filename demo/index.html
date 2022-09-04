@@ -138,7 +138,7 @@ p : i -> \o.</pre>
             $("#custom-launch").prop("disabled", !allOk);
             return allOk;
           }
-          function formEditorChange(e) {
+          function formEditorUpdate(e) {
             const formExpr = profint.formulaToHTML(formEditor.getValue());
             isOk.form = false;
             if (formExpr) {
@@ -150,9 +150,9 @@ p : i -> \o.</pre>
           }
           function sigEditorChange(e) {
             isOk.sig = !!profint.signatureChange(sigEditor.getValue());
-            return formEditorChange();
+            return formEditorUpdate();
           }
-          formEditor.on("change", formEditorChange);
+          formEditor.on("change", sigEditorChange);
           sigEditor.on("change", sigEditorChange);
           sigEditorChange();
           $("#custom-launch").on("click", function(ev) {
