@@ -33,16 +33,18 @@
 
       const interfaceUrl = 'go.html';
 
+      function complain(id) {
+        $(id).css({ border: "2px solid red" });
+        return false;
+      }
+      function acceptable(id) {
+        $(id).css({ border: "none" });
+        return true;
+      }
+
       $(document).ready(function(){
           profint.signatureChange(document.sigEditor.getValue());
-          $('#interfacelink').html(function(){
-              const txt = $(this).text();
-              $(this).empty().append(
-                  $('<a>').attr('href', interfaceUrl).text(txt)
-                      .css({'text-decoration': 'none'})
-              );
-          });
-          $('li').each(function(){
+          $("#premade li").each(function(){
               const txt = $(this).text().trim();
               let anc =
                   $('<a>')
@@ -58,63 +60,134 @@
     <style>
       body {padding-left: 40px; padding-top: 40px;}
       a {text-decoration: none;}
-      #signature {margin: 0; position: fixed; left: 80%; top: 0; right: 0;}
+      /* #signature {margin: 0; position: fixed; left: 80%; top: 0; right: 0;} */
+      #maincontent {
+          display: flex; gap: 4vh;
+          width: 100%;
+          align-items: flex-start;
+          margin: 0; padding: 0;
+      }
+      #maincontent > * {
+          padding: 2vh 4vh;
+          background-color: #eee;
+      }
+      #premade { flex-grow: 1; }
+      #yourown { flex-grow: 2; }
     </style>
   </head>
   <body>
-    <h1>Profint: illustrative examples</h1>
+    <h1>Profound:Intuitionistic Launcher</h1>
 
-    <h4 id="interfacelink" style="display:none">Default interface</h4>
+    <!-- <h4 id="interfacelink" style="display:none">Default interface</h4> -->
 
-    <h4>Propositional</h4>
+    <div id="maincontent">
+      <div id="yourown">
+        <h2>State your conjecture:</h2>
 
-    <ul>
-      <li>a \to \top</li>
-      <li>a \to a</li>
-      <li>a \to b \to a</li>
-      <li>a \to a \and a</li>
-      <li>a \and b \to b \and a</li>
-      <li>a \to b \to b \and a</li>
-      <li>(a \to b \to c) \to (a \to b) \to a \to c</li>
-    </ul>
-
-    <h4>Classical theorems (and their double negations)</h4>
-
-    <ul>
-      <li>a \or (a \to \bot)</li>
-      <li>((a \or (a \to \bot)) \to \bot) \to \bot</li>
-      <li>((a \to b) \to a) \to a</li>
-      <li>((((a \to b) \to a) \to a) \to \bot) \to \bot</li>
-    </ul>
-
-    <h4>Instantiation</h4>
-
-    <ul>
-      <li>\A [x, y] p (g x y) \to p (g x x)</li>
-      <li>p j \to \E [x] p x</li>
-      <li>(\A [x] p x) \to p k</li>
-    </ul>
-
-    <h4>Corner cases</h4>
-
-    <ul>
-      <li>(\A [x] \E [y] r x y) \to (\E [w] \A [z] r z w)</li>
-      <li>(\E [w] \A [z] r z w) \to (\A [x] \E [y] r x y)</li>
-      <li>(\A [x] p x) \to \E [y] p y</li>
-      <li>(\A [x] p x) \to \A [y] p y</li>
-    </ul>
-
-    <pre id="signature">i : \type.
-
+        <h4>Signature</h4>
+        <pre id="signature">
+i : \type.
+j : i.
 f : i -> i.
-g : i -> i -> i.
+p : i -> \o.</pre>
+        <script>
+          var sigEditor = ace.edit("signature");
+          sigEditor.setTheme("ace/theme/twilight");
+          sigEditor.setOptions({
+            minLines: 5,
+            maxLines: 20,
+            showLineNumbers: false,
+            showGutter: false,
+          });
+          document.sigEditor = sigEditor;
+          sigEditor.on("change", function(e) {
+            var res = profint.signatureChange(sigEditor.getValue());
+            if (!res)
+              $('#signature').css({'border': '2px solid red'});
+            else
+              $('#signature').css({'border': 'none'});
+          });
+        </script>
 
-j, k : i.
+        <h4>To prove:</h4>
 
-a, b, c : \o.
+        <pre id="formula">(\A [x] p x => p (f x)) => p j => p (f (f j))</pre>
+        <div style="margin:1vh auto;margin-left:2em;"><em>i.e.,</em></div>
+        <div id="conjecture-output">
+          ...
+        </div>
 
-p, q : i -> \o.
-r : i -> i -> \o.</pre>
+        <script>
+          var formEditor = ace.edit("formula");
+          formEditor.setTheme("ace/theme/twilight");
+          formEditor.setOptions({
+            minLines: 3,
+            maxLines: 5,
+            showLineNumbers: false,
+            showGutter: false,
+          });
+          document.formEditor = formEditor;
+          function formEditorChange(e) {
+            if (!profint.signatureChange(sigEditor.getValue()))
+              return complain("#signature");
+            let expr = "{\\color{red}\\text{ERROR}}";
+            if (profint.formulaChange(formEditor.getValue())) {
+              acceptable("#formula");
+              expr = profint.formulaHTML();
+            } else complain("#formula");
+            $('#conjecture-output').html(function() {
+              return katex.renderToString(expr, katex_options);
+            });
+          }
+          formEditor.on("change", formEditorChange);
+          formEditorChange();
+        </script>
+
+      </div>
+      <div id="premade">
+        <h2>… or try one of these:</h2>
+
+        <h4>Propositional</h4>
+
+        <ul>
+          <li>a \to \top</li>
+          <li>a \to a</li>
+          <li>a \to b \to a</li>
+          <li>a \to a \and a</li>
+          <li>a \and b \to b \and a</li>
+          <li>a \to b \to b \and a</li>
+          <li>(a \to b \to c) \to (a \to b) \to a \to c</li>
+        </ul>
+
+        <h4>Classical theorems (and their double negations)</h4>
+
+        <ul>
+          <li>a \or (a \to \bot)</li>
+          <li>((a \or (a \to \bot)) \to \bot) \to \bot</li>
+          <li>((a \to b) \to a) \to a</li>
+          <li>((((a \to b) \to a) \to a) \to \bot) \to \bot</li>
+        </ul>
+
+        <h4>Instantiation</h4>
+
+        <ul>
+          <li>\A [x, y] p (g x y) \to p (g x x)</li>
+          <li>p j \to \E [x] p x</li>
+          <li>(\A [x] p x) \to p k</li>
+        </ul>
+
+        <h4>Corner cases</h4>
+
+        <ul>
+          <li>(\A [x] \E [y] r x y) \to (\E [w] \A [z] r z w)</li>
+          <li>(\E [w] \A [z] r z w) \to (\A [x] \E [y] r x y)</li>
+          <li>(\A [x] p x) \to \E [y] p y</li>
+          <li>(\A [x] p x) \to \A [y] p y</li>
+        </ul>
+      </div> <!-- premade -->
+    </div> <!-- maincontent -->
+
+<!--
     <script>
       var sigEditor = ace.edit("signature");
       sigEditor.setTheme("ace/theme/twilight");
@@ -122,7 +195,7 @@ r : i -> i -> \o.</pre>
           minLines: 5,
           maxLines: 20,
           showLineNumbers: false,
-          showGutter: true,
+          showGutter: false,
       });
       document.sigEditor = sigEditor;
       sigEditor.on("change", function(e) {
@@ -134,6 +207,7 @@ r : i -> i -> \o.</pre>
       });
       // sigEditor.session.setMode("ace/mode/javascript");
     </script>
+-->
 
   </body>
 </html>
