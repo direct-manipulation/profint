@@ -82,9 +82,9 @@ let profint_object =
         let f = Uterm.form_of_string @@ Js.to_string text in
         Js.some @@ Js.string @@ pp_to_string To.Tex.pp_formx @@ Types.triv f
       with e ->
-        Format.eprintf "formulaToHTML: %S: %s@."
-          (Js.to_string text)
-          (Printexc.to_string e) ;
+        (* Format.eprintf "formulaToHTML: %S: %s@." *)
+        (*   (Js.to_string text) *)
+        (*   (Printexc.to_string e) ; *)
         Js.null
 
     method historyHTML =

@@ -31,10 +31,14 @@
           macros
       }
 
-      const interfaceUrl = 'go.html';
-
       function makeCompact(str) {
         return str.replaceAll(/s+/g, " ").trim();
+      }
+
+      function makeURL(sigText, formText) {
+        const f = encodeURIComponent(makeCompact(formText));
+        const s = encodeURIComponent(makeCompact(sigText));
+        return `go.html?s=${s}&f=${f}`;
       }
 
       const premadeSignature = makeCompact(
@@ -51,16 +55,11 @@ r : i -> i -> \o.
       $(document).ready(function(){
         profint.signatureChange(premadeSignature);
         $("#premade li").each(function(){
-          const formulaText = makeCompact($(this).text());
-          const f = encodeURIComponent(formulaText);
-          const s = encodeURIComponent(premadeSignature);
-          const url = `${interfaceUrl}?s=${s}&f=${f}`;
-          let anc = $('<a>')
-              .attr('href', url)
-              .html(function(){
-                const formulaExpr = profint.formulaToHTML(formulaText);
-                return katex.renderToString(formulaExpr, katex_options);
-              });
+          const formulaText = $(this).text();
+          const url = makeURL(premadeSignature, formulaText);
+          const formulaExpr = profint.formulaToHTML(formulaText);
+          const html = katex.renderToString(formulaExpr, katex_options);
+          let anc = $('<a>').attr('href', url).html(html);
           $(this).empty().append(anc);
         });
       });
@@ -82,10 +81,11 @@ r : i -> i -> \o.
       }
       #premade { flex-grow: 1; }
       #yourown { flex-grow: 2; }
+      #custom-launch { margin-top: 2vh; font-size: 140%; }
     </style>
   </head>
   <body>
-    <h1>Profound:Intuitionistic Launcher</h1>
+    <h1>Profound&ndash;Intuitionistic</h1>
 
     <div id="maincontent">
       <div id="yourown">
@@ -103,10 +103,10 @@ p : i -> \o.</pre>
         <div class="embed-editor">
           <pre id="formula">(\A [x] p x => p (f x)) => \A [u] p u => p (f (f u))</pre>
         </div>
-        <div style="margin:1vh auto;margin-left:2em;"><em>i.e.,</em></div>
-        <div id="conjecture-output">
-          ...
+        <div style="margin:1vh auto;margin-left:2em;">
+          <em>i.e.,</em> <span id="conjecture-output"></span>
         </div>
+        <button id="custom-launch">Launch!</button>
 
         <script>
           var sigEditor = ace.edit("signature");
@@ -134,7 +134,9 @@ p : i -> \o.</pre>
               .css({ border: isOk.sig ? "none" : "2px solid red" });
             $("#formula").parent()
               .css({ border: isOk.form ? "none" : "2px solid red" });
-            return isOk.sig && isOk.form;
+            const allOk = isOk.sig && isOk.form;
+            $("#custom-launch").prop("disabled", !allOk);
+            return allOk;
           }
           function formEditorChange(e) {
             const formExpr = profint.formulaToHTML(formEditor.getValue());
@@ -153,6 +155,11 @@ p : i -> \o.</pre>
           formEditor.on("change", formEditorChange);
           sigEditor.on("change", sigEditorChange);
           sigEditorChange();
+          $("#custom-launch").on("click", function(ev) {
+            const url = makeURL(sigEditor.getValue(), formEditor.getValue());
+            // console.log("Need to go to:", url);
+            window.location.href = url;
+          });
         </script>
 
       </div>
