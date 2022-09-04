@@ -18,9 +18,14 @@ let ty_error ?ty fmt =
 
 let rec tygen ~emit (cx : tycx) tm ty_expected =
   match tm with
-  | Idx n ->
-      emit (List.nth cx.linear n).ty ty_expected ;
-      Idx n
+  | Idx n -> begin
+      match List.nth cx.linear n with
+      | { ty ; _ } ->
+          emit ty ty_expected ; Idx n
+      | exception Failure _ ->
+          raise @@ TypeError { ty = Some ty_expected ;
+                               msg = "Invalid index " ^ string_of_int n }
+    end
   | Var x -> begin
       match tyget cx.linear x with
       | (n, ty) ->
@@ -29,13 +34,15 @@ let rec tygen ~emit (cx : tycx) tm ty_expected =
       | exception Not_found ->
           tygen ~emit cx (Kon (x, None)) ty_expected
     end
-  | Kon (k, Some ty) ->
-      emit ty ty_expected ;
-      Kon (k, Some ty)
-  | Kon (k, None) -> begin
-      let k_ty = lookup_ty_or_fresh k in
-      emit k_ty ty_expected ;
-      Kon (k, Some k_ty)
+  | Kon (k, ty) -> begin
+      match lookup_ty k with
+      | ty_a ->
+          emit ty_a ty_expected ;
+          Option.iter (emit ty_a) ty ;
+          Kon (k, Some ty_a)
+      | exception Not_found ->
+          raise @@ TypeError { ty = Some ty_expected ;
+                               msg = "Unknown contstant or variable " ^ k }
     end
   | App (tm, tn) ->
       let tyarg = fresh_tyvar () in
@@ -172,6 +179,47 @@ let declare_basic k =
 let declare_const k str =
   let pty = {nvars = 0 ; ty = ty_of_string str} in
   sigma := add_const !sigma k pty
+
+let rec uterm_to_exp ~cx ut =
+  match ut with
+  | Idx n -> begin
+      match List.nth cx.linear n with
+      | { var ; _ } -> Doc.(Atom (String var))
+      | exception Failure _ ->
+          Doc.(Atom (Fmt (fun out -> Format.fprintf out "`%d" n)))
+    end
+  | Var v
+  | Kon (v, None) -> Doc.(Atom (String v))
+  | Kon (v, Some ty) ->
+      Doc.(Atom (Fmt (fun out ->
+          Format.fprintf out "@[<hv1>(%s:@,%a)@]" v pp_ty ty)))
+  | App (t1, t2) ->
+      Doc.(Appl (100, Infix (String " ", Left, [
+          uterm_to_exp ~cx t1 ;
+          uterm_to_exp ~cx t2
+        ])))
+  | Abs (var, ty, body) ->
+      let ty = Option.value ty ~default:K.ty_any in
+      with_var cx { var ; ty } begin fun { var ; ty } cx ->
+        let rep = Doc.(Fmt (fun out ->
+            Format.fprintf out "@[<hv1>[%s:@,%a]@]@ " var pp_ty ty)) in
+        Doc.(Appl (1, Prefix (rep, uterm_to_exp ~cx body)))
+      end
+
+let pp_uterm cx out ut =
+  uterm_to_exp ~cx ut |> Doc.bracket |> Doc.pp_doc out
+let uterm_to_string cx ut =
+  uterm_to_exp ~cx ut |> Doc.bracket |> Doc.lin_doc
+
+let rec pp_uterm_ out ut =
+  match ut with
+  | Idx n -> Format.fprintf out "Idx(%d)" n
+  | Var v -> Format.fprintf out "Var(%s)" v
+  | Kon (v, None) -> Format.fprintf out "Kon(%s)" v
+  | Kon (v, Some ty) -> Format.fprintf out "Kon(%s,%a)" v pp_ty ty
+  | App (t1, t2) -> Format.fprintf out "App(%a,%a)" pp_uterm_ t1 pp_uterm_ t2
+  | Abs (v, None, b) -> Format.fprintf out "Lam(%s,%a)" v pp_uterm_ b
+  | Abs (v, Some ty, b) -> Format.fprintf out "Lam(%s:%a,%a)" v pp_ty ty pp_uterm_ b
 
 (* module Test () = struct *)
 (*   let () = declare_basic "i" *)
