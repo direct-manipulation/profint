@@ -141,7 +141,7 @@ function linkSubformula(elem, copy) {
 }
 
 function contractSubformula(elem) {
-  var res = profint.copyion(findPath(elem));
+  var res = profint.doContraction(findPath(elem));
   if (res) renderFormula();
   else {
     console.log("contaction failed");

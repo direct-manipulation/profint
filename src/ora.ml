@@ -8,7 +8,7 @@ type state = {
   mutable future : Form4.mstep list ;
 }
 
-let state = { goal = Form4.Pristine { goal = Types.triv Form4.Core.mk_top } ;
+let state = { goal = Form4.Pristine { goal = Types.triv Form4.Mk.mk_top } ;
               future = [] ; history = [] }
 
 let push_goal goal =

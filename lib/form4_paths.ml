@@ -8,6 +8,7 @@
 open Util
 open Types
 open Form4_core
+open Mk
 
 (******************************************************************************)
 (* Formula Paths *)
@@ -21,6 +22,22 @@ let flip (p : side) : side =
   match p with `l -> `r | `r -> `l
 
 exception Bad_direction of { tycx : tycx option ; form : form ; dir : dir }
+
+let rec go (fx : formx) (dir : dir) =
+  match expose fx.data, dir with
+  | ( And (a, b) | Or (a, b) | Imp (a, b) ), (`l | `r) ->
+      { fx with data = if dir = `l then a else b }
+  | Forall ({ var ; ty }, b), `d
+  | Forall ({ ty ; _ }, b), `i var
+  | Exists ({ var ; ty }, b), `d
+  | Exists ({ ty ; _ }, b), `i var ->
+      with_var ~fresh:true fx.tycx { var ; ty } begin fun _ tycx ->
+        { tycx ; data = b }
+      end
+  | Mdata (_, _, f), _ ->
+      go { fx with data = f } dir
+  | _ -> raise @@ Bad_direction { tycx = Some fx.tycx ;
+                                  form = fx.data ; dir }
 
 let rec get_at ?(side = `r) tycx form (path : path) k =
   match Q.take_front_exn path with

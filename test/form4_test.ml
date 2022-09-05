@@ -14,18 +14,19 @@ let rec compute_forms_simp ?(hist = []) goal deriv =
   match deriv with
   | [] -> (formx_to_string goal :: hist, goal)
   | rule :: deriv ->
-      let prem = ref @@ Cos.compute_premise goal rule in
+      let prem = ref @@ (Cos.compute_premise goal rule).goal in
       let hist = ref @@ Cos.rule_to_string rule ::
                         formx_to_string goal :: hist in
       let emit rule =
         hist := formx_to_string !prem :: !hist ;
         hist := Cos.rule_to_string rule :: !hist ;
-        prem := Cos.compute_premise !prem rule
+        let p = Cos.compute_premise !prem rule in
+        prem := p.goal ; p
       in
       let _simp_prem = recursive_simplify ~emit !prem Q.empty `r in
       compute_forms_simp !prem deriv ~hist:!hist
 
-let kcomb = Core.{ tycx = empty ; data = mk_imp a (mk_imp b a) }
+let kcomb = Mk.{ tycx = empty ; data = mk_imp a (mk_imp b a) }
 
 let run_kcomb () =
   let kderiv = [
@@ -34,9 +35,9 @@ let run_kcomb () =
   ] in
   compute_forms_simp kcomb kderiv
 
-let scomb = Core.{ tycx = empty ;
-                   data = mk_imp (mk_imp a (mk_imp b c))
-                       (mk_imp (mk_imp a b) (mk_imp a c)) }
+let scomb = Mk.{ tycx = empty ;
+                 data = mk_imp (mk_imp a (mk_imp b c))
+                     (mk_imp (mk_imp a b) (mk_imp a c)) }
 
 let run_scomb () =
   let sderiv = [
@@ -62,7 +63,7 @@ let r x y = T.(App { head = Const ("r", Arrow (K.ty_any, Arrow (K.ty_any, K.ty_o
                      spine = [x ; y] })
 let dbx n = T.(App { head = Index n ; spine = [] })
 
-let qexch = Core.{
+let qexch = Mk.{
     tycx = empty ;
     data = mk_imp
         (mk_ex { var = "x" ; ty = K.ty_any }
@@ -93,6 +94,7 @@ let scomb_d () =
     goal = scomb ;
     src = Q.of_list [`l ; `r ; `r] ;
     dest = Q.of_list [`r ; `r ; `r] ;
+    copy = false ;
   }
 
 let qexch_d () =
@@ -100,45 +102,47 @@ let qexch_d () =
     goal = qexch ;
     src = Q.of_list [`l ; `d ; `d] ;
     dest = Q.of_list [`r ; `d ; `d] ;
+    copy = false ;
   }
 
 let and_ts_l_d () =
-  let goal = Types.triv @@ mk_imp (mk_and a b) a in
+  let goal = Types.triv @@ Mk.mk_imp (Mk.mk_and a b) a in
   compute_derivation @@ Link {
     goal ;
     src = Q.of_list [`l ; `l] ;
-    dest = Q.of_list [`r]
+    dest = Q.of_list [`r] ;
+    copy = false ;
   }
 
 let contract_d () =
-  let goal = Types.triv @@ mk_imp a b in
+  let goal = Types.triv @@ Mk.mk_imp a b in
   compute_derivation @@ Contract { goal ; path = Q.empty }
 
 let tests =
   "Form4" >::: [
     "K-combinator COS" >:: begin fun _ ->
       let (_, prem) = run_kcomb () in
-      assert_equal ~msg:"Premise" ~printer:formx_to_string prem (Core.mk_top |@ kcomb)
+      assert_equal ~msg:"Premise" ~printer:formx_to_string prem (Mk.mk_top |@ kcomb)
     end ;
     "S-combinator COS" >:: begin fun _ ->
       let (_, prem) = run_scomb () in
-      assert_equal ~msg:"Premise" ~printer:formx_to_string prem (Core.mk_top |@ scomb)
+      assert_equal ~msg:"Premise" ~printer:formx_to_string prem (Mk.mk_top |@ scomb)
     end ;
     "qexch COS" >:: begin fun _ ->
       let (_, prem) = run_qexch () in
-      assert_equal ~msg:"Premise" ~printer:formx_to_string prem (Core.mk_top |@ qexch)
+      assert_equal ~msg:"Premise" ~printer:formx_to_string prem (Mk.mk_top |@ qexch)
     end ;
     "S-combinator DManip" >:: begin fun _ ->
       let Cos.{ top = prem ; _ } = scomb_d () in
       let cmp f g = Term.eq_term f.data g.data in
       assert_equal ~printer:formx_to_string ~cmp prem
-        Core.(mk_imp (mk_imp a b) (mk_imp a (mk_and a b)) |@ scomb)
+        Mk.(mk_imp (mk_imp a b) (mk_imp a (mk_and a b)) |@ scomb)
     end ;
     "qexch DManip" >:: begin fun _ ->
       let Cos.{ top = prem ; _ } = qexch_d () in
       let cmp f g = Term.eq_term f.data g.data in
       assert_equal ~printer:formx_to_string ~cmp prem
-        Core.(mk_all { var = "x" ; ty = K.ty_any }
+        Mk.(mk_all { var = "x" ; ty = K.ty_any }
                 (mk_all { var = "y" ; ty = K.ty_any }
                    (mk_ex { var = "x_1" ; ty = K.ty_any }
                       (mk_ex { var = "y_1" ; ty = K.ty_any }
@@ -150,12 +154,12 @@ let tests =
       let Cos.{ top = prem ; _ } = and_ts_l_d () in
       let cmp f g = Term.eq_term f.data g.data in
       assert_equal ~printer:formx_to_string ~cmp prem
-        Core.(Types.triv mk_top)
+        Mk.(Types.triv mk_top)
     end ;
     "contract" >:: begin fun _ ->
       let Cos.{ top = prem ; _ } = contract_d () in
       let cmp f g = Term.eq_term f.data g.data in
       assert_equal ~printer:formx_to_string ~cmp prem
-        Core.(Types.triv @@ mk_imp a (mk_imp a b))
+        Mk.(Types.triv @@ mk_imp a (mk_imp a b))
     end ;
   ]

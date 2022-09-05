@@ -12,15 +12,6 @@ open! T
 type form = term
 type formx = form incx
 
-let form_to_exp = Term.term_to_exp
-let formx_to_exp (fx : formx) = Term.term_to_exp ~cx:fx.tycx fx.data
-
-let pp_form = Term.pp_term
-let pp_formx out (fx : formx) = Term.pp_term ~cx:fx.tycx out fx.data
-
-let form_to_string = Term.term_to_string
-let formx_to_string (fx : formx) = Term.term_to_string ~cx:fx.tycx fx.data
-
 (******************************************************************************)
 (* formula views *)
 
@@ -61,25 +52,90 @@ let expose (form : form) =
   | _ ->
       Atom form
 
-let ty_ooo = Arrow (K.ty_o, Arrow (K.ty_o, K.ty_o))
+(******************************************************************************)
+(* pretty printing *)
 
-let mk_eq t1 t2 ty =
-  App { head = Const (K.k_eq, Arrow (ty, Arrow (ty, K.ty_o))) ;
-        spine = [t1 ; t2] }
-let mk_and fa fb =
-  App { head = Const (K.k_and, ty_ooo) ; spine = [fa ; fb] }
-let mk_top = App { head = Const (K.k_top, K.ty_o) ; spine = [] }
-let mk_or fa fb =
-  App { head = Const (K.k_or, ty_ooo) ; spine = [fa ; fb] }
-let mk_bot = App { head = Const (K.k_bot, K.ty_o) ; spine = [] }
-let mk_imp fa fb =
-  App { head = Const (K.k_imp, ty_ooo) ; spine = [fa ; fb] }
-let mk_all vty body =
-  App { head = Const (K.k_all, Arrow (Arrow (vty.ty, K.ty_o), K.ty_o)) ;
-        spine = [Abs { var = vty.var ; body }] }
-let mk_ex vty body =
-  App { head = Const (K.k_ex, Arrow (Arrow (vty.ty, K.ty_o), K.ty_o)) ;
-        spine = [Abs { var = vty.var ; body }] }
-let mk_mdata md ty f =
-  App { head = Const (K.k_mdata, Arrow (ty, Arrow (K.ty_o, K.ty_o))) ;
-        spine = [md ; f] }
+open Term
+
+let rec form_to_exp ~cx f =
+  match expose f with
+  | Atom a -> term_to_exp ~cx a
+  | Eq (s, t, _) ->
+      let s = term_to_exp ~cx s in
+      let t = term_to_exp ~cx t in
+      Doc.(Appl (40, Infix (String " = ", Non, [s ; t])))
+  | And (a, b) ->
+      let a = form_to_exp ~cx a in
+      let b = form_to_exp ~cx b in
+      Doc.(Appl (30, Infix (StringAs (3, " ∧ "), Right, [a ; b])))
+  | Top -> Doc.(Atom (String "True"))
+  | Or (a, b) ->
+      let a = form_to_exp ~cx a in
+      let b = form_to_exp ~cx b in
+      Doc.(Appl (20, Infix (StringAs (3, " ∨ "), Right, [a ; b])))
+  | Bot -> Doc.(Atom (String "False"))
+  | Imp (a, b) ->
+      let a = form_to_exp ~cx a in
+      let b = form_to_exp ~cx b in
+      Doc.(Appl (10, Infix (StringAs (3, " → "), Right, [a ; b])))
+  | Forall (vty, b) ->
+      with_var ~fresh:true cx vty begin fun vty cx ->
+        let q = Doc.Fmt Format.(fun out ->
+            pp_print_as out 3 "∀ (" ;
+            pp_print_string out vty.var ;
+            pp_print_string out " : " ;
+            pp_ty out vty.ty ;
+            pp_print_string out "), ") in
+        let b = form_to_exp ~cx b in
+        Doc.(Appl (5, Prefix (q, b)))
+      end
+  | Exists (vty, b) ->
+      with_var ~fresh:true cx vty begin fun vty cx ->
+        let q = Doc.Fmt Format.(fun out ->
+            pp_print_as out 3 "∃ (" ;
+            pp_print_string out vty.var ;
+            pp_print_string out " : " ;
+            pp_ty out vty.ty ;
+            pp_print_string out "), ") in
+        let b = form_to_exp ~cx b in
+        Doc.(Appl (5, Prefix (q, b)))
+      end
+  | Mdata (_, _, f) -> form_to_exp ~cx f
+
+let formx_to_exp (fx : formx) = form_to_exp ~cx:fx.tycx fx.data
+
+let pp_form ~cx out f = form_to_exp ~cx f |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_formx out (fx : formx) = pp_form ~cx:fx.tycx out fx.data
+
+let form_to_string ~cx f = pp_to_string (pp_form ~cx) f
+let formx_to_string fx = pp_to_string pp_formx fx
+
+(******************************************************************************)
+(* convenience functions *)
+
+module Mk = struct
+
+  let ty_ooo = Arrow (K.ty_o, Arrow (K.ty_o, K.ty_o))
+
+  let mk_eq t1 t2 ty =
+    App { head = Const (K.k_eq, Arrow (ty, Arrow (ty, K.ty_o))) ;
+          spine = [t1 ; t2] }
+  let mk_and fa fb =
+    App { head = Const (K.k_and, ty_ooo) ; spine = [fa ; fb] }
+  let mk_top = App { head = Const (K.k_top, K.ty_o) ; spine = [] }
+  let mk_or fa fb =
+    App { head = Const (K.k_or, ty_ooo) ; spine = [fa ; fb] }
+  let mk_bot = App { head = Const (K.k_bot, K.ty_o) ; spine = [] }
+  let mk_imp fa fb =
+    App { head = Const (K.k_imp, ty_ooo) ; spine = [fa ; fb] }
+  let mk_all vty body =
+    App { head = Const (K.k_all, Arrow (Arrow (vty.ty, K.ty_o), K.ty_o)) ;
+          spine = [Abs { var = vty.var ; body }] }
+  let mk_ex vty body =
+    App { head = Const (K.k_ex, Arrow (Arrow (vty.ty, K.ty_o), K.ty_o)) ;
+          spine = [Abs { var = vty.var ; body }] }
+  let mk_mdata md ty f =
+    App { head = Const (K.k_mdata, Arrow (ty, Arrow (K.ty_o, K.ty_o))) ;
+          spine = [md ; f] }
+
+end

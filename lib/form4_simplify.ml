@@ -7,7 +7,6 @@
 
 open Util
 open Types
-open T
 open Form4_core
 open Form4_paths
 open Form4_cos
@@ -15,82 +14,87 @@ open Form4_cos
 (******************************************************************************)
 (* Formula Simplification *)
 
-let rec recursive_simplify ~emit (fx : formx) (path : path) (side : side) =
+let prin (cp : cos_premise) = cp.prin
+
+type simply_result = TOP | BOT | OTHER
+
+let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : path) (side : side) =
   match expose fx.data with
-  | Mdata (md, ty, f) ->
-      let f = recursive_simplify ~emit (f |@ fx) path side in
-      mk_mdata md ty f.data |@ fx
+  | Mdata (_, _, f) ->
+      recursive_simplify ~emit (f |@ fx) path side
   | Eq (s, t, _) when side = `r -> begin
       match s, t with
-      | App { head = f ; spine = ss },
-        App { head = g ; spine = ts } when Term.eq_head f g ->
-          emit { name = Congr ; path } ;
-          let res = compute_spine_congruence (Term.ty_infer fx.tycx f) ss ts in
-          recursive_simplify ~emit (res |@ fx) path side
-      | _ -> fx
+      | T.App { head = f ; _ }, T.App { head = g ; _ }
+          when f = g ->
+            let res = emit { name = Congr ; path } |> prin in
+            recursive_simplify ~emit res path side
+      | _ -> OTHER
     end
   | And (a, b) -> begin
       let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path `l) side in
       let b = recursive_simplify ~emit (b |@ fx) (Q.snoc path `r) side in
       match side with
-      | `l -> mk_and a.data b.data |@ fx
+      | `l -> OTHER
       | `r -> begin
-          match expose a.data, expose b.data with
-          | _, Top ->
-              emit { name = Simp_and_true `l ; path } ; a
-          | Top, _ ->
-              emit { name = Simp_and_true `r ; path } ; b
+          match a, b with
+          | _, TOP ->
+              ignore @@ emit { name = Simp_and_true `l ; path } ; a
+          | TOP, _ ->
+              ignore @@ emit { name = Simp_and_true `r ; path } ; b
           | _ ->
-              mk_and a.data b.data |@ fx
+              OTHER
         end
     end
   | Or (a, b) -> begin
       let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path `l) side in
       let b = recursive_simplify ~emit (b |@ fx) (Q.snoc path `r) side in
       match side with
-      | `l -> mk_or a.data b.data |@ fx
+      | `l -> OTHER
       | `r -> begin
-          match expose a.data, expose b.data with
-          | _, Top ->
-              emit { name = Simp_or_true `l ; path } ; b
-          | Top, _ ->
-              emit { name = Simp_or_true `r ; path } ; a
+          match a, b with
+          | _, TOP ->
+              ignore @@ emit { name = Simp_or_true `l ; path } ; TOP
+          | TOP, _ ->
+              ignore @@ emit { name = Simp_or_true `r ; path } ; TOP
           | _ ->
-              mk_or a.data b.data |@ fx
+              OTHER
         end
     end
   | Imp (a, b) -> begin
       let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path `l) (flip side) in
       let b = recursive_simplify ~emit (b |@ fx) (Q.snoc path `r) side in
-      match side, expose a.data, expose b.data with
-      | side, Top, _ ->
-          emit { name = Simp_true_imp side ; path } ; b
-      | `r, _, Top ->
-          emit { name = Simp_imp_true ; path } ; b
-      | `r, Bot, _ ->
-          emit { name = Simp_false_imp ; path } ;
-          mk_top |@ fx
+      match side, a, b with
+      | side, TOP, _ ->
+          ignore @@ emit { name = Simp_true_imp side ; path } ; b
+      | `r, _, TOP ->
+          ignore @@ emit { name = Simp_imp_true ; path } ; TOP
+      | `r, BOT, _ ->
+          ignore @@ emit { name = Simp_false_imp ; path } ; TOP
       | _ ->
-          mk_imp a.data b.data |@ fx
+          OTHER
     end
   | Forall (vty, b) ->
       with_var ~fresh:true fx.tycx vty begin fun vty tycx ->
         let b = { tycx ; data = b } in
-        let b = recursive_simplify ~emit b (Q.snoc path `d) side in
+        let b = recursive_simplify ~emit b (Q.snoc path (`i vty.var)) side in
         match side with
-        | `l -> mk_all vty b.data |@ fx
+        | `l -> OTHER
         | `r -> begin
-            match expose b.data with
-            | Top ->
-                emit { name = Simp_all_true ; path } ; b
+            match b with
+            | TOP ->
+                ignore @@ emit { name = Simp_all_true ; path } ; TOP
             | _ ->
-                mk_all vty b.data |@ fx
+                OTHER
           end
       end
   | Exists (vty, b) ->
       with_var ~fresh:true fx.tycx vty begin fun vty tycx ->
         let b = { tycx ; data = b } in
-        let b = recursive_simplify ~emit b (Q.snoc path `d) side in
-        mk_ex vty b.data |@ fx
+        recursive_simplify ~emit b (Q.snoc path (`i vty.var)) side
       end
-  | Atom _ | Eq _ | Top | Bot -> fx
+  | Top -> TOP
+  | Bot -> BOT
+  | Atom _ | Eq _ -> OTHER
+
+let recursive_simplify ~emit fx path side =
+  ignore @@ recursive_simplify ~emit fx path side
