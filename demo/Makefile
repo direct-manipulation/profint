@@ -3,7 +3,7 @@ ROOT := $(shell git rev-parse --show-toplevel)
 PROFILE := release
 # PROFILE := dev
 PSYS := lean4 lean3 coq coq_reflect
-DELIVERABLES := $(wildcard *.html favicon.ico icons $(PROFJS) demo.js vendor $(PSYS))
+DELIVERABLES := $(wildcard *.html favicon.ico icons $(notdir $(PROFJS)) demo.js vendor $(PSYS))
 
 .PHONY: all clean sync list
 
