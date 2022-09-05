@@ -116,7 +116,7 @@ function flashRed() {
 
 demo.flashRed = flashRed;
 
-function linkSubformula(elem, doContract) {
+function linkSubformula(elem, copy) {
   if (witnessBox) return;
   if (formLink.src) {
     if (formLink.dest || $(elem).is(formLink.src)) {
@@ -124,11 +124,9 @@ function linkSubformula(elem, doContract) {
     } else {
       formLink.dest = elem;
       $(elem).addClass('f-dest');
-      // console.log('dest: ' + findPath(elem));
-      // $('#destId').text(findPath(elem));
       var res = profint.makeLink(findPath(formLink.src),
                                  findPath(formLink.dest),
-                                 doContract);
+                                 copy);
       if (res) renderFormula();
       else {
         console.log('link failed');
@@ -139,13 +137,11 @@ function linkSubformula(elem, doContract) {
   } else {
     formLink.src = elem;
     $(elem).addClass('f-src');
-    // console.log('src: ' + findPath(elem));
-    // $('#srcId').text(findPath(elem));
   }
 }
 
 function contractSubformula(elem) {
-  var res = profint.doContraction(findPath(elem));
+  var res = profint.copyion(findPath(elem));
   if (res) renderFormula();
   else {
     console.log('contaction failed');
@@ -249,7 +245,7 @@ function renderFormula() {
           contractSubformula(this);
       }
       else if (ev.altKey) weakenSubformula(this);
-      else if (ev.shiftKey) substituteWitness(this);
+      // else if (ev.shiftKey) substituteWitness(this);
       else linkSubformula(this, false);
       ev.stopPropagation();
     });

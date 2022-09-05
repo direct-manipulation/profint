@@ -21,7 +21,7 @@ let sig_change text =
     let sigma = Uterm.thing_of_string Proprs.signature text in
     Types.sigma := sigma ;
     true
-  end with e ->
+  end with _e ->
     (* Format.eprintf "sig_change: %s@." (Printexc.to_string e) ; *)
     false
 
@@ -81,7 +81,7 @@ let profint_object =
       try
         let f = Uterm.form_of_string @@ Js.to_string text in
         Js.some @@ Js.string @@ pp_to_string To.Tex.pp_formx @@ Types.triv f
-      with e ->
+      with _e ->
         (* Format.eprintf "formulaToHTML: %S: %s@." *)
         (*   (Js.to_string text) *)
         (*   (Printexc.to_string e) ; *)
@@ -130,11 +130,11 @@ let profint_object =
           true
       | _ -> false
 
-    method makeLink src dest (_contr : bool) =
+    method makeLink src dest (copy : bool) =
       let old_goal = state.goal in
-      let fx = Form4.goal_of_mstep old_goal in
+      let goal = Form4.goal_of_mstep old_goal in
       try
-        state.goal <- Form4.Link { goal = fx ;
+        state.goal <- Form4.Link { copy ; goal ;
                                    src = to_trail src ;
                                    dest = to_trail dest } ;
         let deriv = Form4.compute_derivation state.goal in

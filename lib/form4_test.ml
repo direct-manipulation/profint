@@ -51,7 +51,8 @@ let and_ts_l_d () =
   compute_derivation @@ Link {
     goal ;
     src = Q.of_list [`l ; `l] ;
-    dest = Q.of_list [`r]
+    dest = Q.of_list [`r] ;
+    copy = false ;
   }
 
 let a_to_bot_to_b_or_c () =
@@ -60,5 +61,6 @@ let a_to_bot_to_b_or_c () =
   compute_derivation @@ Link {
     goal ;
     src = Q.of_list [`l ; `r] ;
-    dest = Q.of_list [`r ; `l]
+    dest = Q.of_list [`r ; `l] ;
+    copy = false ;
   } ;

@@ -449,7 +449,8 @@ type mstep =
                   path  : path }
   | Link     of { goal  : formx ;
                   src   : path ;
-                  dest  : path }
+                  dest  : path ;
+                  copy  : bool } (* contract? *)
   | Inst     of { goal  : formx ;
                   path  : path ;
                   termx : T.term incx }
@@ -495,9 +496,16 @@ let compute_derivation mstep =
     | Inst { termx ; path ; _ } ->
         emit { name = Inst termx ; path } ;
         ignore @@ recursive_simplify ~emit !top Q.empty `r ;
-    | Link { goal ; src ; dest } -> begin
+    | Link { goal ; src ; dest ; copy } -> begin
         let (cpath, lpath, rpath, dest_in) = analyze_link Q.empty src dest in
         let (fx, side) = formx_at goal cpath in
+        let cpath = if not copy then cpath else begin
+            match side, expose fx.data with
+            | `r, Imp _ ->
+                emit { name = Contract ; path = cpath } ;
+                Q.snoc cpath `r
+            | _ -> fail ()
+          end in
         let concl = { cpath ; fx ; side ; lpath ; rpath ; dest_in } in
         spin_rules ~emit concl ;
         ignore @@ recursive_simplify ~emit !top Q.empty `r ;
