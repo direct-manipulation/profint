@@ -498,14 +498,26 @@ let compute_derivation mstep =
         ignore @@ recursive_simplify ~emit !top Q.empty `r ;
     | Link { goal ; src ; dest ; copy } -> begin
         let (cpath, lpath, rpath, dest_in) = analyze_link Q.empty src dest in
-        let (fx, side) = formx_at goal cpath in
-        let cpath = if not copy then cpath else begin
-            match side, expose fx.data with
-            | `r, Imp _ ->
-                emit { name = Contract ; path = cpath } ;
-                Q.snoc cpath `r
+        let (goal, cpath) =
+          if not copy then (goal, cpath) else
+          if dest_in = `l then begin
+            match Q.take_back rpath with
+            | Some (path, `l) ->
+                let rule = { name = Contract ;
+                             path = Q.append cpath path } in
+                emit rule ;
+                let goal = compute_premise goal rule in
+                (goal, cpath)
             | _ -> fail ()
-          end in
+          end else begin
+            let rule = { name = Contract ; path = cpath } in
+            emit rule ;
+            let goal = compute_premise goal rule in
+            let cpath = Q.snoc cpath `r in
+            (goal, cpath)
+          end
+        in
+        let (fx, side) = formx_at goal cpath in
         let concl = { cpath ; fx ; side ; lpath ; rpath ; dest_in } in
         spin_rules ~emit concl ;
         ignore @@ recursive_simplify ~emit !top Q.empty `r ;
