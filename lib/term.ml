@@ -148,9 +148,12 @@ let rec term_to_exp ?(cx = empty) term =
 and head_to_exp ?(cx = empty) head =
   let open Doc in
   match head with
-  | Index n ->
-      let vstr = (List.nth cx.linear n).var in
-      Atom (String vstr)
+  | Index n -> begin
+      try
+        let vstr = (List.nth cx.linear n).var in
+        Atom (String vstr)
+      with _ -> Atom (String ("?" ^ string_of_int n))
+    end
   | Const (k, _) -> Atom (String k)
 
 let termx_to_exp tx = term_to_exp ~cx:tx.tycx tx.data

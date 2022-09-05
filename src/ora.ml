@@ -176,7 +176,10 @@ let profint_object =
         let fx = Form4.goal_of_mstep state.goal in
         let ex, side = Form4.Paths.formx_at fx @@ to_trail src in
         match Form4.expose ex.data, side with
-        | Form4.Exists ({ var ; _ }, _), `r -> Js.some @@ Js.string var
+        | Form4.Exists ({ var ; ty }, _), `r ->
+            Types.with_var ~fresh:true ex.tycx { var ; ty } begin fun { var ; _ } _ ->
+              Js.some @@ Js.string var
+            end
         | _ -> fail @@ "not an exists: " ^ Form4.formx_to_string ex
       with e -> fail (Printexc.to_string e)
 

@@ -175,8 +175,8 @@ let try_goal_ts_allex ~qsel : dmanip = fun ~emit concl ->
         when qsel fexp ->
           let name = if is_forall fexp then Goal_ts_all else Goal_ts_ex in
           let fx = prin @@ emit { name ; path = concl.cpath } in
-          Format.printf "goal_ts_allex[%s]: %a => %a@." var
-            pp_formx fx pp_formx (go fx (`i var)) ;
+          (* Format.printf "goal_ts_allex[%s]: %a => %a@." var *)
+          (*   pp_formx fx pp_formx (go fx (`i var)) ; *)
           let fx = go fx (`i var) in
           let cpath = Q.snoc concl.cpath (`i var) in
           let rpath = Q.cons `r rpath in
@@ -197,8 +197,8 @@ let try_goal_allex_ts ~qsel : dmanip = fun ~emit concl ->
         when qsel fexp ->
           let name = if is_forall fexp then Goal_all_ts else Goal_ex_ts in
           let fx = prin @@ emit { name ; path = concl.cpath } in
-          Format.printf "goal_allex_ts[%s]: %a => %a@." var
-            pp_formx fx pp_formx (go fx (`i var)) ;
+          (* Format.printf "goal_allex_ts[%s]: %a => %a@." var *)
+          (*   pp_formx fx pp_formx (go fx (`i var)) ; *)
           let fx = go fx (`i var) in
           let cpath = Q.snoc concl.cpath (`i var) in
           let lpath = Q.cons `l lpath in
@@ -358,8 +358,8 @@ let try_asms_allex : dmanip = fun ~emit concl ->
             | _ -> Asms_ex { minor = `r }
           in
           let fx = prin @@ emit { name ; path = concl.cpath } in
-          Format.printf "goal_asms_allex[%s]: %a => %a@." var
-            pp_formx fx pp_formx (go fx (`i var)) ;
+          (* Format.printf "goal_asms_allex[%s]: %a => %a@." var *)
+          (*   pp_formx fx pp_formx (go fx (`i var)) ; *)
           let fx = go fx (`i var) in
           let cpath = Q.snoc concl.cpath (`i var) in
           let lpath = Q.cons `l lpath in
