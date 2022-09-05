@@ -1,8 +1,9 @@
+PROFJS := src/profint/profint_jsoo.bc.js
 ROOT := $(shell git rev-parse --show-toplevel)
 PROFILE := release
 # PROFILE := dev
 PSYS := lean4 lean3 coq coq_reflect
-DELIVERABLES := $(wildcard *.html favicon.ico icons ora.bc.js demo.js vendor $(PSYS))
+DELIVERABLES := $(wildcard *.html favicon.ico icons $(PROFJS) demo.js vendor $(PSYS))
 
 .PHONY: all clean sync list
 
@@ -10,10 +11,10 @@ all:
 	dune build \
 	  --root=$(ROOT) \
 	  --profile $(PROFILE) \
-	  src/ora.bc.js
-	$(RM) ora.bc.js
+	  $(PROFJS)
+	$(RM) $(notdir $(PROFJS))
 	for d in $(PSYS) ; do ( cd $$d ; $(MAKE) proof.zip ) ; done
-	cp $(ROOT)/_build/default/src/ora.bc.js .
+	cp $(ROOT)/_build/default/$(PROFJS) .
 	mkdir -p vendor
 	mkdir -p vendor/iconfont
 	cp -a $(ROOT)/node_modules/material-icons/iconfont/filled.css vendor/iconfont/

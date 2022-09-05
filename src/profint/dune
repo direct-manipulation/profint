@@ -1,8 +1,6 @@
 (executable
- (name ora)
+ (name profint_jsoo)
  (modes js)
  (libraries js_of_ocaml profint)
  (preprocess (pps js_of_ocaml-ppx))
 )
-
-; (js_of_ocaml (flags --source-map))
