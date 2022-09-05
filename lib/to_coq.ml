@@ -164,7 +164,8 @@ let pp_rule out goal rule =
           unprintable @@ "congr: got " ^
                          pp_to_string Form4.pp_formx { tycx = cx ; data = f } in
         match expose f with
-        | Eq (T.(App { spine = ss ; _ }), T.(App { spine = ts ; _ }), ty) ->
+        | Eq (T.(App { spine = ss ; head }), T.(App { spine = ts ; _ }), _) ->
+            let ty = ty_norm @@ ty_infer cx head in
             make_eqns (ty_norm ty) ss ts |>
             make_lemma { tycx = cx ; data = f } |>
             Format.fprintf out "(_ : %s)" ;
