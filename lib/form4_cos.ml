@@ -354,8 +354,8 @@ let compute_premise (goal : formx) (rule : rule) : formx =
       end
     | `r, Imp (a, b), Contract ->
         mk_imp a (mk_imp a b)
-    | `l, _, Contract ->
-        mk_and fx.data fx.data
+    (* | `l, _, Contract -> *)
+    (*     mk_and fx.data fx.data *)
     | `r, Imp (_, b), Weaken ->
         b
     | `r, Exists (vty, b), Inst wtx ->
