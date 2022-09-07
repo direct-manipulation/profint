@@ -75,12 +75,12 @@ let profint_object =
       change_formula @@ Js.to_string text
 
     method getStateHTML =
-      pp_to_string (Form4.pp_mstep ~ppfx:To.Tex.pp_formx) state.goal |> Js.string
+      pp_to_string (Form4.pp_mstep ~ppfx:To.Katex.pp_formx) state.goal |> Js.string
 
     method formulaToHTML text =
       try
         let f = Uterm.form_of_string @@ Js.to_string text in
-        Js.some @@ Js.string @@ pp_to_string To.Tex.pp_formx @@ Types.triv f
+        Js.some @@ Js.string @@ pp_to_string To.Katex.pp_formx @@ Types.triv f
       with _e ->
         (* Format.eprintf "formulaToHTML: %S: %s@." *)
         (*   (Js.to_string text) *)
@@ -90,7 +90,7 @@ let profint_object =
     method historyHTML =
       let contents =
         state.history
-        |> List.map (pp_to_string (Form4.pp_mstep ~ppfx:To.Tex.pp_formx))
+        |> List.map (pp_to_string (Form4.pp_mstep ~ppfx:To.Katex.pp_formx))
         |> String.concat {| \mathstrut \\ \hline |}
       in
       {| \begin{array}{c} \hline |} ^ contents ^ {| \end{array} |}
@@ -105,7 +105,7 @@ let profint_object =
         | _ ->
             let contents =
               state.future
-              |> List.rev_map (pp_to_string (Form4.pp_mstep ~ppfx:To.Tex.pp_formx))
+              |> List.rev_map (pp_to_string (Form4.pp_mstep ~ppfx:To.Katex.pp_formx))
               |> String.concat {| \mathstrut \\ \hline |}
             in
             {| \begin{array}{c} |} ^ contents ^ {| \\ \hline \end{array} |}
