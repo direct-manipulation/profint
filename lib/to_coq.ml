@@ -255,3 +255,13 @@ let pp_deriv out (sg, deriv) =
   Format.fprintf out "intro __Profint_top.@." ;
   List.iter (pp_step out) (List.rev deriv.Cos.middle) ;
   Format.fprintf out "exact __Profint_top.@.Qed.@.End Example.@."
+
+let pp_header out =
+  Format.fprintf out "Require Import List.@." ;
+  Format.fprintf out "Import ListNotations.@." ;
+  Format.fprintf out "Require Import Profint.@."
+
+let pp_footer _out = ()
+
+let pp_comment out str =
+  Format.fprintf out "(* %s *)@\n" str

@@ -227,3 +227,10 @@ let pp_deriv out (sg, deriv) =
       Cos.pp_rule_name rule.Cos.name ;
     Format.fprintf out "%a@." pp_formx concl ;
   end deriv.middle
+
+let pp_header _out = ()
+let pp_footer _out = ()
+let pp_comment out str =
+  Format.( pp_print_string out "% " ;
+           pp_print_string out str ;
+           pp_print_newline out () )

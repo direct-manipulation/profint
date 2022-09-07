@@ -8,19 +8,25 @@
 open Types
 
 module type INTERFACE = sig
+  open Format
+
   val ty_to_exp    : ty -> Doc.exp
   val termx_to_exp : T.term incx -> Doc.exp
   val formx_to_exp : Form4.form incx -> Doc.exp
 
-  val pp_ty    : Format.formatter -> ty -> unit
-  val pp_termx : Format.formatter -> T.term incx -> unit
-  val pp_formx : Format.formatter -> Form4.form incx -> unit
+  val pp_ty    : formatter -> ty -> unit
+  val pp_termx : formatter -> T.term incx -> unit
+  val pp_formx : formatter -> Form4.form incx -> unit
 
-  val pp_sigma : Format.formatter -> sigma -> unit
-  val pp_deriv : Format.formatter -> sigma * Form4.Cos.deriv -> unit
+  val pp_sigma : formatter -> sigma -> unit
+  val pp_deriv : formatter -> sigma * Form4.Cos.deriv -> unit
+
+  val pp_header : formatter -> unit
+  val pp_footer : formatter -> unit
+  val pp_comment : formatter -> string -> unit
 end
 
-module Tex : INTERFACE = To_katex
+module Katex : INTERFACE = To_katex
 
 module Coq : INTERFACE = To_coq
 module Coq_reflect : INTERFACE = To_coq_reflect
