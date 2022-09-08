@@ -430,32 +430,20 @@ let rec spin_rules ~emit concl =
   try_all concl all_rules
 
 type mstep =
-  | Pristine of { goal  : formx }
-  | Contract of { goal  : formx ;
-                  path  : path }
-  | Weaken   of { goal  : formx ;
-                  path  : path }
-  | Link     of { goal  : formx ;
-                  src   : path ;
+  | Pristine
+  | Contract of { path  : path }
+  | Weaken   of { path  : path }
+  | Link     of { src   : path ;
                   dest  : path ;
                   copy  : bool } (* contract? *)
-  | Inst     of { goal  : formx ;
-                  path  : path ;
+  | Inst     of { path  : path ;
                   termx : T.term incx }
-
-let goal_of_mstep = function
-  | Pristine { goal ; _ }
-  | Link     { goal ; _ }
-  | Contract { goal ; _ }
-  | Weaken   { goal ; _ }
-  | Inst     { goal ; _ }
-    -> goal
 
 exception Bad_mstep of mstep
 
-let compute_derivation mstep =
+let compute_derivation goal mstep =
   let fail () = raise @@ Bad_mstep mstep in
-  let bottom = goal_of_mstep mstep in
+  let bottom = goal in
   let middle = ref [] in
   let top = ref bottom in
   let emit rule =
@@ -479,7 +467,7 @@ let compute_derivation mstep =
     | _ -> fail ()
   in
   let () = match mstep with
-    | Pristine _ -> ()
+    | Pristine -> ()
     | Contract { path ; _ } ->
         ignore @@ emit { name = Contract ; path }
     | Weaken { path ; _ } ->
@@ -487,7 +475,7 @@ let compute_derivation mstep =
     | Inst { termx ; path ; _ } ->
         let goal = (emit { name = Inst termx ; path }).goal in
         recursive_simplify ~emit goal Q.empty `r
-    | Link { goal ; src ; dest ; copy } -> begin
+    | Link { src ; dest ; copy } -> begin
         let (cpath, lpath, rpath, dest_in) = analyze_link Q.empty src dest in
         let (goal, cpath) =
           if not copy then (goal, cpath) else
@@ -519,18 +507,33 @@ let mk_src f =
 let mk_dest f =
   Mk.mk_mdata (T.App { head = Const ("dest", K.ty_any) ; spine = [] }) K.ty_any f
 
-let pp_mstep ?(ppfx = pp_formx) out mstep =
+let mark_locations goal mstep =
   match mstep with
-  | Pristine { goal } -> ppfx out goal
-  | Contract { goal ; path }
-  | Weaken { goal ; path } ->
-      let fx = transform_at goal.data path mk_src |@ goal in
-      ppfx out fx
-  | Inst { goal ; path ; termx = _ } ->
-      let fx = transform_at goal.data path mk_src |@ goal in
-      ppfx out fx
+  | Pristine -> goal
+  | Contract { path }
+  | Weaken { path } ->
+      transform_at goal.data path mk_src |@ goal
+  | Inst { path ; _ } ->
+      transform_at goal.data path mk_src |@ goal
   | Link lf ->
-      let fx = lf.goal in
-      let fx = transform_at fx.data lf.src mk_src |@ fx in
-      let fx = transform_at fx.data lf.dest mk_dest |@ fx in
-      ppfx out fx
+      let f = transform_at goal.data lf.src mk_src in
+      transform_at f lf.dest mk_dest |@ goal
+
+let pp_mstep out mstep =
+  match mstep with
+  | Pristine -> Format.pp_print_string out "Pristine"
+  | Contract { path } ->
+      Format.fprintf out "Contract { path = %a }"
+        pp_path path
+  | Weaken { path } ->
+      Format.fprintf out "Weaken { path = %a }"
+        pp_path path
+  | Inst { path ; termx } ->
+      Format.fprintf out "Inst @[<hv2>{ path = %a ;@ termx = @[<hov2>%a@] }@]"
+        pp_path path
+        (Term.pp_term ~cx:termx.tycx) termx.data
+  | Link { src ; dest ; copy } ->
+      Format.fprintf out "Link @[<hv2>{ src = %a ;@ dest = %a ;@ copy = %b }@]"
+        pp_path src
+        pp_path dest
+        copy

@@ -90,16 +90,16 @@ let run_qexch () =
   compute_forms_simp qexch deriv
 
 let scomb_d () =
-  compute_derivation @@ Link {
-    goal = scomb ;
+  let goal = scomb in
+  compute_derivation goal @@ Link {
     src = Q.of_list [`l ; `r ; `r] ;
     dest = Q.of_list [`r ; `r ; `r] ;
     copy = false ;
   }
 
 let qexch_d () =
-  compute_derivation @@ Link {
-    goal = qexch ;
+  let goal = qexch in
+  compute_derivation goal @@ Link {
     src = Q.of_list [`l ; `d ; `d] ;
     dest = Q.of_list [`r ; `d ; `d] ;
     copy = false ;
@@ -107,8 +107,7 @@ let qexch_d () =
 
 let and_ts_l_d () =
   let goal = Types.triv @@ Mk.mk_imp (Mk.mk_and a b) a in
-  compute_derivation @@ Link {
-    goal ;
+  compute_derivation goal @@ Link {
     src = Q.of_list [`l ; `l] ;
     dest = Q.of_list [`r] ;
     copy = false ;
@@ -116,7 +115,7 @@ let and_ts_l_d () =
 
 let contract_d () =
   let goal = Types.triv @@ Mk.mk_imp a b in
-  compute_derivation @@ Contract { goal ; path = Q.empty }
+  compute_derivation goal @@ Contract { path = Q.empty }
 
 let tests =
   "Form4" >::: [

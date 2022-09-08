@@ -138,11 +138,11 @@ let pp_deriv out (sg, deriv) =
   Format.fprintf out "  rename_i u ; exact u@." ;
   Format.fprintf out "end Example@."
 
-let pp_header out =
+let pp_header out () =
   Format.fprintf out "import Profint@." ;
   Format.fprintf out "open Profint@."
 
-let pp_footer _out = ()
+let pp_footer _out () = ()
 
 let pp_comment out str =
   Format.fprintf out "/- %s -/@\n" str

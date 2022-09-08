@@ -1,14 +1,21 @@
 open Profint
 open Util
 open Js_of_ocaml
+module F = Form4
+
+type stage = { fx : F.formx ; mstep : F.mstep }
+let pp_stage ?(ppfx = F.pp_formx) out stage =
+  ppfx out @@ F.mark_locations stage.fx stage.mstep
+let compute_derivation stage =
+  F.compute_derivation stage.fx stage.mstep
 
 type state = {
-  mutable goal : Form4.mstep ;
-  mutable history : Form4.mstep list ;
-  mutable future : Form4.mstep list ;
+  mutable goal : stage ;
+  mutable history : stage list ;
+  mutable future : stage list ;
 }
 
-let state = { goal = Form4.Pristine { goal = Types.triv Form4.Mk.mk_top } ;
+let state = { goal = { fx = Types.triv F.Mk.mk_top ; mstep = F.Pristine } ;
               future = [] ; history = [] }
 
 let push_goal goal =
@@ -25,7 +32,7 @@ let sig_change text =
     (* Format.eprintf "sig_change: %s@." (Printexc.to_string e) ; *)
     false
 
-let to_trail str : Form4.path =
+let to_trail str : F.path =
   let path = Js.to_string str |> String.split_on_char ';' in
   match path with
   | [""] -> Q.empty
@@ -42,7 +49,8 @@ let to_trail str : Form4.path =
 
 let change_formula text =
   try
-    state.goal <- Form4.Pristine { goal = Types.triv (Uterm.form_of_string text) } ;
+    state.goal <- { fx = Types.triv (Uterm.form_of_string text) ;
+                    mstep = F.Pristine } ;
     state.history <- [] ;
     state.future <- [] ;
     true
@@ -75,7 +83,7 @@ let profint_object =
       change_formula @@ Js.to_string text
 
     method getStateHTML =
-      pp_to_string (Form4.pp_mstep ~ppfx:To.Katex.pp_formx) state.goal |> Js.string
+      pp_to_string (pp_stage ~ppfx:To.Katex.pp_formx) state.goal |> Js.string
 
     method formulaToHTML text =
       try
@@ -90,7 +98,7 @@ let profint_object =
     method historyHTML =
       let contents =
         state.history
-        |> List.map (pp_to_string (Form4.pp_mstep ~ppfx:To.Katex.pp_formx))
+        |> List.map (pp_to_string (pp_stage ~ppfx:To.Katex.pp_formx))
         |> String.concat {| \mathstrut \\ \hline |}
       in
       {| \begin{array}{c} \hline |} ^ contents ^ {| \end{array} |}
@@ -105,7 +113,7 @@ let profint_object =
         | _ ->
             let contents =
               state.future
-              |> List.rev_map (pp_to_string (Form4.pp_mstep ~ppfx:To.Katex.pp_formx))
+              |> List.rev_map (pp_to_string (pp_stage ~ppfx:To.Katex.pp_formx))
               |> String.concat {| \mathstrut \\ \hline |}
             in
             {| \begin{array}{c} |} ^ contents ^ {| \\ \hline \end{array} |}
@@ -132,13 +140,13 @@ let profint_object =
 
     method makeLink src dest (copy : bool) =
       let old_goal = state.goal in
-      let goal = Form4.goal_of_mstep old_goal in
       try
-        state.goal <- Form4.Link { copy ; goal ;
-                                   src = to_trail src ;
-                                   dest = to_trail dest } ;
-        let deriv = Form4.compute_derivation state.goal in
-        push_goal (Form4.Pristine { goal = deriv.top }) ;
+        state.goal <- { state.goal with
+                        mstep = F.Link { copy ;
+                                         src = to_trail src ;
+                                         dest = to_trail dest } } ;
+        let deriv = compute_derivation state.goal in
+        push_goal { fx = deriv.top ; mstep = F.Pristine } ;
         true
       with _ ->
         state.goal <- old_goal ;
@@ -146,11 +154,11 @@ let profint_object =
 
     method doContraction path =
       let old_goal = state.goal in
-      let fx = Form4.goal_of_mstep old_goal in
       try
-        state.goal <- Form4.Contract { goal = fx ; path = to_trail path } ;
-        let deriv = Form4.compute_derivation state.goal in
-        push_goal (Form4.Pristine { goal = deriv.top }) ;
+        state.goal <- { state.goal with
+                        mstep = F.Contract { path = to_trail path } } ;
+        let deriv = compute_derivation state.goal in
+        push_goal { fx = deriv.top ; mstep = F.Pristine } ;
         true
       with _ ->
         state.goal <- old_goal ;
@@ -158,11 +166,11 @@ let profint_object =
 
     method doWeakening path =
       let old_goal = state.goal in
-      let fx = Form4.goal_of_mstep old_goal in
       try
-        state.goal <- Form4.Weaken { goal = fx ; path = to_trail path } ;
-        let deriv = Form4.compute_derivation state.goal in
-        push_goal (Form4.Pristine { goal = deriv.top }) ;
+        state.goal <- { state.goal with
+                        mstep = F.Weaken { path = to_trail path } } ;
+        let deriv = compute_derivation state.goal in
+        push_goal { fx = deriv.top ; mstep = F.Pristine } ;
         true
       with _ ->
         state.goal <- old_goal ;
@@ -173,19 +181,17 @@ let profint_object =
         Format.eprintf "testWitness: failure: %s@." reason ;
         Js.null in
       try
-        let fx = Form4.goal_of_mstep state.goal in
-        let ex, side = Form4.Paths.formx_at fx @@ to_trail src in
-        match Form4.expose ex.data, side with
-        | Form4.Exists ({ var ; ty }, _), `r ->
+        let ex, side = F.Paths.formx_at state.goal.fx @@ to_trail src in
+        match F.expose ex.data, side with
+        | F.Exists ({ var ; ty }, _), `r ->
             Types.with_var ~fresh:true ex.tycx { var ; ty } begin fun { var ; _ } _ ->
               Js.some @@ Js.string var
             end
-        | _ -> fail @@ "not an exists: " ^ Form4.formx_to_string ex
+        | _ -> fail @@ "not an exists: " ^ F.formx_to_string ex
       with e -> fail (Printexc.to_string e)
 
     method doWitness path text =
       let old_goal = state.goal in
-      let fx = Form4.goal_of_mstep old_goal in
       let fail reason =
         Format.printf "doWitness: failure: %s@." reason ;
         state.goal <- old_goal ;
@@ -193,14 +199,14 @@ let profint_object =
       in
       try
         let path = to_trail path in
-        let (ex, side) = Form4.Paths.formx_at fx path in
+        let (ex, side) = F.Paths.formx_at state.goal.fx path in
         let term, given_ty = Uterm.term_of_string ~cx:ex.tycx @@ Js.to_string text in
         let termx = { ex with data = term } in
-        match Form4.expose ex.data, side with
-        | Form4.Exists ({ ty ; _ }, _), `r when ty = given_ty ->
-            state.goal <- Form4.Inst { goal = fx ; path ; termx } ;
-            let deriv = Form4.compute_derivation state.goal in
-            push_goal (Form4.Pristine { goal = deriv.top }) ;
+        match F.expose ex.data, side with
+        | F.Exists ({ ty ; _ }, _), `r when ty = given_ty ->
+            state.goal <- { state.goal with mstep = F.Inst { path ; termx } } ;
+            let deriv = compute_derivation state.goal in
+            push_goal { fx = deriv.top ; mstep = F.Pristine } ;
             true
         | _ -> fail "not an exists"
       with e -> fail (Printexc.to_string e)
@@ -213,21 +219,15 @@ let profint_object =
       in
       try
         match List.rev_append state.history (state.goal :: state.future) with
-        | last_mstep :: msteps ->
-            let deriv = Form4.compute_derivation last_mstep in
-            let deriv = List.fold_left begin fun deriv mstep ->
-                Form4.Cos.concat (Form4.compute_derivation mstep) deriv
-              end deriv msteps in
-            let pp_deriv = match kind with
-              | "coq"         -> To.Coq.pp_deriv
-              | "coq_reflect" -> To.Coq_reflect.pp_deriv
-              | "lean3"       -> To.Lean3.pp_deriv
-              | "lean4"       -> To.Lean4.pp_deriv
-              | _ -> failwith @@ "unknown formal system " ^ kind
-            in
-            let str = pp_to_string pp_deriv (!Types.sigma, deriv) in
+        | last :: stages ->
+            let deriv = compute_derivation last in
+            let deriv = List.fold_left begin fun deriv stage ->
+                F.Cos.concat (compute_derivation stage) deriv
+              end deriv stages in
+            let module O = (val To.select kind) in
+            let str = pp_to_string O.pp_deriv (!Types.sigma, deriv) in
             Js.some @@ Js.string str
-        | _ -> fail "!!missing msteps!!"
+        | _ -> fail "!!missing stages!!"
       with e -> fail (Printexc.to_string e)
   end
 
