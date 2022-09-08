@@ -1,2 +1,0 @@
-#use_output "dune top";;
-open Profint;;
