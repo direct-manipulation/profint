@@ -25,4 +25,7 @@
   (containers-data (>= 3.8))
   (ounit2 (>= 2.2.6))
   (js_of_ocaml (>= 3.9.0))
-  (js_of_ocaml-ppx (>= 4.0.0))))
+  (js_of_ocaml-ppx (>= 4.0.0))
+  (ppx_blob (>= 0.7.2))
+  (fileutils (>= 0.6.3))
+  ))
