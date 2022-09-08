@@ -7,7 +7,7 @@ type stage = { fx : F.formx ; mstep : F.mstep }
 let pp_stage ?(ppfx = F.pp_formx) out stage =
   ppfx out @@ F.mark_locations stage.fx stage.mstep
 let compute_derivation stage =
-  F.compute_derivation stage.fx stage.mstep
+  F.compute_derivation stage.fx [stage.mstep]
 
 type state = {
   mutable goal : stage ;

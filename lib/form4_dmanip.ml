@@ -441,8 +441,7 @@ type mstep =
 
 exception Bad_mstep of mstep
 
-let compute_derivation goal mstep =
-  let fail () = raise @@ Bad_mstep mstep in
+let compute_derivation goal msteps =
   let bottom = goal in
   let middle = ref [] in
   let top = ref bottom in
@@ -454,52 +453,55 @@ let compute_derivation goal mstep =
     top := prem.goal ;
     prem
   in
-  let rec analyze_link cpath src dest =
-    match Q.take_front src, Q.take_front dest with
-    | Some (ds, src), Some (dd, dest) when ds = dd ->
-        analyze_link (Q.snoc cpath ds) src dest
-    | Some (ds, _), Some (dd, _) ->
-        if ds = `l && dd = `r then
-          (cpath, src, dest, `r)
-        else if ds = `r && dd = `l then
-          (cpath, dest, src, `l)
-        else fail ()
-    | _ -> fail ()
-  in
-  let () = match mstep with
-    | Pristine -> ()
-    | Contract { path ; _ } ->
-        ignore @@ emit { name = Contract ; path }
-    | Weaken { path ; _ } ->
-        ignore @@ emit { name = Weaken ; path }
-    | Inst { termx ; path ; _ } ->
-        let goal = (emit { name = Inst termx ; path }).goal in
-        recursive_simplify ~emit goal Q.empty `r
-    | Link { src ; dest ; copy } -> begin
-        let (cpath, lpath, rpath, dest_in) = analyze_link Q.empty src dest in
-        let (goal, cpath) =
-          if not copy then (goal, cpath) else
-          if dest_in = `l then begin
-            match Q.take_back rpath with
-            | Some (path, `l) ->
-                let rule = { name = Contract ;
-                             path = Q.append cpath path } in
-                let goal = (emit rule).goal in
-                (goal, cpath)
-            | _ -> fail ()
-          end else begin
-            let rule = { name = Contract ; path = cpath } in
-            let goal = (emit rule).goal in
-            let cpath = Q.snoc cpath `r in
-            (goal, cpath)
-          end
-        in
-        let (fx, side) = formx_at goal cpath in
-        let concl = { cpath ; fx ; side ; lpath ; rpath ; dest_in } in
-        spin_rules ~emit concl ;
-        recursive_simplify ~emit !top Q.empty `r
-      end
-  in
+  let compute_one mstep =
+    let fail () = raise @@ Bad_mstep mstep in
+    let rec analyze_link cpath src dest =
+      match Q.take_front src, Q.take_front dest with
+      | Some (ds, src), Some (dd, dest) when ds = dd ->
+          analyze_link (Q.snoc cpath ds) src dest
+      | Some (ds, _), Some (dd, _) ->
+          if ds = `l && dd = `r then
+            (cpath, src, dest, `r)
+          else if ds = `r && dd = `l then
+            (cpath, dest, src, `l)
+          else fail ()
+      | _ -> fail ()
+    in begin
+      match mstep with
+      | Pristine -> ()
+      | Contract { path ; _ } ->
+          ignore @@ emit { name = Contract ; path }
+      | Weaken { path ; _ } ->
+          ignore @@ emit { name = Weaken ; path }
+      | Inst { termx ; path ; _ } ->
+          let goal = (emit { name = Inst termx ; path }).goal in
+          recursive_simplify ~emit goal Q.empty `r
+      | Link { src ; dest ; copy } -> begin
+          let (cpath, lpath, rpath, dest_in) = analyze_link Q.empty src dest in
+          let (goal, cpath) =
+            if not copy then (goal, cpath) else
+            if dest_in = `l then begin
+              match Q.take_back rpath with
+              | Some (path, `l) ->
+                  let rule = { name = Contract ;
+                               path = Q.append cpath path } in
+                  let goal = (emit rule).goal in
+                  (goal, cpath)
+              | _ -> fail ()
+            end else begin
+              let rule = { name = Contract ; path = cpath } in
+              let goal = (emit rule).goal in
+              let cpath = Q.snoc cpath `r in
+              (goal, cpath)
+            end
+          in
+          let (fx, side) = formx_at goal cpath in
+          let concl = { cpath ; fx ; side ; lpath ; rpath ; dest_in } in
+          spin_rules ~emit concl ;
+          recursive_simplify ~emit !top Q.empty `r
+        end
+    end in
+  List.iter compute_one msteps ;
   Form4_cos.{ top = !top ; middle = !middle ; bottom }
 
 let mk_src f =
