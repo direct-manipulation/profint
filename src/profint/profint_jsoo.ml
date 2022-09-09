@@ -200,11 +200,10 @@ let profint_object =
       try
         let path = to_trail path in
         let (ex, side) = F.Paths.formx_at state.goal.fx path in
-        let term, given_ty = Uterm.term_of_string ~cx:ex.tycx @@ Js.to_string text in
-        let termx = { ex with data = term } in
+        let term = Uterm.thing_of_string Proprs.one_term @@ Js.to_string text in
         match F.expose ex.data, side with
-        | F.Exists ({ ty ; _ }, _), `r when ty = given_ty ->
-            state.goal <- { state.goal with mstep = F.Inst { path ; termx } } ;
+        | F.Exists _, `r ->
+            state.goal <- { state.goal with mstep = F.Inst { path ; term } } ;
             let deriv = compute_derivation state.goal in
             push_goal { fx = deriv.top ; mstep = F.Pristine } ;
             true

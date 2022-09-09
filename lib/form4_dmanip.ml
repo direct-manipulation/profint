@@ -431,13 +431,13 @@ let rec spin_rules ~emit concl =
 
 type mstep =
   | Pristine
-  | Contract of { path  : path }
-  | Weaken   of { path  : path }
-  | Link     of { src   : path ;
-                  dest  : path ;
-                  copy  : bool } (* contract? *)
-  | Inst     of { path  : path ;
-                  termx : T.term incx }
+  | Contract of { path : path }
+  | Weaken   of { path : path }
+  | Link     of { src  : path ;
+                  dest : path ;
+                  copy : bool } (* contract? *)
+  | Inst     of { path : path ;
+                  term : U.term }
 
 exception Bad_mstep of mstep
 
@@ -455,6 +455,7 @@ let compute_derivation goal msteps =
   in
   let compute_one mstep =
     let fail () = raise @@ Bad_mstep mstep in
+    let goal = !top in
     let rec analyze_link cpath src dest =
       match Q.take_front src, Q.take_front dest with
       | Some (ds, src), Some (dd, dest) when ds = dd ->
@@ -473,8 +474,11 @@ let compute_derivation goal msteps =
           ignore @@ emit { name = Contract ; path }
       | Weaken { path ; _ } ->
           ignore @@ emit { name = Weaken ; path }
-      | Inst { termx ; path ; _ } ->
-          let goal = (emit { name = Inst termx ; path }).goal in
+      | Inst { term ; path ; _ } ->
+          let (fx, _) = formx_at goal path in
+          let (term, _) = Uterm.ty_check fx.tycx term in
+          let term = term |@ fx in
+          let goal = (emit { name = Inst term ; path }).goal in
           recursive_simplify ~emit goal Q.empty `r
       | Link { src ; dest ; copy } -> begin
           let (cpath, lpath, rpath, dest_in) = analyze_link Q.empty src dest in
@@ -530,10 +534,10 @@ let pp_mstep out mstep =
   | Weaken { path } ->
       Format.fprintf out "Weaken { path = %a }"
         pp_path path
-  | Inst { path ; termx } ->
+  | Inst { path ; term } ->
       Format.fprintf out "Inst @[<hv2>{ path = %a ;@ termx = @[<hov2>%a@] }@]"
         pp_path path
-        (Term.pp_term ~cx:termx.tycx) termx.data
+        Uterm.pp_uterm_ term
   | Link { src ; dest ; copy } ->
       Format.fprintf out "Link @[<hv2>{ src = %a ;@ dest = %a ;@ copy = %b }@]"
         pp_path src
