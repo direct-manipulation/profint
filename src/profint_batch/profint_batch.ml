@@ -7,6 +7,7 @@
 
 open! Profint
 open! Util
+open! Types
 module YS = Yojson.Safe
 module M = Map.Make(String)
 module S = Set.Make(String)
@@ -87,6 +88,27 @@ include struct
     end
 end
 
+
+let serialize_into outdir system thing =
+  let module T = (val system : Profint.To.TO) in
+  let rec aux cwd t =
+    match t with
+    | File { fname ; contents } ->
+        let fname = Filename.concat cwd fname in
+        let oc = open_out_bin fname in
+        output_string oc contents ;
+        close_out oc
+    | Dir { dname ; contents } ->
+        let cwd = Filename.concat cwd dname in
+        FileUtil.mkdir ~parent:true cwd ;
+        List.iter (aux cwd) contents
+  in
+  let outdir = Filename.concat outdir T.name in
+  FileUtil.mkdir ~parent:true outdir ;
+  let dirtree = T.files thing in
+  List.iter (aux outdir) dirtree ;
+  outdir
+
 let process_problem out ~mode ~fname no prob =
   Types.sigma := YS.Util.(prob |> member "sig" |> maybe_concat)
                  |> Uterm.thing_of_string Proprs.signature ;
@@ -112,15 +134,7 @@ let process_file out ~mode fname =
 let main () =
   let sysname = ref "lean4" in
   let mode = ref (module To.Lean4 : To.TO) in
-  let system = ref Systems.lean4 in
   let set_mode str =
-    begin match str with
-    | "lean3" -> system := Systems.lean3
-    | "lean4" -> system := Systems.lean4
-    | "coq" -> system := Systems.coq
-    | "coq_reflect" -> system := Systems.coq_reflect
-    | _ -> failwithf "Unknown output format %S" str
-    end ;
     sysname := str ;
     mode := To.select str
   in
@@ -141,18 +155,17 @@ let main () =
   Arg.parse opts add_input_file @@
   Printf.sprintf "Usage: %s [OPTIONS] file1.json ...\n\nWhere OPTIONS are:"
     (Filename.basename Sys.executable_name) ;
+  let module T = (val !mode : To.TO) in
   let buf = Buffer.create 19 in
   let out = Format.formatter_of_buffer buf in
   List.iter (process_file out ~mode:!mode) @@ List.rev !input_files ;
   Format.pp_print_flush out () ;
   let proofs = Buffer.contents buf in
-  Systems.serialize_into !outdir !system proofs ;
+  let outdir = serialize_into !outdir !mode proofs in
   if !doit then begin
-    let sysdir = Filename.concat !outdir !sysname in
-    Printf.eprintf "[DEBUG] CHDIR %s\n%!" sysdir ;
-    Sys.chdir sysdir ;
-    Printf.eprintf "[DEBUG] CMD %s\n%!" (!system).buildcmd ;
-    assert (Sys.command (!system).buildcmd = 0)
+    Sys.chdir outdir ;
+    assert (Sys.command (T.build ()) = 0) ;
+    Printf.printf "Build complete.\n"
   end
 
 let () = main ()

@@ -146,3 +146,26 @@ let pp_footer _out () = ()
 
 let pp_comment out str =
   Format.fprintf out "/- %s -/@\n" str
+
+let name = "lean4"
+let files pf =
+  let replace contents =
+    CCString.replace ~which:`Left contents
+      ~sub:"/-PROOF-/\n" ~by:pf
+  in [
+    File { fname = "lakefile.lean" ;
+           contents = [%blob "../demo/lean4/lakefile.lean"] } ;
+    File { fname = "lean-toolchain" ;
+           contents = [%blob "../demo/lean4/lean-toolchain"] } ;
+    Dir {
+      dname = "Profint" ;
+      contents = [
+        File { fname = "Basic.lean" ;
+               contents = [%blob "../demo/lean4/Profint/Basic.lean"] } ;
+      ] } ;
+    File { fname = "Profint.lean" ;
+           contents = [%blob "../demo/lean4/Profint.lean"] } ;
+    File { fname = "Proof.lean" ;
+           contents = replace [%blob "../demo/lean4/Proof.lean"] } ;
+  ]
+let build () = "lake build"

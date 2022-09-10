@@ -265,3 +265,20 @@ let pp_footer _out () = ()
 
 let pp_comment out str =
   Format.fprintf out "(* %s *)@\n" str
+
+let name = "coq"
+let files pf =
+  let replace contents =
+    CCString.replace ~which:`Left contents
+      ~sub:"(*PROOF*)\n" ~by:pf
+  in [
+    File { fname = "Proof.v" ;
+           contents = replace [%blob "../demo/coq/Proof.v"] } ;
+    File { fname = "Profint.v" ;
+           contents = [%blob "../demo/coq/Profint.v"] } ;
+    File { fname = "_CoqProject" ;
+           contents = [%blob "../demo/coq/_CoqProject"] } ;
+    File { fname = "Makefile" ;
+           contents = [%blob "../demo/coq/Makefile"] } ;
+  ]
+let build () = "make"

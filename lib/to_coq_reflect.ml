@@ -110,3 +110,20 @@ let pp_deriv out (sg, deriv) =
   Format.fprintf out {|  apply (Profint.correctness deriv) ;@.|} ;
   Format.fprintf out {|  unfold deriv ; Profint.check_solve.@.|} ;
   Format.fprintf out {|Qed.@.End Example.@.|}
+
+let name = "coq_reflect"
+let files pf =
+  let replace contents =
+    CCString.replace ~which:`Left contents
+      ~sub:"(*PROOF*)\n" ~by:pf
+  in [
+    File { fname = "Proof.v" ;
+           contents = replace [%blob "../demo/coq_reflect/Proof.v"] } ;
+    File { fname = "Profint.v" ;
+           contents = [%blob "../demo/coq_reflect/Profint.v"] } ;
+    File { fname = "_CoqProject" ;
+           contents = [%blob "../demo/coq_reflect/_CoqProject"] } ;
+    File { fname = "Makefile" ;
+           contents = [%blob "../demo/coq_reflect/Makefile"] } ;
+  ]
+let build () = "make"

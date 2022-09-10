@@ -24,6 +24,10 @@ module type TO = sig
   val pp_header  : unit pp
   val pp_footer  : unit pp
   val pp_comment : string pp
+
+  val name : string
+  val files : string -> dirtree list
+  val build : unit -> string
 end with type 'a pp := Format.formatter -> 'a -> unit
 
 module Katex       : TO = To_katex

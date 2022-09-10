@@ -234,3 +234,7 @@ let pp_comment out str =
   Format.( pp_print_string out "% " ;
            pp_print_string out str ;
            pp_print_newline out () )
+
+let name = "katex"
+let files _ = invalid_arg "To.Katex.files"
+let build () = invalid_arg "To.Katex.build"

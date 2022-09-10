@@ -1,8 +1,7 @@
 (library
   (name profint)
   (libraries containers-data)
-  ; (modules_without_implementation to)
-  ; (preprocess (pps ppx_deriving.show))
+  (preprocess (pps ppx_blob))
 )
 
 (menhir

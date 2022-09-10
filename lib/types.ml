@@ -237,3 +237,7 @@ type 'a incx = {
 let ( |@ ) f th = { th with data = f }
 
 let triv th = { tycx = empty ; data = th }
+
+type dirtree =
+  | File of { fname : string ; contents : string }
+  | Dir of { dname : string ; contents : dirtree list }

@@ -292,3 +292,24 @@ let pp_footer _out () = ()
 
 let pp_comment out str =
   Format.fprintf out "/- %s -/@\n" str
+
+let name = "lean3"
+let files pf =
+  let replace contents =
+    CCString.replace ~which:`Left contents
+      ~sub:"/-PROOF-/\n" ~by:pf
+  in [
+    File { fname = "lean-toolchain" ;
+           contents = [%blob "../demo/lean3/lean-toolchain"] } ;
+    File { fname = "leanpkg.toml" ;
+           contents = [%blob "../demo/lean3/leanpkg.toml"] } ;
+    Dir {
+      dname = "src" ;
+      contents = [
+        File { fname = "Proof.lean" ;
+               contents = replace [%blob "../demo/lean3/src/Proof.lean"] } ;
+        File { fname = "Profint.lean" ;
+               contents = [%blob "../demo/lean3/src/Profint.lean"] } ;
+      ] } ;
+  ]
+let build () = "leanpkg build"
