@@ -56,6 +56,29 @@ let change_formula text =
     true
   with _ -> false
 
+let make_files_bundle system proof =
+  let module O = (val system : To.TO) in
+  let files = O.files proof in
+  let rec dirtree_to_obj tree =
+    match tree with
+    | Types.File { fname ; contents } ->
+        object%js
+          val name = Js.string fname
+          val kind = Js.string "file"
+          val contents : Js.Unsafe.any Js.t = Js.Unsafe.coerce @@ Js.string contents
+        end
+    | Types.Dir { dname ; contents } ->
+        let contents = List.map dirtree_to_obj contents in
+        let arr = Js.(new%js array_length (List.length contents)) in
+        List.iteri (fun i obj -> Js.array_set arr i obj) contents ;
+        object%js
+          val name = Js.string dname
+          val kind = Js.string "dir"
+          val contents : Js.Unsafe.any Js.t = Js.Unsafe.coerce arr
+        end
+  in
+  dirtree_to_obj @@ Dir { dname = O.name ; contents = files }
+
 exception Cannot_start
 
 let profint_object =
@@ -217,16 +240,17 @@ let profint_object =
         Js.null
       in
       try
-        match List.rev_append state.history (state.goal :: state.future) with
-        | last :: stages ->
-            let deriv = compute_derivation last in
-            let deriv = List.fold_left begin fun deriv stage ->
-                F.Cos.concat (compute_derivation stage) deriv
-              end deriv stages in
-            let module O = (val To.select kind) in
+        let stages = List.rev_append state.history (state.goal :: state.future) in
+        match stages with
+        | [] -> assert false    (* impossible! *)
+        | last :: _ ->
+            let deriv = F.compute_derivation last.fx
+                (List.map (fun stg -> stg.mstep) stages) in
+            let system = To.select kind in
+            let module O = (val system) in
             let str = pp_to_string O.pp_deriv (!Types.sigma, deriv) in
-            Js.some @@ Js.string str
-        | _ -> fail "!!missing stages!!"
+            let bundle = make_files_bundle system str in
+            Js.some @@ bundle
       with e -> fail (Printexc.to_string e)
   end
 

@@ -325,37 +325,27 @@ function copyProof() {
 
 demo.copyProof = copyProof;
 
+function makeProofZip(proof, zip) {
+  if (proof.kind == "file")
+    zip.file(proof.name, proof.contents);
+  else {
+    const zdir = zip.folder(proof.name);
+    proof.contents.forEach((proof) => {
+      makeProofZip(proof, zdir);
+    });
+  }
+}
+
 function downProof() {
   const kind = getProofKind();
-  const proof_zip = kind + "/proof.zip";
-  const psys = proofSystems[kind];
   const proof = profint.getProof(kind);
-  if (proof) {
-    fetch(proof_zip)
-      .then((response) => {
-        if (!response.ok)
-          throw new Error("fetch(" + proof_zip + ") failed");
-        return response.blob();
-      })
-      .then((blob) => {
-        var zip = new JSZip();
-        zip.loadAsync(blob)
-          .then((zip) => {
-            zip.file(psys.file).async("text")
-              .then((text) => {
-                text = text.replace(psys.comment, proof);
-                zip.file(psys.file, text);
-                zip.generateAsync({ type: "blob" })
-                  .then((blob) => {
-                    saveAs(blob, "proof.zip");
-                  });
-              });
-          });
-      })
-      .catch((error) => {
-        console.error("downProof:", error);
-      });
-  }
+  if (!proof) throw new Error(`downProof(): could not get a ${kind} proof`);
+  const zip = new JSZip();
+  makeProofZip(proof, zip);
+  zip.generateAsync({ type: "blob" })
+    .then((blob) => {
+      saveAs(blob, kind + ".zip");
+    });
 }
 
 demo.downProof = downProof;
