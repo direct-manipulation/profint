@@ -47,8 +47,8 @@
 %nonassoc PREC_MIN
 %left     FROM
 %right    TO ARROW
-%left     OR
-%left     AND
+%right    OR
+%right    AND
 (* %nonassoc PREC_MAX *)
 
 %start <U.term> one_term
