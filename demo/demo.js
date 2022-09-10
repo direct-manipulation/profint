@@ -325,23 +325,10 @@ function copyProof() {
 
 demo.copyProof = copyProof;
 
-function makeProofZip(proof, zip) {
-  if (proof.kind == "file")
-    zip.file(proof.name, proof.contents);
-  else {
-    const zdir = zip.folder(proof.name);
-    proof.contents.forEach((proof) => {
-      makeProofZip(proof, zdir);
-    });
-  }
-}
-
 function downProof() {
   const kind = getProofKind();
-  const proof = profint.getProofBundle(kind);
-  if (proof) {
-    const zip = new JSZip();
-    makeProofZip(proof, zip);
+  const zip = profint.getProofBundle(kind);
+  if (zip) {
     zip.generateAsync({ type: "blob" })
       .then((blob) => {
         saveAs(blob, kind + ".zip");

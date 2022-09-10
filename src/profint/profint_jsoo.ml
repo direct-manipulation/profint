@@ -73,29 +73,26 @@ let get_proof kind =
         str
   with e -> fail (Printexc.to_string e)
 
-let get_proof_bundle kind =
+let get_proof_bundle_zip kind : Js.Unsafe.top Js.t =
   let proof = get_proof kind in
   let module O = (val To.select kind : To.TO) in
   let files = O.files proof in
-  let rec dirtree_to_obj tree =
+  let rec dirtree_to_obj obj (tree : Types.dirtree) =
     match tree with
-    | Types.File { fname ; contents } ->
-        object%js
-          val name = Js.string fname
-          val kind = Js.string "file"
-          val contents : Js.Unsafe.any Js.t = Js.Unsafe.coerce @@ Js.string contents
-        end
-    | Types.Dir { dname ; contents } ->
-        let contents = List.map dirtree_to_obj contents in
-        let arr = Js.(new%js array_length (List.length contents)) in
-        List.iteri (fun i obj -> Js.array_set arr i obj) contents ;
-        object%js
-          val name = Js.string dname
-          val kind = Js.string "dir"
-          val contents : Js.Unsafe.any Js.t = Js.Unsafe.coerce arr
-        end
+    | File { fname ; contents } ->
+        Js.Unsafe.meth_call obj "file" [|
+          Js.Unsafe.coerce @@ Js.string fname ;
+          Js.Unsafe.coerce @@ Js.string contents ;
+        |]
+    | Dir { dname ; contents } ->
+        let obj = Js.Unsafe.meth_call obj "folder" [|
+            Js.Unsafe.coerce @@ Js.string dname ;
+          |] in
+        List.iter (dirtree_to_obj obj) contents
   in
-  dirtree_to_obj @@ Dir { dname = O.name ; contents = files }
+  let obj = Js.Unsafe.new_obj (Js.Unsafe.pure_js_expr "JSZip") [| |] in
+  dirtree_to_obj obj @@ Dir { dname = O.name ; contents = files } ;
+  obj
 
 exception Cannot_start
 
@@ -256,7 +253,7 @@ let profint_object =
       with _ -> Js.null
 
     method getProofBundle kind =
-      try Js.some @@ get_proof_bundle (Js.to_string kind)
+      try Js.some @@ get_proof_bundle_zip (Js.to_string kind)
       with _ -> Js.null
 
   end
