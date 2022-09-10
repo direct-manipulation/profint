@@ -273,12 +273,12 @@ let files pf =
       ~sub:"(*PROOF*)\n" ~by:pf
   in [
     File { fname = "Proof.v" ;
-           contents = replace [%blob "../demo/coq/Proof.v"] } ;
+           contents = replace [%blob "systems/coq/Proof.v"] } ;
     File { fname = "Profint.v" ;
-           contents = [%blob "../demo/coq/Profint.v"] } ;
+           contents = [%blob "systems/coq/Profint.v"] } ;
     File { fname = "_CoqProject" ;
-           contents = [%blob "../demo/coq/_CoqProject"] } ;
+           contents = [%blob "systems/coq/_CoqProject"] } ;
     File { fname = "Makefile" ;
-           contents = [%blob "../demo/coq/Makefile"] } ;
+           contents = [%blob "systems/coq/Makefile"] } ;
   ]
 let build () = "make"

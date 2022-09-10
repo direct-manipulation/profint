@@ -300,16 +300,16 @@ let files pf =
       ~sub:"/-PROOF-/\n" ~by:pf
   in [
     File { fname = "lean-toolchain" ;
-           contents = [%blob "../demo/lean3/lean-toolchain"] } ;
+           contents = [%blob "systems/lean3/lean-toolchain"] } ;
     File { fname = "leanpkg.toml" ;
-           contents = [%blob "../demo/lean3/leanpkg.toml"] } ;
+           contents = [%blob "systems/lean3/leanpkg.toml"] } ;
     Dir {
       dname = "src" ;
       contents = [
         File { fname = "Proof.lean" ;
-               contents = replace [%blob "../demo/lean3/src/Proof.lean"] } ;
+               contents = replace [%blob "systems/lean3/src/Proof.lean"] } ;
         File { fname = "Profint.lean" ;
-               contents = [%blob "../demo/lean3/src/Profint.lean"] } ;
+               contents = [%blob "systems/lean3/src/Profint.lean"] } ;
       ] } ;
   ]
 let build () = "leanpkg build"

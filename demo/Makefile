@@ -2,8 +2,7 @@ PROFJS := src/profint/profint_jsoo.bc.js
 ROOT := $(shell git rev-parse --show-toplevel)
 PROFILE := release
 # PROFILE := dev
-PSYS := lean4 lean3 coq coq_reflect
-DELIVERABLES := $(wildcard *.html favicon.ico icons $(notdir $(PROFJS)) demo.js vendor $(PSYS))
+DELIVERABLES := $(wildcard *.html favicon.ico icons $(notdir $(PROFJS)) demo.js vendor)
 
 .PHONY: all clean sync list
 
@@ -13,7 +12,6 @@ all:
 	  --profile $(PROFILE) \
 	  $(PROFJS)
 	$(RM) $(notdir $(PROFJS))
-	for d in $(PSYS) ; do ( cd $$d ; $(MAKE) proof.zip ) ; done
 	cp $(ROOT)/_build/default/$(PROFJS) .
 	mkdir -p vendor
 	mkdir -p vendor/iconfont
@@ -32,7 +30,6 @@ all:
 	cp -a $(ROOT)/node_modules/file-saver/dist/FileSaver.min.js vendor/
 
 sync: all
-	for d in $(PSYS) ; do ( cd $$d ; git clean -fxd . ; $(MAKE) proof.zip ) ; done
 	rsync -avz $(DELIVERABLES) chaudhuri.info:chaudhuri/research/profint
 
 clean:

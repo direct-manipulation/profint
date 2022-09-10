@@ -154,18 +154,18 @@ let files pf =
       ~sub:"/-PROOF-/\n" ~by:pf
   in [
     File { fname = "lakefile.lean" ;
-           contents = [%blob "../demo/lean4/lakefile.lean"] } ;
+           contents = [%blob "systems/lean4/lakefile.lean"] } ;
     File { fname = "lean-toolchain" ;
-           contents = [%blob "../demo/lean4/lean-toolchain"] } ;
+           contents = [%blob "systems/lean4/lean-toolchain"] } ;
     Dir {
       dname = "Profint" ;
       contents = [
         File { fname = "Basic.lean" ;
-               contents = [%blob "../demo/lean4/Profint/Basic.lean"] } ;
+               contents = [%blob "systems/lean4/Profint/Basic.lean"] } ;
       ] } ;
     File { fname = "Profint.lean" ;
-           contents = [%blob "../demo/lean4/Profint.lean"] } ;
+           contents = [%blob "systems/lean4/Profint.lean"] } ;
     File { fname = "Proof.lean" ;
-           contents = replace [%blob "../demo/lean4/Proof.lean"] } ;
+           contents = replace [%blob "systems/lean4/Proof.lean"] } ;
   ]
 let build () = "lake build"

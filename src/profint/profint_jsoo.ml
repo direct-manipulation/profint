@@ -56,8 +56,26 @@ let change_formula text =
     true
   with _ -> false
 
-let make_files_bundle system proof =
-  let module O = (val system : To.TO) in
+let get_proof kind =
+  let fail reason =
+    Format.eprintf "get_proof(%s): failure: %s@." kind reason ;
+    failwith "get_proof"
+  in
+  try
+    let stages = List.rev_append state.history (state.goal :: state.future) in
+    match stages with
+    | [] -> assert false    (* impossible! *)
+    | last :: _ ->
+        let deriv = F.compute_derivation last.fx
+            (List.map (fun stg -> stg.mstep) stages) in
+        let module O = (val To.select kind) in
+        let str = pp_to_string O.pp_deriv (!Types.sigma, deriv) in
+        str
+  with e -> fail (Printexc.to_string e)
+
+let get_proof_bundle kind =
+  let proof = get_proof kind in
+  let module O = (val To.select kind : To.TO) in
   let files = O.files proof in
   let rec dirtree_to_obj tree =
     match tree with
@@ -234,24 +252,13 @@ let profint_object =
       with e -> fail (Printexc.to_string e)
 
     method getProof kind =
-      let kind = Js.to_string kind in
-      let fail reason =
-        Format.eprintf "getProof: failure: %s@." reason ;
-        Js.null
-      in
-      try
-        let stages = List.rev_append state.history (state.goal :: state.future) in
-        match stages with
-        | [] -> assert false    (* impossible! *)
-        | last :: _ ->
-            let deriv = F.compute_derivation last.fx
-                (List.map (fun stg -> stg.mstep) stages) in
-            let system = To.select kind in
-            let module O = (val system) in
-            let str = pp_to_string O.pp_deriv (!Types.sigma, deriv) in
-            let bundle = make_files_bundle system str in
-            Js.some @@ bundle
-      with e -> fail (Printexc.to_string e)
+      try Js.some @@ Js.string @@ get_proof (Js.to_string kind)
+      with _ -> Js.null
+
+    method getProofBundle kind =
+      try Js.some @@ get_proof_bundle (Js.to_string kind)
+      with _ -> Js.null
+
   end
 
 let () = Js.export "profint" profint_object

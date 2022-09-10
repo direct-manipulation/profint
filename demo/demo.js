@@ -320,7 +320,7 @@ function copyProof() {
       .catch(() => {
         console.error("Copy failed");
       });
-  }
+  } else flashRed();
 }
 
 demo.copyProof = copyProof;
@@ -338,14 +338,15 @@ function makeProofZip(proof, zip) {
 
 function downProof() {
   const kind = getProofKind();
-  const proof = profint.getProof(kind);
-  if (!proof) throw new Error(`downProof(): could not get a ${kind} proof`);
-  const zip = new JSZip();
-  makeProofZip(proof, zip);
-  zip.generateAsync({ type: "blob" })
-    .then((blob) => {
-      saveAs(blob, kind + ".zip");
-    });
+  const proof = profint.getProofBundle(kind);
+  if (proof) {
+    const zip = new JSZip();
+    makeProofZip(proof, zip);
+    zip.generateAsync({ type: "blob" })
+      .then((blob) => {
+        saveAs(blob, kind + ".zip");
+      });
+  } else flashRed();
 }
 
 demo.downProof = downProof;
