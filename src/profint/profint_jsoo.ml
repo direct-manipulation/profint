@@ -73,7 +73,7 @@ let get_proof kind =
         str
   with e -> fail (Printexc.to_string e)
 
-let get_proof_bundle_zip kind : Js.Unsafe.top Js.t =
+let get_proof_bundle_zip name kind : Js.Unsafe.top Js.t =
   let proof = get_proof kind in
   let module O = (val To.select kind : To.TO) in
   let files = O.files proof in
@@ -90,9 +90,12 @@ let get_proof_bundle_zip kind : Js.Unsafe.top Js.t =
           |] in
         List.iter (dirtree_to_obj obj) contents
   in
-  let obj = Js.Unsafe.new_obj (Js.Unsafe.pure_js_expr "JSZip") [| |] in
-  dirtree_to_obj obj @@ Dir { dname = O.name ; contents = files } ;
-  obj
+  let zip = Js.Unsafe.new_obj (Js.Unsafe.pure_js_expr "JSZip") [| |] in
+  let obj = Js.Unsafe.meth_call zip "folder" [|
+      Js.Unsafe.coerce @@ Js.string name
+    |] in
+  List.iter (dirtree_to_obj obj) files ;
+  zip
 
 exception Cannot_start
 
@@ -252,8 +255,10 @@ let profint_object =
       try Js.some @@ Js.string @@ get_proof (Js.to_string kind)
       with _ -> Js.null
 
-    method getProofBundle kind =
-      try Js.some @@ get_proof_bundle_zip (Js.to_string kind)
+    method getProofBundle name kind =
+      try
+        get_proof_bundle_zip (Js.to_string name) (Js.to_string kind)
+        |> Js.some
       with _ -> Js.null
 
   end

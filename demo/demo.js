@@ -327,11 +327,13 @@ demo.copyProof = copyProof;
 
 function downProof() {
   const kind = getProofKind();
-  const zip = profint.getProofBundle(kind);
+  const name = $("#downName").val();
+  const dirName = `${name}-${kind}`;
+  const zip = profint.getProofBundle(dirName, kind);
   if (zip) {
     zip.generateAsync({ type: "blob" })
       .then((blob) => {
-        saveAs(blob, kind + ".zip");
+        saveAs(blob, `${dirName}.zip`);
       });
   } else flashRed();
 }
@@ -353,21 +355,35 @@ function toggleSignature() {
 demo.toggleSignature = toggleSignature;
 
 function demoSetup() {
-  hotkeys("ctrl+up,ctrl+y,ctrl+down,ctrl+z,w,escape", function (event, handler){
+  hotkeys("ctrl+up,ctrl+y,ctrl+down,ctrl+z,w,ctrl+c,n,d,escape", function (event, handler){
     switch (handler.key) {
     case "escape":
       clearLinks();
       break;
     case "ctrl+z":
     case "ctrl+down":
-      doUndo(); break;
+      doUndo();
+      break;
     case "ctrl+y":
     case "ctrl+up":
-      doRedo(); break;
+      doRedo();
+      break;
     case "w":
       makeWitnessBox(event);
-      return false;
+      break;
+    case 'd':
+      $("#downProof").click();
+      break;
+    case 'ctrl+c':
+      $("#copyProof").click();
+      break;
+    case 'n':
+      $("#downName").focus().select();
+      break;
+    default:
+      return true;
     }
+    return false;
   });
   $("#interface").css({ visibility: "visible" });
   const sigText = profint.startup();
@@ -397,6 +413,19 @@ function demoSetup() {
       $("#signature").css({"border": "none"});
   });
   toggleSignature();
+  $("#downName")
+    .on("input", function(ev) {
+      const txt = $(this).val();
+      $(this).attr("size", txt.length);
+      const isGood = txt.match(/^[a-zA-Z][a-zA-Z0-9_]*$/);
+      $("#downProof").attr("disabled", !isGood);
+    })
+    .on("keypress", function(ev) {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        $(this).blur();
+      }
+    });
 }
 
 demo.demoSetup = demoSetup;
