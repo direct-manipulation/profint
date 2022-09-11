@@ -35,12 +35,11 @@
     aux sigma0 things
 %}
 
-%token  EOS PREC_MIN
-(* %token  PREC_MAX *)
+%token  EOS PREC_MIN (* PREC_MAX *)
 %token  <Util.ident> IDENT
 %token  LPAREN RPAREN LBRACK RBRACK COMMA COLON DOT
 %token  ARROW OMICRON TYPE
-(* %token  EQ NEQ *)
+%token  EQ
 %token  AND OR TO FROM BOT TOP
 %token  FORALL EXISTS
 
@@ -112,6 +111,8 @@ form:
   { make_quant K.k_all vs bod }
 | EXISTS vs=lambda bod=form %prec PREC_MIN
   { make_quant K.k_ex vs bod }
+| EQ ta=wrapped_term tb=wrapped_term
+  { U.(App (App (Kon (K.k_eq, None), ta), tb)) }
 | a=IDENT ts=list(wrapped_term)
   { make_app (U.Kon (a, None) :: ts) }
 | LPAREN f=form RPAREN

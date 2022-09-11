@@ -46,6 +46,7 @@ rule token = parse
 | "\\type"         { P.TYPE }
 | "\\A"            { P.FORALL }
 | "\\E"            { P.EXISTS }
+| "\\eq"           { P.EQ }
 | "\\and" | '&'    { P.AND }
 | "\\or"  | '|'    { P.OR }
 | "\\to"  | "=>"   { P.TO }
