@@ -38,6 +38,7 @@ type rule_name =
   | Simp_or_true  of side
   | Simp_all_true
   | Init
+  | Rewrite of [`ltr | `rtl]
   | Congr
   | Contract
   | Weaken
@@ -107,6 +108,11 @@ let pp_rule_name out rn =
       Format.fprintf out "simp_all_true"
   | Init ->
       Format.fprintf out "init"
+  | Rewrite dir ->
+      Format.fprintf out "rewrite_%s"
+        (match dir with
+         | `ltr -> "ltr"
+         | _ -> "rtl")
   | Congr ->
       Format.fprintf out "congr"
   | Contract ->
@@ -356,12 +362,23 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
               compute_spine_congruence (Term.ty_infer prin.tycx f) ss ts
           | _ -> bad_match "26"
         end
+      | `r, Imp (a, b), Rewrite dir -> begin
+          match expose a with
+          | Eq (s, t, _) -> begin
+              let (tfrom, tto) = match dir with
+                | `ltr -> s, t
+                | `rtl -> t, s
+              in
+              Term.rewrite ~tfrom ~tto b
+            end
+          | _ -> bad_match "27"
+        end
       | `r, Eq (s, t, _), Congr -> begin
           match s, t with
           | App { head = f ; spine = ss },
             App { head = g ; spine = ts } when Term.eq_head f g ->
               compute_spine_congruence (Term.ty_infer prin.tycx f) ss ts
-          | _ -> bad_match "27"
+          | _ -> bad_match "28"
         end
       | `r, Imp (a, b), Contract ->
           mk_imp a (mk_imp a b)
@@ -371,7 +388,7 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
       | `r, Exists (vty, b), Inst { side = `r ; term = wtx } ->
           Term.ty_check prin.tycx wtx.data vty.ty ;
           Term.do_app (Abs {var = vty.var ; body = b}) [wtx.data]
-      | _ -> bad_match "28"
+      | _ -> bad_match "29"
   } in
   let goal = { goal with data = replace_at goal.data rule.path prin.data } in
   { goal ; prin }

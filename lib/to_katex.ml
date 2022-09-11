@@ -148,48 +148,48 @@ let wrap path doc =
 
 let rec formx_to_exp_ ~cx (path : path) f =
   match expose f with
-    | Atom a -> termx_to_exp_ ~cx a |> wrap path
-    | Eq (s, t, _) ->
-        let s = termx_to_exp_ ~cx s in
-        let t = termx_to_exp_ ~cx t in
-        Doc.(Appl (40, Infix (rep_eq, Non, [s ; t]))) |> wrap path
-    | And (a, b) ->
-        let a = formx_to_exp_ ~cx (Q.snoc path `l) a in
-        let b = formx_to_exp_ ~cx (Q.snoc path `r) b in
-        Doc.(Appl (30, Infix (rep_and, Right, [a ; b]))) |> wrap path
-    | Top -> Doc.(Atom rep_top) |> wrap path
-    | Or (a, b) ->
-        let a = formx_to_exp_ ~cx (Q.snoc path `l) a in
-        let b = formx_to_exp_ ~cx (Q.snoc path `r) b in
-        Doc.(Appl (20, Infix (rep_or, Right, [a ; b]))) |> wrap path
-    | Bot -> Doc.(Atom rep_bot) |> wrap path
-    | Imp (a, b) ->
-        let a = formx_to_exp_ ~cx (Q.snoc path `l) a in
-        let b = formx_to_exp_ ~cx (Q.snoc path `r) b in
-        Doc.(Appl (10, Infix (rep_imp, Right, [a ; b]))) |> wrap path
-    | Forall (vty, b) ->
-        with_var ~fresh:true cx vty begin fun vty cx ->
-          let b = formx_to_exp_ ~cx (Q.snoc path (`i vty.var)) b in
-          Doc.(Appl (5, Prefix (rep_forall vty, b))) |> wrap path
-        end
-    | Exists (vty, b) ->
-        with_var ~fresh:true cx vty begin fun vty cx ->
-          let b = formx_to_exp_ ~cx (Q.snoc path (`i vty.var)) b in
-          Doc.(Appl (5, Prefix (rep_exists vty, b))) |> wrap path
-        end
-    | Mdata (md, _, f) -> begin
-        let doc = formx_to_exp_ ~cx path f in
-        match md with
-          | T.App { head = Const ("src", _) ; _ } ->
-              Doc.(Wrap (Transparent,
-                         StringAs (0, "\\lnsrc{"),
-                         doc, StringAs (0, "}")))
-          | T.App { head = Const ("dest", _) ; _ } ->
-              Doc.(Wrap (Transparent,
-                         StringAs (0, "\\lndest{"),
-                         doc, StringAs (0, "}")))
-          | _ -> assert false
+  | Atom a -> termx_to_exp_ ~cx a |> wrap path
+  | Eq (s, t, _) ->
+      let s = termx_to_exp_ ~cx s in
+      let t = termx_to_exp_ ~cx t in
+      Doc.(Appl (40, Infix (rep_eq, Non, [s ; t]))) |> wrap path
+  | And (a, b) ->
+      let a = formx_to_exp_ ~cx (Q.snoc path `l) a in
+      let b = formx_to_exp_ ~cx (Q.snoc path `r) b in
+      Doc.(Appl (30, Infix (rep_and, Right, [a ; b]))) |> wrap path
+  | Top -> Doc.(Atom rep_top) |> wrap path
+  | Or (a, b) ->
+      let a = formx_to_exp_ ~cx (Q.snoc path `l) a in
+      let b = formx_to_exp_ ~cx (Q.snoc path `r) b in
+      Doc.(Appl (20, Infix (rep_or, Right, [a ; b]))) |> wrap path
+  | Bot -> Doc.(Atom rep_bot) |> wrap path
+  | Imp (a, b) ->
+      let a = formx_to_exp_ ~cx (Q.snoc path `l) a in
+      let b = formx_to_exp_ ~cx (Q.snoc path `r) b in
+      Doc.(Appl (10, Infix (rep_imp, Right, [a ; b]))) |> wrap path
+  | Forall (vty, b) ->
+      with_var ~fresh:true cx vty begin fun vty cx ->
+        let b = formx_to_exp_ ~cx (Q.snoc path (`i vty.var)) b in
+        Doc.(Appl (5, Prefix (rep_forall vty, b))) |> wrap path
       end
+  | Exists (vty, b) ->
+      with_var ~fresh:true cx vty begin fun vty cx ->
+        let b = formx_to_exp_ ~cx (Q.snoc path (`i vty.var)) b in
+        Doc.(Appl (5, Prefix (rep_exists vty, b))) |> wrap path
+      end
+  | Mdata (md, _, f) -> begin
+      let doc = formx_to_exp_ ~cx path f in
+      match md with
+      | T.App { head = Const ("src", _) ; _ } ->
+          Doc.(Wrap (Transparent,
+                     StringAs (0, "\\lnsrc{"),
+                     doc, StringAs (0, "}")))
+      | T.App { head = Const ("dest", _) ; _ } ->
+          Doc.(Wrap (Transparent,
+                     StringAs (0, "\\lndest{"),
+                     doc, StringAs (0, "}")))
+      | _ -> assert false
+    end
 
 let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx Q.empty fx.data
 let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_lin_doc out

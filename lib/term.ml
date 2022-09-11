@@ -58,6 +58,11 @@ and seq sub1 sub2 =
   | _, Dot (sub2, tm) ->
       Dot (seq sub1 sub2, sub_term sub1 tm)
 
+let shift n tm =
+  match n with
+  | 0 -> tm
+  | _ -> sub_term (Shift n) tm
+
 exception TypeError of string
 
 let type_error fmt =
@@ -121,6 +126,24 @@ and eq_spine spine1 spine2 =
   | (t1 :: spine1), (t2 :: spine2) ->
       eq_term t1 t2 && eq_spine spine1 spine2
   | _ -> false
+
+let rec is_subterm tin tout =
+  eq_term tin tout ||
+  match tout with
+  | Abs f ->
+      is_subterm (shift 1 tin) f.body
+  | App ap ->
+      List.exists (is_subterm tin) ap.spine
+
+let rec rewrite ~tfrom ~tto tm =
+  if eq_term tfrom tm then tto else
+  match tm with
+  | Abs f -> Abs { f with
+                   body = rewrite f.body
+                       ~tfrom:(shift 1 tfrom)
+                       ~tto:(shift 1 tto) }
+  | App ap -> App { ap with
+                    spine = List.map (rewrite ~tfrom ~tto) ap.spine }
 
 let rec term_to_exp ?(cx = empty) term =
   let open Doc in

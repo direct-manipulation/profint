@@ -48,6 +48,13 @@ let try_goal_init : dmanip = fun ~emit concl ->
       | Atom T.(App a), Atom T.(App b) when a.head = b.head ->
           ignore @@ emit { name = Init ; path = concl.cpath } ;
           Done
+      | Eq (s, t, _), _ ->
+          if Term.is_subterm s b then
+            ignore @@ emit { name = Rewrite `ltr ; path = concl.cpath }
+          else if Term.is_subterm t b then
+            ignore @@ emit { name = Rewrite `rtl ; path = concl.cpath }
+          else abort () ;
+          Done
       | _ -> abort ()
     end
   | _ -> abort ()

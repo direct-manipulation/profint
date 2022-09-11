@@ -92,16 +92,17 @@ r : i -> i -> \o.
         <h2>State your conjecture:</h2>
 
         <div class="embed-editor">
-          <pre id="signature">
-i : \type.
-f : i -> i.
-p : i -> \o.</pre>
+          <pre id="signature">i : \type.
+a, t : i -> i -> \o.</pre>
         </div>
 
         <hr>
 
         <div class="embed-editor">
-          <pre id="formula">(\A [x] p x => p (f x)) => \A [u] p u => p (f (f u))</pre>
+          <pre id="formula">(\A [x, y] t x y \or t y x) =>
+(\A [x, y] a x y => a y x => \eq x y) =>
+(\A [x, y] t x y => a x y) =>
+\A [x, y] a x y => t x y</pre>
         </div>
         <div style="margin:1vh auto;margin-left:2em;">
           <em>i.e.,</em> <span id="conjecture-output"></span>

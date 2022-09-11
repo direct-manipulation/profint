@@ -19,6 +19,7 @@ const katex_options = {
   trust: true,
   output: "html",
   strict: false,
+  displayMode: false,
   macros
 };
 
@@ -193,7 +194,9 @@ function renderFormula() {
   $("#output").html(function(){
     const expr = profint.getStateHTML();
     // console.log("render: " + expr);
-    return katex.renderToString(expr, katex_options);
+    const rend = katex.renderToString(expr, katex_options);
+    // console.log("render: " + rend);
+    return rend;
   });
   $("#output .enclosing[data-path]")
     .attr("draggable", true)
