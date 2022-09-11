@@ -19,7 +19,8 @@ const katex_options = {
   trust: true,
   output: "html",
   strict: false,
-  displayMode: false,
+  fleqn: true,
+  maxExpand: Infinity,
   macros
 };
 
