@@ -84,8 +84,8 @@ let run_qexch () =
     Cos.{ name = Goal_ts_ex ; path = Q.of_list [`d ; `d] } ;
     Cos.{ name = Goal_all_ts ; path = Q.of_list [`d ; `d ; `d] } ;
     Cos.{ name = Init ; path = Q.of_list [`d ; `d ; `d ; `d] } ;
-    Cos.{ name = Inst t0 ; path = Q.of_list [`d ; `d] } ;
-    Cos.{ name = Inst t1 ; path = Q.of_list [`d ; `d] } ;
+    Cos.{ name = Inst { side = `r ; term = t0 } ; path = Q.of_list [`d ; `d] } ;
+    Cos.{ name = Inst { side = `r ; term = t1 } ; path = Q.of_list [`d ; `d] } ;
   ] in
   compute_forms_simp qexch deriv
 

@@ -12,8 +12,6 @@ module YS = Yojson.Safe
 module M = Map.Make(String)
 module S = Set.Make(String)
 
-type mode = Lean3 | Lean4 | Coq | Coq_reflect
-
 let failwithf fmt = Format.kasprintf failwith fmt
 
 let bad_json () = failwithf "Bad JSON"
@@ -50,15 +48,6 @@ include struct
           Q.of_list @@ List.map parse_dir dirs
       | _ -> bad_json ()
     end
-  let parse_termx tx =
-    let (t, ty) = Uterm.ty_check empty tx in
-    let rec abs_to_cx cx t ty =
-      match t, ty with
-      | T.Abs { var ; body }, Arrow (vty, ty) ->
-          with_var cx { var ; ty = vty } (fun _ cx -> abs_to_cx cx body ty)
-      | _ -> { tycx = cx ; data = t }
-    in
-    abs_to_cx empty t ty
   let parse_bool copy =
     with_app copy begin fun k args ->
       match k, args with

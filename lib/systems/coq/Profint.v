@@ -164,11 +164,11 @@ Theorem weaken {a b : Prop} :
   b -> (a -> b).
 Proof. intuition. Qed.
 
-Theorem inst {T : Type} {p : T -> Prop} (t : T) :
+Theorem inst_r {T : Type} {p : T -> Prop} (t : T) :
   p t -> (exists x, p x).
 Proof. exists t. trivial. Qed.
 
-Theorem inst_all {T : Type} {p : T -> Prop} (t : T) :
+Theorem inst_l {T : Type} {p : T -> Prop} (t : T) :
   (forall x, p x) -> p t.
 Proof. intuition. Qed.
 

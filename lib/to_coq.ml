@@ -172,14 +172,16 @@ let pp_rule out goal rule =
             has_subproof := true
         | _ -> fail ()
       end
-    | Cos.Inst tx -> begin
+    | Cos.Inst { side ; term = tx } -> begin
         let fail () =
           unprintable @@ "inst: got " ^
                          pp_to_string Form4.pp_formx { tycx = cx ; data = f } in
-        match expose f with
-        | Exists ({ var ; ty }, b) ->
+        match side, expose f with
+        | `l, Forall ({ var ; ty }, b)
+        | `r, Exists ({ var ; ty }, b) ->
             with_var ~fresh:true cx { var ; ty } begin fun { var ; ty } cx ->
-              Format.fprintf out "inst (p := fun (%s : %a) => %a) (%a)"
+              Format.fprintf out "inst_%s (p := fun (%s : %a) => %a) (%a)"
+                (match side with  `l -> "l" | _ -> "r")
                 var pp_ty ty
                 pp_formx { tycx = cx ; data = b }
                 pp_termx tx
@@ -273,12 +275,12 @@ let files pf =
       ~sub:"(*PROOF*)\n" ~by:pf
   in [
     File { fname = "Proof.v" ;
-           contents = replace [%blob "systems/coq/Proof.v"] } ;
+           contents = replace [%blob "lib/systems/coq/Proof.v"] } ;
     File { fname = "Profint.v" ;
-           contents = [%blob "systems/coq/Profint.v"] } ;
+           contents = [%blob "lib/systems/coq/Profint.v"] } ;
     File { fname = "_CoqProject" ;
-           contents = [%blob "systems/coq/_CoqProject"] } ;
+           contents = [%blob "lib/systems/coq/_CoqProject"] } ;
     File { fname = "Makefile" ;
-           contents = [%blob "systems/coq/Makefile"] } ;
+           contents = [%blob "lib/systems/coq/Makefile"] } ;
   ]
 let build () = "make"

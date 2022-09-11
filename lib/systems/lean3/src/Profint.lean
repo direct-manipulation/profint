@@ -90,9 +90,9 @@ theorem contract : (a → a → b) → (a → b) :=
   fun f xa, f xa xa
 theorem weaken : b → (a → b) :=
   fun xb xa, xb
-theorem inst (t : T) : p t → (∃ x, p x) :=
+theorem inst_r (t : T) : p t → (∃ x, p x) :=
   exists.intro t
-theorem inst_all (t : T): (∀ x, p x) → p t :=
+theorem inst_l (t : T): (∀ x, p x) → p t :=
   fun f, f t
 theorem simp_imp_true : true → a → true :=
   fun _ _, true.intro

@@ -447,8 +447,9 @@ let compute_derivation goal msteps =
   let top = ref bottom in
   let emit rule =
     (* Format.eprintf "compute_derivation: rule = %a@." pp_rule rule ; *)
+    (* Format.eprintf "compute_derivation: goal = %a@." pp_formx !top ; *)
     let prem = compute_premise !top rule in
-    (* Format.eprintf "compute_derivation: goal = %a@." pp_formx prem.goal ; *)
+    (* Format.eprintf "compute_derivation: prem = %a@." pp_formx prem.goal ; *)
     middle := (prem.goal, rule, !top) :: !middle ;
     top := prem.goal ;
     prem
@@ -474,11 +475,11 @@ let compute_derivation goal msteps =
           ignore @@ emit { name = Contract ; path }
       | Weaken { path ; _ } ->
           ignore @@ emit { name = Weaken ; path }
-      | Inst { term ; path ; _ } ->
-          let (fx, _) = formx_at goal path in
+      | Inst { term ; path } ->
+          let (fx, side) = formx_at goal path in
           let (term, _) = Uterm.ty_check fx.tycx term in
           let term = term |@ fx in
-          let goal = (emit { name = Inst term ; path }).goal in
+          let goal = (emit { name = Inst { side ; term } ; path }).goal in
           recursive_simplify ~emit goal Q.empty `r
       | Link { src ; dest ; copy } -> begin
           let (cpath, lpath, rpath, dest_in) = analyze_link Q.empty src dest in

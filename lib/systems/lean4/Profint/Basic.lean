@@ -67,8 +67,8 @@ theorem asms_ex_r       : ((∃ x, p x) ∧ a) → ∃ x, (p x ∧ a)     := fun
 
 theorem contract        : (a → a → b) → (a → b)                 := fun f x => f x x
 theorem weaken          : b → (a → b)                           := fun x _ => x
-theorem inst t          : p t → (∃ x, p x)                      := fun f => Exists.intro t f
-theorem inst_all t      : (∀ x, p x) → p t                      := fun f => f t
+theorem inst_r t        : p t → (∃ x, p x)                      := fun f => Exists.intro t f
+theorem inst_l t        : (∀ x, p x) → p t                      := fun f => f t
 
 theorem simp_imp_true   : True → a → True                       := fun _ _ => True.intro
 theorem simp_true_imp_r : a → (True → a)                        := fun x _ => x
@@ -311,87 +311,10 @@ partial def mkWithinArg (path : Path) (pos : Nat) (rn : Term) (goal : Expr) : Ta
 
 elab "within " path:term,* " use " rn:term : tactic => do
   let path ← parsePath path
-  let goal := (← getMVarType (← getMainGoal))
+  let goal := (← Lean.MVarId.getType (← getMainGoal))
   let arg ← mkWithinArg path 0 rn goal
   evalTactic (← `(tactic| refine' $arg _))
 
 end Profint_paths
-
-section Example
-universe u
-variable {ι : Type u}
-variable {a : Prop}
-variable {b : Prop}
-variable {c : Prop}
-variable {f : ι → ι}
-variable {g : ι → ι → ι}
-variable {j : ι}
-variable {k : ι}
-variable {p : ι → Prop}
-variable {q : ι → Prop}
-variable {r : ι → ι → Prop}
-example (_ : True) : ((∃ (w : ι), ∀ (z : ι), r z w) → (∀ (x : ι), ∃ (y : ι), r x y)) := by
-  within  use goal_ts_all
-  /- ∀ (x : ι), (∃ (w : ι), ∀ (z : ι), r z w) → (∃ (y : ι), r x y) -/
-  within i x use goal_ex_ts
-  /- ∀ (x : ι), ∀ (w : ι), (∀ (z : ι), r z w) → (∃ (y : ι), r x y) -/
-  within i x,i w use goal_ts_ex
-  /- ∀ (x : ι), ∀ (w : ι), ∃ (y : ι), (∀ (z : ι), r z w) → r x y -/
-  within i x,i w,i y use goal_all_ts
-  /- ∀ (x : ι), ∀ (w : ι), ∃ (y : ι), ∃ (z : ι), r z w → r x y -/
-  within i x,i w,i y,i z use init
-  /- ∀ (x : ι), ∀ (w : ι), ∃ (y : ι), ∃ (z : ι), z = x ∧ w = y -/
-  within i x,i w,i y use inst (x)
-  /- ∀ (x : ι), ∀ (w : ι), ∃ (y : ι), x = x ∧ w = y -/
-  within d,d,d,l use congr
-  /- ∀ (x : ι), ∀ (w : ι), ∃ (y : ι), True ∧ w = y -/
-  within d,d,d use simp_and_true_r
-  /- ∀ (x : ι), ∀ (w : ι), ∃ (y : ι), w = y -/
-  within i x,i w use inst (w)
-  /- ∀ (x : ι), ∀ (w : ι), w = w -/
-  within d,d use congr
-  /- ∀ (x : ι), ∀ (w : ι), True -/
-  within d use simp_all_true
-  /- ∀ (x : ι), True -/
-  within  use simp_all_true
-  /- True -/
-  assumption
-end Example
-
-/- - /
-section Profint_examples
-
-universe u
-variable (T : Type u)
-variable (f : T → T)
-variable (a b c : Prop)
-variable (p q : T → Prop)
-
-def my_and (p q : Prop) : Prop := p ∧ q
-def my_imp (p q : Prop) : Prop := p → q
-
-example (k : T) : my_imp (p k) (p k) := by
-  within use init
-  exact True.intro
-
-example : my_imp (my_and a b) (my_and b a) := by
-  within      use contract
-  within r    use goal_ts_and_l
-  within r, l use goal_and_ts_r
-  within r, l use init
-  within r    use simp_and_true_r
-  within      use goal_and_ts_l
-  within      use init
-  exact True.intro
-
-example {j : T} : p (f j) → ∃ (x : T), p x := by
-  within   use goal_ts_ex
-  within d use init
-  within   use inst (f j)
-  within   use congr
-  exact True.intro
-
-end Profint_examples
-/ - -/
 
 end Profint

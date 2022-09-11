@@ -130,6 +130,14 @@
   },
   {
     "sig": [ "i : \\type.",
+             "j : i.",
+             "p : i -> \\o.",
+             "a : \\o." ],
+    "goal": "(\\A [x] p x) \\to \\top",
+    "msteps": [ "I (go l) j" ]
+  },
+  {
+    "sig": [ "i : \\type.",
              "f : i -> i.",
              "p : i -> \\o.",
              "a : \\o." ],

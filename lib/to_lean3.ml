@@ -98,11 +98,12 @@ let pp_sigma out sg =
   Format.fprintf out "universe u@." ;
   IdSet.iter begin fun i ->
     if IdSet.mem i sigma0.basics then () else
-      Format.fprintf out "variable {%s : Type u}@." i
+      Format.fprintf out "variable {%s : Type u}@.include %s@." i i
   end sg.basics ;
   IdMap.iter begin fun k ty ->
     if IdMap.mem k sigma0.consts then () else
-      Format.fprintf out "variable {%s : %s}@." k (ty_to_string @@ thaw_ty ty)
+      Format.fprintf out "variable {%s : %s}@.include %s@."
+        k (ty_to_string @@ thaw_ty ty) k
   end sg.consts
 
 exception Unprintable
@@ -141,19 +142,19 @@ let make_lemma (target : formx) (eqs : (T.term * T.term * ty) list) : string =
 
 let pp_rule out (prem, rule, goal) =
   let has_subproof = ref false in
-  let pp_rule cx f name =
+  let pp_rule cx fc fp name =
     match name with
     | Cos.Init -> begin
         let fail () =
           unprintable @@ "init: got " ^
-                         pp_to_string Form4.pp_formx { tycx = cx ; data = f } in
-        match expose f with
+                         pp_to_string Form4.pp_formx { tycx = cx ; data = fc } in
+        match expose fc with
         | Imp (a, b) -> begin
             match expose a, expose b with
             | Atom T.(App { head = Const (_, ty) ; spine = ss }),
               Atom T.(App { spine = ts ; _ }) ->
                 make_eqns (ty_norm ty) ss ts |>
-                make_lemma { tycx = cx ; data = f } |>
+                make_lemma { tycx = cx ; data = fc } |>
                 Format.fprintf out "(_ : %s)" ;
                 has_subproof := true
             | _ -> fail ()
@@ -163,24 +164,29 @@ let pp_rule out (prem, rule, goal) =
     | Cos.Congr -> begin
         let fail () =
           unprintable @@ "congr: got " ^
-                         pp_to_string Form4.pp_formx { tycx = cx ; data = f } in
-        match expose f with
+                         pp_to_string Form4.pp_formx { tycx = cx ; data = fc } in
+        match expose fc with
         | Eq (T.(App { spine = ss ; head }), T.(App { spine = ts ; _ }), _) ->
             let ty = ty_norm @@ ty_infer cx head in
             make_eqns ty ss ts |>
-            make_lemma { tycx = cx ; data = f } |>
+            make_lemma { tycx = cx ; data = fc } |>
             Format.fprintf out "(_ : %s)" ;
             has_subproof := true
         | _ -> fail ()
       end
-    | Cos.Inst tx -> begin
+    | Cos.Inst { side ; term = tx } -> begin
+        let f = if side = `l then fp else fc in
         let fail () =
-          unprintable @@ "inst: got " ^
-                         pp_to_string Form4.pp_formx { tycx = cx ; data = f } in
+          Format.kasprintf unprintable
+            "inst_%s: got %a"
+            (match side with `l -> "l" | _ -> "r")
+            Form4.pp_formx { tycx = cx ; data = f } in
         match expose f with
+        | Forall ({ var ; ty }, b)
         | Exists ({ var ; ty }, b) ->
             with_var ~fresh:true cx { var ; ty } begin fun { var ; ty } cx ->
-              Format.fprintf out "@inst %a (fun (%s : %a), %a) (%a)"
+              Format.fprintf out "@@inst_%s %a (fun (%s : %a), %a) (%a)"
+                (match side with `l -> "l" | _ -> "r")
                 pp_ty ty
                 var pp_ty ty
                 pp_formx { tycx = cx ; data = b }
@@ -193,7 +199,7 @@ let pp_rule out (prem, rule, goal) =
   let rec pp_path n cx goal prem path =
     match Q.take_front path with
     | None ->
-        pp_rule cx goal rule.Cos.name ;
+        pp_rule cx goal prem rule.Cos.name ;
         Format.fprintf out "%s _,@." @@ String.make n (Char.chr 41) ;
         if !has_subproof then begin
           Format.fprintf out "  { profint_discharge },@." ;
@@ -300,16 +306,16 @@ let files pf =
       ~sub:"/-PROOF-/\n" ~by:pf
   in [
     File { fname = "lean-toolchain" ;
-           contents = [%blob "systems/lean3/lean-toolchain"] } ;
+           contents = [%blob "lib/systems/lean3/lean-toolchain"] } ;
     File { fname = "leanpkg.toml" ;
-           contents = [%blob "systems/lean3/leanpkg.toml"] } ;
+           contents = [%blob "lib/systems/lean3/leanpkg.toml"] } ;
     Dir {
       dname = "src" ;
       contents = [
         File { fname = "Proof.lean" ;
-               contents = replace [%blob "systems/lean3/src/Proof.lean"] } ;
+               contents = replace [%blob "lib/systems/lean3/src/Proof.lean"] } ;
         File { fname = "Profint.lean" ;
-               contents = [%blob "systems/lean3/src/Profint.lean"] } ;
+               contents = [%blob "lib/systems/lean3/src/Profint.lean"] } ;
       ] } ;
   ]
 let build () = "leanpkg build"

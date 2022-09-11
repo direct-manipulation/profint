@@ -282,8 +282,8 @@ Inductive rule_name : Type :=
 | RN_asms_ex_r                   (* ((exists x, p x) /\ a) -> exists x, (p x /\ a) *)
 | RN_contract                    (* (a -> a -> b) -> (a -> b) *)
 | RN_weaken                      (* b -> (a -> b) *)
-| RN_inst {T : Type} (t : T)     (* p t -> (exists x, p x) *)
-| RN_inst_all {T : Type} (t : T) (* (forall x, p x) -> p t *)
+| RN_inst_r {T : Type} (t : T)   (* p t -> (exists x, p x) *)
+| RN_inst_l {T : Type} (t : T)   (* (forall x, p x) -> p t *)
 | RN_simp_imp_true               (* True -> a -> True *)
 | RN_simp_true_imp_r             (* a -> (True -> a) *)
 | RN_simp_true_imp_l             (* (True -> a) -> a *)
@@ -467,15 +467,15 @@ Fixpoint check (deriv : deriv) (goal : Prop) : Prop :=
           exists T rcx a b,
           resolve_r T goal path rcx (a → b)
           /\ check deriv (rcx[[ b ]])
-      | @RN_inst U tx =>
+      | RN_inst_r tx =>
           (* p t -> (exists x, p x) *)
-          exists T rcx a (t : T ▷ U),
+          exists T rcx U a (t : T ▷ U),
           resolve_r T goal path rcx (∃ (x : U), a x)
           /\ tx ~= t
           /\ check deriv (rcx[[ a ◆ t ]])
-      | @RN_inst_all U tx =>
+      | RN_inst_l tx =>
           (* (forall x, p x) -> p t *)
-          exists T lcx a (t : T ▷ U),
+          exists T lcx U a (t : T ▷ U),
           resolve_l T goal path lcx (∀ (x : U), a x)
           /\ tx ~= t
           /\ check deriv (lcx{{ a ◆ t }})

@@ -35,8 +35,9 @@ let pp_rule out goal rule =
             Format.fprintf out "RN_congr"
         | _ -> fail ()
       end
-    | Cos.Inst tx -> begin
-        Format.fprintf out "RN_inst (" ;
+    | Cos.Inst { side ; term = tx } -> begin
+        Format.fprintf out "RN_inst_%s ("
+          (match side with `l -> "l" | _ -> "r") ;
         List.rev tx.tycx.linear |>
         List.iter begin fun vty ->
           Format.fprintf out "fun (%s : %a) => " vty.var pp_ty vty.ty
@@ -118,12 +119,12 @@ let files pf =
       ~sub:"(*PROOF*)\n" ~by:pf
   in [
     File { fname = "Proof.v" ;
-           contents = replace [%blob "systems/coq_reflect/Proof.v"] } ;
+           contents = replace [%blob "lib/systems/coq_reflect/Proof.v"] } ;
     File { fname = "Profint.v" ;
-           contents = [%blob "systems/coq_reflect/Profint.v"] } ;
+           contents = [%blob "lib/systems/coq_reflect/Profint.v"] } ;
     File { fname = "_CoqProject" ;
-           contents = [%blob "systems/coq_reflect/_CoqProject"] } ;
+           contents = [%blob "lib/systems/coq_reflect/_CoqProject"] } ;
     File { fname = "Makefile" ;
-           contents = [%blob "systems/coq_reflect/Makefile"] } ;
+           contents = [%blob "lib/systems/coq_reflect/Makefile"] } ;
   ]
 let build () = "make"

@@ -120,7 +120,10 @@ let pp_path out path =
 
 let pp_rule_name out rn =
   match rn with
-  | Cos.Inst tx -> Format.fprintf out "inst (%a)" pp_termx tx
+  | Cos.Inst { side ; term = tx } ->
+      Format.fprintf out "inst_%s (%a)"
+        (match side with `r -> "r" | _ -> "l")
+        pp_termx tx
   | _ -> Cos.pp_rule_name out rn
 
 let pp_deriv out (sg, deriv) =
@@ -154,18 +157,18 @@ let files pf =
       ~sub:"/-PROOF-/\n" ~by:pf
   in [
     File { fname = "lakefile.lean" ;
-           contents = [%blob "systems/lean4/lakefile.lean"] } ;
+           contents = [%blob "lib/systems/lean4/lakefile.lean"] } ;
     File { fname = "lean-toolchain" ;
-           contents = [%blob "systems/lean4/lean-toolchain"] } ;
+           contents = [%blob "lib/systems/lean4/lean-toolchain"] } ;
     Dir {
       dname = "Profint" ;
       contents = [
         File { fname = "Basic.lean" ;
-               contents = [%blob "systems/lean4/Profint/Basic.lean"] } ;
+               contents = [%blob "lib/systems/lean4/Profint/Basic.lean"] } ;
       ] } ;
     File { fname = "Profint.lean" ;
-           contents = [%blob "systems/lean4/Profint.lean"] } ;
+           contents = [%blob "lib/systems/lean4/Profint.lean"] } ;
     File { fname = "Proof.lean" ;
-           contents = replace [%blob "systems/lean4/Proof.lean"] } ;
+           contents = replace [%blob "lib/systems/lean4/Proof.lean"] } ;
   ]
 let build () = "lake build"

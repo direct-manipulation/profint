@@ -41,7 +41,7 @@ type rule_name =
   | Congr
   | Contract
   | Weaken
-  | Inst of term incx
+  | Inst of { side : side ; term : term incx }
 
 and rule = {
   name : rule_name ;
@@ -113,8 +113,10 @@ let pp_rule_name out rn =
       Format.fprintf out "contract"
   | Weaken ->
       Format.fprintf out "weaken"
-  | Inst tx ->
-      Format.fprintf out "inst[@[%a@]]" (Term.pp_term ~cx:tx.tycx) tx.data
+  | Inst { side ; term = tx } ->
+      Format.fprintf out "inst_%s[@[%a@]]"
+        (side_to_string side)
+        (Term.pp_term ~cx:tx.tycx) tx.data
 
 let rec pp_path_list out path =
   match path with
@@ -365,7 +367,8 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
           mk_imp a (mk_imp a b)
       | `r, Imp (_, b), Weaken ->
           b
-      | `r, Exists (vty, b), Inst wtx ->
+      | `l, Forall (vty, b), Inst { side = `l ; term = wtx }
+      | `r, Exists (vty, b), Inst { side = `r ; term = wtx } ->
           Term.ty_check prin.tycx wtx.data vty.ty ;
           Term.do_app (Abs {var = vty.var ; body = b}) [wtx.data]
       | _ -> bad_match "28"

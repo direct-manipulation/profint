@@ -1,8 +1,8 @@
-(lang dune 2.7)
+(lang dune 3.0)
 
 (name profint)
 
-(version 0.8.1)
+(version 0.9.2)
 
 (license Apache-2.0)
 

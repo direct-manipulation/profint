@@ -1,7 +1,9 @@
 (library
   (name profint)
+  (public_name profint.lib)
   (libraries containers-data)
   (preprocess (pps ppx_blob))
+  (preprocessor_deps (glob_files_rec systems/**))
 )
 
 (menhir

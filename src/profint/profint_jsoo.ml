@@ -224,6 +224,7 @@ let profint_object =
       try
         let ex, side = F.Paths.formx_at state.goal.fx @@ to_trail src in
         match F.expose ex.data, side with
+        | F.Forall ({ var ; ty }, _), `l
         | F.Exists ({ var ; ty }, _), `r ->
             Types.with_var ~fresh:true ex.tycx { var ; ty } begin fun { var ; _ } _ ->
               Js.some @@ Js.string var
@@ -243,6 +244,7 @@ let profint_object =
         let (ex, side) = F.Paths.formx_at state.goal.fx path in
         let term = Uterm.thing_of_string Proprs.one_term @@ Js.to_string text in
         match F.expose ex.data, side with
+        | F.Forall _, `l
         | F.Exists _, `r ->
             state.goal <- { state.goal with mstep = F.Inst { path ; term } } ;
             let deriv = compute_derivation state.goal in
