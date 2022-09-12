@@ -3,7 +3,7 @@ Import ListNotations.
 
 Inductive side : Type := Pos | Neg.
 
-Definition flip (side : side) :=
+Definition flip side :=
   match side with Pos => Neg | _ => Pos end.
 
 Polymorphic Inductive ctx : side -> list Type -> Type :=
@@ -17,7 +17,7 @@ Polymorphic Inductive ctx : side -> list Type -> Type :=
 | AllD A side Ts : (A -> ctx side Ts) -> ctx side (A :: Ts)
 | ExD A side Ts  : (A -> ctx side Ts) -> ctx side (A :: Ts).
 
-Reserved Notation "Cx [[ P ]]" (at level 1, format "'[ ' Cx [[  P  ]] ']'").
+Reserved Notation "Cx '{{' P '}}'" (at level 1, format "'[ ' Cx '{{'  P  '}}' ']'").
 
 Fixpoint ho_absract (Ts : list Type) (U : Type) :=
   match Ts return Type with
@@ -26,19 +26,19 @@ Fixpoint ho_absract (Ts : list Type) (U : Type) :=
   end.
 Notation "Ts ▷ U" := (ho_absract Ts U) (at level 100, right associativity).
 
-Fixpoint ctx_place side Ts (ctx : ctx side Ts) {struct ctx} : (Ts ▷ Prop) -> Prop :=
+Fixpoint ctx_place side Ts (ctx : ctx side Ts) := (* {struct ctx} : (Ts ▷ Prop) -> Prop := *)
   match ctx in (ctx _ Us) return (Us ▷ Prop) -> Prop with
   | Hole => fun p => p
-  | AndL _ _ ctx q => fun p => ctx[[ p ]] /\ q
-  | AndR _ _ q ctx => fun p => q /\ ctx[[ p ]]
-  | OrL _ _ ctx q => fun p => ctx[[ p ]] \/ q
-  | OrR _ _ q ctx => fun p => q \/ ctx[[ p ]]
-  | ImpL _ _ ctx q => fun p => ctx[[ p ]] -> q
-  | ImpR _ _ q ctx => fun p => q -> ctx[[ p ]]
-  | AllD A _ _ ctx => fun p => forall (x : A), (ctx x)[[ p x ]]
-  | ExD A _ _ ctx => fun p => exists (x : A), (ctx x)[[ p x ]]
+  | AndL _ _ ctx q => fun p => ctx{{ p }} /\ q
+  | AndR _ _ q ctx => fun p => q /\ ctx{{ p }}
+  | OrL _ _ ctx q => fun p => ctx{{ p }} \/ q
+  | OrR _ _ q ctx => fun p => q \/ ctx{{ p }}
+  | ImpL _ _ ctx q => fun p => ctx{{ p }} -> q
+  | ImpR _ _ q ctx => fun p => q -> ctx{{ p }}
+  | AllD A _ _ ctx => fun p => forall (x : A), (ctx x){{ p x }}
+  | ExD A _ _ ctx => fun p => exists (x : A), (ctx x){{ p x }}
   end
-where "Cx [[ P ]]" := (@ctx_place _ _ Cx P) : type_scope.
+where "Cx {{ P }}" := (@ctx_place _ _ Cx P).
 
 Fixpoint ho_impl (Ts : list Type) : (Ts ▷ Prop) -> (Ts ▷ Prop) -> (Ts ▷ Prop) :=
   match Ts with
@@ -123,8 +123,8 @@ Import HONotations.
 Theorem
   placement side Ts (R : ctx side Ts) (p q : Ts ▷ Prop) :
     match side with
-    | Pos => (p ⊢ q) -> R[[ p ]] -> R[[ q ]]
-    | Neg => (p ⊢ q) -> R[[ q ]] -> R[[ p ]]
+    | Pos => (p ⊢ q) -> R{{ p }} -> R{{ q }}
+    | Neg => (p ⊢ q) -> R{{ q }} -> R{{ p }}
     end.
 Proof.
   induction R ; try destruct side0 ; intros Hpq Hin ;
@@ -151,40 +151,40 @@ Require Import List.
 
 Definition path := list nat.
 
-Inductive resolve : forall side Ts, Prop -> path -> ctx side Ts -> (Ts ▷ Prop) -> Prop :=
+Inductive resolve : Prop -> path -> forall side Ts, ctx side Ts -> (Ts ▷ Prop) -> Prop :=
 | AtHere a :
-    resolve Pos _ a nil Hole a
+    resolve a nil Pos nil Hole a
 | And1 side Ts path ctx a b f :
-    resolve side Ts a path ctx f ->
-    resolve side Ts (a /\ b) (0 :: path) (@AndL side Ts ctx b) f
+    resolve a path side Ts ctx f ->
+    resolve (a /\ b) (0 :: path) side Ts (@AndL side Ts ctx b) f
 | And2 side Ts path ctx a b f :
-    resolve side Ts b path ctx f ->
-    resolve side Ts (a /\ b) (1 :: path) (@AndR side Ts a ctx) f
+    resolve b path side Ts ctx f ->
+    resolve (a /\ b) (1 :: path) side Ts (@AndR side Ts a ctx) f
 | Or1 side Ts path ctx a b f :
-    resolve side Ts a path ctx f ->
-    resolve side Ts (a \/ b) (0 :: path) (@OrL side Ts ctx b) f
+    resolve a path side Ts ctx f ->
+    resolve (a \/ b) (0 :: path) side Ts (@OrL side Ts ctx b) f
 | Or2 side Ts path ctx a b f :
-    resolve side Ts b path ctx f ->
-    resolve side Ts (a \/ b) (1 :: path) (@OrR side Ts a ctx) f
+    resolve b path side Ts ctx f ->
+    resolve (a \/ b) (1 :: path) side Ts (@OrR side Ts a ctx) f
 | Imp1 side Ts path ctx (a b : Prop) f :
-    resolve (flip side) Ts a path ctx f ->
-    resolve side Ts (a -> b) (0 :: path) (@ImpL side Ts ctx b) f
+    resolve a path (flip side) Ts ctx f ->
+    resolve (a -> b) (0 :: path) side Ts (@ImpL side Ts ctx b) f
 | Imp2 side Ts path ctx (a b : Prop) f :
-    resolve side Ts b path ctx f ->
-    resolve side Ts (a -> b) (1 :: path) (@ImpR side Ts a ctx) f
+    resolve b path side Ts ctx f ->
+    resolve (a -> b) (1 :: path) side Ts (@ImpR side Ts a ctx) f
 | All0 A side Ts path ctx a f :
-    (forall x, resolve side Ts (a x) path (ctx x) (f x)) ->
-    resolve side (A :: Ts) (forall x, a x) (0 :: path) (@AllD A side Ts ctx) f
+    (forall x, resolve (a x) path side Ts (ctx x) (f x)) ->
+    resolve (forall x, a x) (0 :: path) side (A :: Ts) (@AllD A side Ts ctx) f
 | Ex0 A side Ts path ctx a f :
-    (forall x, resolve side Ts (a x) path (ctx x) (f x)) ->
-    resolve side (A :: Ts) (exists x, a x) (0 :: path) (@ExD A side Ts ctx) f
+    (forall x, resolve(a x) path side Ts  (ctx x) (f x)) ->
+    resolve (exists x, a x) (0 :: path) side (A :: Ts) (@ExD A side Ts ctx) f
 .
 
 Require Import Relation_Definitions Setoid.
 Require Import Coq.Program.Equality.
 
-Lemma resolve_place side Ts (rp : path) (ctx : ctx side Ts) (a : Prop) (f : Ts ▷ Prop) :
-  resolve side Ts a rp ctx f -> ctx[[ f ]] <-> a.
+Lemma resolve_place A path side Ts Cx F :
+  resolve A path side Ts Cx F -> Cx{{F}} <-> A.
 Proof.
   induction 1 ; cbn ;
   try match goal with
@@ -257,230 +257,230 @@ Fixpoint check (deriv : deriv) (goal : Prop) : Prop :=
       match rule with
       | RN_goal_ts_and_l =>
           exists Ts rcx a b c,
-          resolve Pos Ts goal path rcx (a → (b ∧ c))
-          /\ check deriv (rcx[[ (a → b) ∧ c ]])
+          resolve goal path Pos Ts rcx (a → (b ∧ c))
+          /\ check deriv (rcx{{ (a → b) ∧ c }})
       | RN_goal_ts_and_r =>
           (* (c /\ (a -> b)) -> (a -> (c /\ b)) *)
           exists Ts rcx a b c,
-          resolve Pos Ts goal path rcx (a → (c ∧ b))
-          /\ check deriv (rcx[[ c ∧ (a → b) ]])
+          resolve goal path Pos Ts rcx (a → (c ∧ b))
+          /\ check deriv (rcx{{ c ∧ (a → b) }})
       | RN_goal_and_ts_l =>
           (* (a -> b) -> (a /\ c -> b) *)
           exists Ts rcx a b c,
-          resolve Pos Ts goal path rcx ((a ∧ c) → b)
-          /\ check deriv (rcx[[ a → b ]])
+          resolve goal path Pos Ts rcx ((a ∧ c) → b)
+          /\ check deriv (rcx{{ a → b }})
       | RN_goal_and_ts_r =>
           (* (a -> b) -> (c /\ a -> b) *)
           exists Ts rcx a b c,
-          resolve Pos Ts goal path rcx ((c ∧ a) → b)
-          /\ check deriv (rcx[[ a → b ]])
+          resolve goal path Pos Ts rcx ((c ∧ a) → b)
+          /\ check deriv (rcx{{ a → b }})
       | RN_goal_ts_or_l =>
           (* (a -> b) -> (a -> b \/ c) *)
           exists Ts rcx a b c,
-          resolve Pos Ts goal path rcx (a → (b ∨ c))
-          /\ check deriv (rcx[[ a → b ]])
+          resolve goal path Pos Ts rcx (a → (b ∨ c))
+          /\ check deriv (rcx{{ a → b }})
       | RN_goal_ts_or_r =>
           (* (a -> b) -> (a -> c \/ b) *)
           exists Ts rcx a b c,
-          resolve Pos Ts goal path rcx (a → (c ∨ b))
-          /\ check deriv (rcx[[ a → b ]])
+          resolve goal path Pos Ts rcx (a → (c ∨ b))
+          /\ check deriv (rcx{{ a → b }})
       | RN_goal_or_ts =>
           (* ((a -> c) /\ (b -> c)) -> (a \/ b -> c) *)
           exists Ts rcx a b c,
-          resolve Pos Ts goal path rcx ((a ∨ b) → c)
-          /\ check deriv (rcx[[ (a → c) ∧ (b → c) ]])
+          resolve goal path Pos Ts rcx ((a ∨ b) → c)
+          /\ check deriv (rcx{{ (a → c) ∧ (b → c) }})
       | RN_goal_ts_imp_l =>
           (* (a /\ b -> c) -> (a -> b -> c) *)
           exists Ts rcx a b c,
-          resolve Pos Ts goal path rcx (a → b → c)
-          /\ check deriv (rcx[[ (a ∧ b) → c ]])
+          resolve goal path Pos Ts rcx (a → b → c)
+          /\ check deriv (rcx{{ (a ∧ b) → c }})
       | RN_goal_ts_imp_r =>
           (* (c -> a -> b) -> (a -> c -> b) *)
           exists Ts rcx a b c,
-          resolve Pos Ts goal path rcx (a → (c → b))
-          /\ check deriv (rcx[[ c → (a → b) ]])
+          resolve goal path Pos Ts rcx (a → (c → b))
+          /\ check deriv (rcx{{ c → (a → b) }})
       | RN_goal_imp_ts =>
           (* (c /\ (a -> b)) -> ((c -> a) -> b) *)
           exists Ts rcx a b c,
-          resolve Pos Ts goal path rcx ((c → a) → b)
-          /\ check deriv (rcx[[ c ∧ (a → b) ]])
+          resolve goal path Pos Ts rcx ((c → a) → b)
+          /\ check deriv (rcx{{ c ∧ (a → b) }})
       | RN_goal_ts_all =>
           (* (forall x, a -> p x) -> (a -> forall x, p x) *)
           exists Ts U rcx a p,
-          resolve Pos Ts goal path rcx (a → (∀ (x : U), p x))
-          /\ check deriv (rcx[[ ∀ (x : U), (a → p x) ]])
+          resolve goal path Pos Ts rcx (a → (∀ (x : U), p x))
+          /\ check deriv (rcx{{ ∀ (x : U), (a → p x) }})
       | RN_goal_all_ts =>
           (* (exists x, p x -> b) -> (forall x, p x) -> b *)
           exists Ts U rcx b p,
-          resolve Pos Ts goal path rcx ((∀ (x : U), p x) → b)
-          /\ check deriv (rcx[[ ∃ (x : U), (p x → b) ]])
+          resolve goal path Pos Ts rcx ((∀ (x : U), p x) → b)
+          /\ check deriv (rcx{{ ∃ (x : U), (p x → b) }})
       | RN_goal_ts_ex =>
           (* (exists x, a -> p x) -> (a -> exists x, p x) *)
           exists Ts U rcx a p,
-          resolve Pos Ts goal path rcx (a → (∃ (x : U), p x))
-          /\ check deriv (rcx[[ ∃ (x : U), (a → p x) ]])
+          resolve goal path Pos Ts rcx (a → (∃ (x : U), p x))
+          /\ check deriv (rcx{{ ∃ (x : U), (a → p x) }})
       | RN_goal_ex_ts =>
           (* (forall x, p x -> a) -> (exists x, p x) -> a *)
           exists Ts U rcx b p,
-          resolve Pos Ts goal path rcx ((∃ (x : U), p x) → b)
-          /\ check deriv (rcx[[ ∀ (x : U), (p x → b) ]])
+          resolve goal path Pos Ts rcx ((∃ (x : U), p x) → b)
+          /\ check deriv (rcx{{ ∀ (x : U), (p x → b) }})
       | RN_asms_and_l_l =>
           (* (a /\ (b /\ c)) -> (a /\ b) *)
           exists Ts ctx a b c,
-          resolve Neg Ts goal path ctx (a ∧ (b ∧ c))
-          /\ check deriv (ctx[[ a ∧ b ]])
+          resolve goal path Neg Ts ctx (a ∧ (b ∧ c))
+          /\ check deriv (ctx{{ a ∧ b }})
       | RN_asms_and_l_r =>
           (* (a /\ (c /\ b)) -> (a /\ b) *)
           exists Ts ctx a b c,
-          resolve Neg Ts goal path ctx (a ∧ (c ∧ b))
-          /\ check deriv (ctx[[ a ∧ b ]])
+          resolve goal path Neg Ts ctx (a ∧ (c ∧ b))
+          /\ check deriv (ctx{{ a ∧ b }})
       | RN_asms_and_r_l =>
           (* ((a /\ c) /\ b) -> (a /\ b) *)
           exists Ts ctx a b c,
-          resolve Neg Ts goal path ctx ((a ∧ c) ∧ b)
-          /\ check deriv (ctx[[ a ∧ b ]])
+          resolve goal path Neg Ts ctx ((a ∧ c) ∧ b)
+          /\ check deriv (ctx{{ a ∧ b }})
       | RN_asms_and_r_r =>
           (* ((c /\ a) /\ b) -> (a /\ b) *)
           exists Ts ctx a b c,
-          resolve Neg Ts goal path ctx ((c ∧ a) ∧ b)
-          /\ check deriv (ctx[[ a ∧ b ]])
+          resolve goal path Neg Ts ctx ((c ∧ a) ∧ b)
+          /\ check deriv (ctx{{ a ∧ b }})
       | RN_asms_or_l_l =>
           (* (a /\ (b \/ c)) -> ((a /\ b) \/ c) *)
           exists Ts ctx a b c,
-          resolve Neg Ts goal path ctx (a ∧ (b ∨ c))
-          /\ check deriv (ctx[[ (a ∧ b) ∨ c ]])
+          resolve goal path Neg Ts ctx (a ∧ (b ∨ c))
+          /\ check deriv (ctx{{ (a ∧ b) ∨ c }})
       | RN_asms_or_l_r =>
           (* (a /\ (c \/ b)) -> (c \/ (a /\ b)) *)
           exists Ts ctx a b c,
-          resolve Neg Ts goal path ctx (a ∧ (c ∨ b))
-          /\ check deriv (ctx[[ c ∨ (a ∧ b) ]])
+          resolve goal path Neg Ts ctx (a ∧ (c ∨ b))
+          /\ check deriv (ctx{{ c ∨ (a ∧ b) }})
       | RN_asms_or_r_l =>
           (* ((a \/ c) /\ b) -> ((a /\ b) \/ c) *)
           exists Ts ctx a b c,
-          resolve Neg Ts goal path ctx ((a ∨ c) ∧ b)
-          /\ check deriv (ctx[[ (a ∧ b) ∨ c ]])
+          resolve goal path Neg Ts ctx ((a ∨ c) ∧ b)
+          /\ check deriv (ctx{{ (a ∧ b) ∨ c }})
       | RN_asms_or_r_r =>
           (* ((c \/ a) /\ b) -> (c \/ (a /\ b)) *)
           exists Ts ctx a b c,
-          resolve Neg Ts goal path ctx ((c ∨ a) ∧ b)
-          /\ check deriv (ctx[[ c ∨ (a ∧ b) ]])
+          resolve goal path Neg Ts ctx ((c ∨ a) ∧ b)
+          /\ check deriv (ctx{{ c ∨ (a ∧ b) }})
       | RN_asms_imp_l_l =>
           (* (a /\ (b -> c)) -> ((a -> b) -> c) *)
           exists Ts ctx a b c,
-          resolve Neg Ts goal path ctx (a ∧ (b → c))
-          /\ check deriv (ctx[[ (a → b) → c ]])
+          resolve goal path Neg Ts ctx (a ∧ (b → c))
+          /\ check deriv (ctx{{ (a → b) → c }})
       | RN_asms_imp_l_r =>
           (* (a /\ (c -> b)) -> (c -> (a /\ b)) *)
           exists Ts ctx a b c,
-          resolve Neg Ts goal path ctx (a ∧ (c → b))
-          /\ check deriv (ctx[[ c → (a ∧ b) ]])
+          resolve goal path Neg Ts ctx (a ∧ (c → b))
+          /\ check deriv (ctx{{ c → (a ∧ b) }})
       | RN_asms_imp_r_l =>
           (* ((a -> c) /\ b) -> ((b -> a) -> c) *)
           exists Ts ctx a b c,
-          resolve Neg Ts goal path ctx ((a → c) ∧ b)
-          /\ check deriv (ctx[[ (b → a) → c ]])
+          resolve goal path Neg Ts ctx ((a → c) ∧ b)
+          /\ check deriv (ctx{{ (b → a) → c }})
       | RN_asms_imp_r_r =>
           (* ((c -> a) /\ b) -> (c -> (a /\ b)) *)
           exists Ts ctx a b c,
-          resolve Neg Ts goal path ctx ((c → a) ∧ b)
-          /\ check deriv (ctx[[ c → (a ∧ b) ]])
+          resolve goal path Neg Ts ctx ((c → a) ∧ b)
+          /\ check deriv (ctx{{ c → (a ∧ b) }})
       | RN_asms_all_l =>
           (* (a /\ forall x, p x) -> forall x, (a /\ p x) *)
           exists Ts U ctx a p,
-          resolve Neg Ts goal path ctx (a ∧ (∀ (x : U), p x))
-          /\ check deriv (ctx[[ ∀ (x : U), (a ∧ p x) ]])
+          resolve goal path Neg Ts ctx (a ∧ (∀ (x : U), p x))
+          /\ check deriv (ctx{{ ∀ (x : U), (a ∧ p x) }})
       | RN_asms_all_r =>
           (* ((forall x, p x) /\ a) -> forall x, (p x /\ a) *)
           exists Ts U ctx a p,
-          resolve Neg Ts goal path ctx ((∀ (x : U), p x) ∧ a)
-          /\ check deriv (ctx[[ ∀ (x : U), (p x ∧ a) ]])
+          resolve goal path Neg Ts ctx ((∀ (x : U), p x) ∧ a)
+          /\ check deriv (ctx{{ ∀ (x : U), (p x ∧ a) }})
       | RN_asms_ex_l =>
           (* (a /\ exists x, p x) -> exists x, (a /\ p x) *)
           exists Ts U ctx a p,
-          resolve Neg Ts goal path ctx (a ∧ (∃ (x : U), p x))
-          /\ check deriv (ctx[[ ∃ (x : U), (a ∧ p x) ]])
+          resolve goal path Neg Ts ctx (a ∧ (∃ (x : U), p x))
+          /\ check deriv (ctx{{ ∃ (x : U), (a ∧ p x) }})
       | RN_asms_ex_r =>
           (* ((exists x, p x) /\ a) -> exists x, (p x /\ a) *)
           exists Ts U ctx a p,
-          resolve Neg Ts goal path ctx ((∃ (x : U), p x) ∧ a)
-          /\ check deriv (ctx[[ ∃ (x : U), (p x ∧ a) ]])
+          resolve goal path Neg Ts ctx ((∃ (x : U), p x) ∧ a)
+          /\ check deriv (ctx{{ ∃ (x : U), (p x ∧ a) }})
       | RN_contract =>
           (* (a -> a -> b) -> (a -> b) *)
           exists Ts rcx a b,
-          resolve Pos Ts goal path rcx (a → b)
-          /\ check deriv (rcx[[ a → (a → b) ]])
+          resolve goal path Pos Ts rcx (a → b)
+          /\ check deriv (rcx{{ a → (a → b) }})
       | RN_weaken =>
           (* b -> (a -> b) *)
           exists Ts rcx a b,
-          resolve Pos Ts goal path rcx (a → b)
-          /\ check deriv (rcx[[ b ]])
-      | RN_inst_r tx =>
+          resolve goal path Pos Ts rcx (a → b)
+          /\ check deriv (rcx{{ b }})
+      | @RN_inst_r T tx =>
           (* p t -> (exists x, p x) *)
           exists Ts rcx U a (t : Ts ▷ U),
-          resolve Pos Ts goal path rcx (∃ (x : U), a x)
-          /\ tx ~= t
-          /\ check deriv (rcx[[ a ◆ t ]])
+          resolve goal path Pos Ts rcx (∃ (x : U), a x)
+          /\ T = (Ts ▷ U) (* tx ~= t *)
+          /\ check deriv (rcx{{ a ◆ t }})
       | RN_inst_l tx =>
           (* (forall x, p x) -> p t *)
           exists Ts ctx U a (t : Ts ▷ U),
-          resolve Neg Ts goal path ctx (∀ (x : U), a x)
+          resolve goal path Neg Ts ctx (∀ (x : U), a x)
           /\ tx ~= t
-          /\ check deriv (ctx[[ a ◆ t ]])
+          /\ check deriv (ctx{{ a ◆ t }})
       | RN_simp_imp_true =>
           (* True -> a -> True *)
           exists Ts rcx a,
-          resolve Pos Ts goal path rcx (a → ⊤)
-          /\ check deriv (rcx[[ ⊤ ]])
+          resolve goal path Pos Ts rcx (a → ⊤)
+          /\ check deriv (rcx{{ ⊤ }})
       | RN_simp_true_imp_r =>
           (* a -> (True -> a) *)
           exists Ts rcx a,
-          resolve Pos Ts goal path rcx (⊤ → a)
-          /\ check deriv (rcx[[ a ]])
+          resolve goal path Pos Ts rcx (⊤ → a)
+          /\ check deriv (rcx{{ a }})
       | RN_simp_true_imp_l =>
           (* (True -> a) -> a *)
           exists Ts ctx a,
-          resolve Neg Ts goal path ctx (⊤ → a)
-          /\ check deriv (ctx[[ a ]])
+          resolve goal path Neg Ts ctx (⊤ → a)
+          /\ check deriv (ctx{{ a }})
       | RN_simp_false_imp =>
           (* True -> (False -> a) *)
           exists Ts rcx a,
-          resolve Pos Ts goal path rcx (⊥ → a)
-          /\ check deriv (rcx[[ ⊤ ]])
+          resolve goal path Pos Ts rcx (⊥ → a)
+          /\ check deriv (rcx{{ ⊤ }})
       | RN_simp_and_true_l =>
           (* a -> (a /\ True) *)
           exists Ts rcx a,
-          resolve Pos Ts goal path rcx (a ∧ ⊤)
-          /\ check deriv (rcx[[ a ]])
+          resolve goal path Pos Ts rcx (a ∧ ⊤)
+          /\ check deriv (rcx{{ a }})
       | RN_simp_and_true_r =>
           (* a -> (True /\ a) *)
           exists Ts rcx a,
-          resolve Pos Ts goal path rcx (⊤ ∧ a)
-          /\ check deriv (rcx[[ a ]])
+          resolve goal path Pos Ts rcx (⊤ ∧ a)
+          /\ check deriv (rcx{{ a }})
       | RN_simp_or_true_l =>
           (* True -> (a \/ True) *)
           exists Ts rcx a,
-          resolve Pos Ts goal path rcx (a ∨ ⊤)
-          /\ check deriv (rcx[[ ⊤ ]])
+          resolve goal path Pos Ts rcx (a ∨ ⊤)
+          /\ check deriv (rcx{{ ⊤ }})
       | RN_simp_or_true_r =>
           (* True -> (True \/ a) *)
           exists Ts rcx a,
-          resolve Pos Ts goal path rcx (⊤ ∨ a)
-          /\ check deriv (rcx[[ ⊤ ]])
+          resolve goal path Pos Ts rcx (⊤ ∨ a)
+          /\ check deriv (rcx{{ ⊤ }})
       | RN_simp_all_true =>
           (* True -> forall (_ : T), True *)
           exists Ts U rcx,
-          resolve Pos Ts goal path rcx (∀ (x : U), ⊤)
-          /\ check deriv (rcx[[ ⊤ ]])
+          resolve goal path Pos Ts rcx (∀ (x : U), ⊤)
+          /\ check deriv (rcx{{ ⊤ }})
       | RN_init =>
           (* True -> p -> p *)
           exists Ts rcx p,
-          resolve Pos Ts goal path rcx (p → p)
-          /\ check deriv (rcx[[ ⊤ ]])
+          resolve goal path Pos Ts rcx (p → p)
+          /\ check deriv (rcx{{ ⊤ }})
       | RN_congr =>
           (* True -> t = t *)
           exists Ts rcx A (t : Ts ▷ A),
-          resolve Pos Ts goal path rcx (t ≐ t)
-          /\ check deriv (rcx[[ ⊤ ]])
+          resolve goal path Pos Ts rcx (t ≐ t)
+          /\ check deriv (rcx{{ ⊤ }})
       end
   end.
 
@@ -493,13 +493,13 @@ Proof.
               cbn in Hcheck ; destruct Hcheck
           | [ H : ex _ |- _ ] => destruct H
           | [ H : _ /\ _ |- _ ] => destruct H
-          | [ H : resolve Pos _ _ _ _ _, Hch : check _ _ |- _ ] =>
+          | [ H : resolve _ _ Pos _ _ _, Hch : check _ _ |- _ ] =>
               specialize (IHderiv _ Hch) ;
-              rewrite <- (resolve_place Pos _ _ _ _ _ H) ;
+              rewrite <- (resolve_place _ _ Pos _ _ _ H) ;
               refine (placement Pos _ _ _ _ _ IHderiv)
-          | [ H : resolve Neg _ _ _ _ _, Hch : check _ _ |- _ ] =>
+          | [ H : resolve _ _ Neg _ _ _, Hch : check _ _ |- _ ] =>
               specialize (IHderiv _ Hch) ;
-              rewrite <- (resolve_place Neg _ _ _ _ _ H) ;
+              rewrite <- (resolve_place _ _ Neg _ _ _ H) ;
               refine (placement Neg _ _ _ _ _ IHderiv)
           | [ |- ho_entails ?x _ _ ] =>
               let Ts := fresh "Ts" in
