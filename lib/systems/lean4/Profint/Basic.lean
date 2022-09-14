@@ -1,6 +1,11 @@
+-- Author: Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>
+-- Copyright (C) 2022  Inria (Institut National de Recherche
+--                     en Informatique et en Automatique)
+-- See LICENSE for licensing details.
 -- Setup for lean4 proofs from the profint web tool
 -- https://chaudhuri.info/research/profint/
 
+import Init.Data.ToString
 import Lean
 
 namespace Profint
@@ -69,9 +74,6 @@ theorem contract        : (a → a → b) → (a → b)                 := fun f
 theorem weaken          : b → (a → b)                           := fun x _ => x
 theorem inst_r t        : p t → (∃ x, p x)                      := fun f => Exists.intro t f
 theorem inst_l t        : (∀ x, p x) → p t                      := fun f => f t
-theorem rewrite_rtl {s t} : p s → (s = t) → p t                 := fun x q => q ▸ x
-theorem rewrite_ltr {s t} : p t → (s = t) → p s                 := fun x q => q ▸ x
-
 theorem simp_imp_true   : True → a → True                       := fun _ _ => True.intro
 theorem simp_true_imp_r : a → (True → a)                        := fun x _ => x
 theorem simp_true_imp_l : (True → a) → a                        := fun x => x True.intro
@@ -179,7 +181,40 @@ Given:
 Builds:
   - a proof term for: `s1 = t1 ∧ s2 = t2 ∧ ... ∧ sn = tn → p s1 s2 ... sn → p t1 t2 ... tn`
 -/
-def mkProofInit (lty : Term) (pargs qargs : Array Expr) (k : Nat := 0)
+def mkBigEq (qs : Array (Expr × Expr)) : TacticM Expr := do
+  if qs.isEmpty then return (mkConst ``True) else
+  let (s, t) := qs.back
+  let mut result ← mkEq s t
+  for (s, t) in qs.reverse[1:] do
+    result := mkAnd (← mkEq s t) result
+  return result
+
+partial def mkProofInit (hd : Expr) (lTy : Expr) (pargs qargs : Array Expr) : TacticM Term := do
+  let qs := Array.zip pargs qargs
+  let premise ← mkBigEq qs
+  let qTy ← Lean.PrettyPrinter.delab premise
+  let lTy ← Lean.PrettyPrinter.delab lTy
+  let tru := mkIdent ``True
+  if qs.size = 0 then `(fun (_ : $tru) (x : $lTy) => x) else
+  let mut x ← mkIdent <$> Lean.Elab.Term.mkFreshBinderName
+  let q ← mkIdent <$> Lean.Elab.Term.mkFreshBinderName
+  let mut result ← `($x:term)
+  let mut curQ ← `($q:term)
+  let mut qargs := qargs
+  for i in List.range pargs.size do
+    let u ← Lean.Elab.Term.mkFreshBinderName
+    qargs := qargs.set! i (mkBVar 0)
+    let fn ← Lean.PrettyPrinter.delab <|
+               Expr.lam u (← inferType pargs[i]!) (mkAppN hd qargs) BinderInfo.default
+    qargs := qargs.set! i pargs[i]!
+    let eqn ← if i + 1 < pargs.size then `($curQ.1) else `($curQ)
+    let xNew ← mkIdent <$> Lean.Elab.Term.mkFreshBinderName
+    result ← `(let $x := Eq.subst ($(mkIdent `motive) := $fn) $eqn $xNew ; $result)
+    x := xNew
+    curQ ← `($curQ.2)
+  `(fun ($q : $qTy) ($x : $lTy) => $result)
+
+def mkProofInit1 (lty : Term) (pargs qargs : Array Expr) (k : Nat := 0)
   : TacticM Term := do
   -- trace[Meta.debug] s!"mkProofInit: {lty} {pargs} {qargs} {k}"
   if k >= pargs.size then
@@ -187,15 +222,23 @@ def mkProofInit (lty : Term) (pargs qargs : Array Expr) (k : Nat := 0)
   else
     let s ← Lean.PrettyPrinter.delab <| pargs[k]!
     let t ← Lean.PrettyPrinter.delab <| qargs[k]!
+    let q ← mkIdent <$> Lean.Elab.Term.mkFreshBinderName
     if k + 1 == pargs.size then
-      `(fun (q : $s = $t) (x : $lty) => q ▸ x)
+      `(fun ($q : $s = $t) (x : $lty) => $q ▸ x)
     else
-      let bod ← mkProofInit lty pargs qargs (k + 1)
-      `(fun (q : ($s = $t) ∧ _) (x : $lty) => q.1 ▸ $bod q.2 x)
-termination_by mkProofInit _ pargs _ k => pargs.size - k
+      let bod ← mkProofInit1 lty pargs qargs (k + 1)
+      `(fun ($q : ($s = $t) ∧ _) x => $q.1 ▸ ($bod $q.2 x))
+termination_by mkProofInit1 _ pargs _ k => pargs.size - k
 decreasing_by
   rename_i hg1 _ ; simp_wf ; apply Nat.sub_succ_lt_self
   simp_arith at hg1 |- ; assumption
+
+def _root_.Lean.Expr.withImp (e : Expr) (fn : Expr → Expr → TacticM α) : TacticM α := do
+  match (← whnf e) with
+  | .forallE _ ty bod _ =>
+      if bod.hasLooseBVars then throwError s!"not →" else
+      fn ty bod
+  | _ => throwError s!"not →"
 
 /--
 Given:
@@ -222,6 +265,29 @@ decreasing_by
   rename_i hg1 _ ; simp_wf ; apply Nat.sub_succ_lt_self
   simp_arith at hg1 |- ; assumption
 
+def doRewrite (goal : Expr) (symm : Bool) : MetaM Term := do
+  -- goal must be of the form `(s = t) → f`
+  match (← whnf goal).arrow? with
+  | .none => throwError s!"Not an →"
+  | .some (eqn, targetType) =>
+    match (← whnf eqn).eq? with
+    | .none => throwError s!"lhs not ="
+    | .some (_, s, t) =>
+      let targetType ← whnf targetType
+      let eqType ← mkEq s t
+      let hEq ← mkFreshExprSyntheticOpaqueMVar eqType (tag := `q)
+      let gExpr ← mkFreshExprSyntheticOpaqueMVar targetType (tag := `g)
+      let g := gExpr.mvarId!
+      let r ← g.rewrite targetType hEq symm
+      let gg ← g.replaceTargetEq r.eNew r.eqProof
+      let sourceType ← gg.getType
+      let xTy ← Lean.PrettyPrinter.delab sourceType
+      let qTy ← Lean.PrettyPrinter.delab eqType
+      let rTy ← Lean.PrettyPrinter.delab targetType
+      let syn ← `((fun (x : $xTy) (q : $qTy) => ((q ▸ x) : $rTy)))
+      trace[Meta.debug] s!"computed:\n{syn}"
+      pure syn
+
 /--
 `mkInner rn goal`: use `rn` as the "inner proof" to be executed at the location
 pointed to by the `within` invocation.
@@ -243,9 +309,10 @@ def mkInner (rn : Term) (goal : Expr) : TacticM Term := do
           checkDefEq p q <|> throwError s!"predicates {p} and {q} do not match"
           if pargs.size != qargs.size then
             throwError s!"different #args: {pargs.size} vs. {qargs.size}"
-          let lty ← Lean.PrettyPrinter.delab (← instantiateMVars l)
+          -- let lty ← Lean.PrettyPrinter.delab (← instantiateMVars l)
+          -- let rty ← Lean.PrettyPrinter.delab (← instantiateMVars r)
           let ⟨pargs, qargs⟩ ← filterEqns pargs qargs #[] #[] 0
-          mkProofInit lty pargs qargs
+          mkProofInit p l pargs qargs
     | _ => throwError s!"goal not (convertible to) →"
   | `(congr) =>
     -- goal must be of the form `l = r`
@@ -260,6 +327,12 @@ def mkInner (rn : Term) (goal : Expr) : TacticM Term := do
             throwError s!"different #args: {fargs.size} vs. {gargs.size}"
           let ⟨fargs, gargs⟩ ← filterEqns fargs gargs #[] #[] 0
           mkProofCongr fargs gargs
+  | `(rewrite_rtl) => doRewrite goal True
+  | `(rewrite_ltr) => doRewrite goal False
+  | `(profint__trace) =>
+    let syn ← Lean.PrettyPrinter.delab (← instantiateMVars goal)
+    trace[Meta.debug] s!"{syn}"
+    ``(id)
   | _ => pure rn
 
 partial def mkWithinArg (path : Path) (pos : Nat) (rn : Term) (goal : Expr) : TacticM Term :=
@@ -272,23 +345,17 @@ partial def mkWithinArg (path : Path) (pos : Nat) (rn : Term) (goal : Expr) : Ta
           if h.isConstOf ``And then
             match dir with
             | .l _ =>
-              let trm ← mkWithinArg nextPath nextPos rn args[0]! ; `(go_left_and $trm)
+              let trm ← mkWithinArg nextPath nextPos rn args[0]! ; ``(go_left_and $trm)
             | .r _ =>
-              let trm ← mkWithinArg nextPath nextPos rn args[1]! ; `(go_right_and $trm)
+              let trm ← mkWithinArg nextPath nextPos rn args[1]! ; ``(go_right_and $trm)
             | _ => throwError s!"{dir} incompatible with ∧"
           else if h.isConstOf ``Or then
             match dir with
             | .l _ =>
-              let trm ← mkWithinArg nextPath nextPos rn args[0]! ; `(go_left_or $trm)
+              let trm ← mkWithinArg nextPath nextPos rn args[0]! ; ``(go_left_or $trm)
             | .r _ =>
-              let trm ← mkWithinArg nextPath nextPos rn args[1]! ; `(go_right_or $trm)
+              let trm ← mkWithinArg nextPath nextPos rn args[1]! ; ``(go_right_or $trm)
             | _ => throwError s!"{dir} incompatible with ∨"
-          else if h.isConstOf ``Not then
-            match dir with
-            | .d _ | .r _ =>
-              let trm ← mkWithinArg nextPath nextPos rn args[0]!
-              `(go_down_not $trm)
-            | _ => throwError s!"{dir} incompatible with ¬"
           else if h.isConstOf ``Exists then
             match args[1]? with
             | some (Expr.lam x ty bod bi) => do
@@ -297,11 +364,11 @@ partial def mkWithinArg (path : Path) (pos : Nat) (rn : Term) (goal : Expr) : Ta
                 let x ← mkIdentFromRef (← mkFreshUserName x)
                 withLocalDecl x.getId bi ty fun v => do
                   let trm ← mkWithinArg nextPath nextPos rn (bod.instantiate #[v])
-                  `(go_down_ex (fun $x => $trm))
+                  ``(go_down_ex (fun $x => $trm))
               | .i x _ =>
                 withLocalDecl x.getId bi ty fun v => do
                   let trm ← mkWithinArg nextPath nextPos rn (bod.instantiate #[v])
-                  `(go_down_ex (fun $x => $trm))
+                  ``(go_down_ex (fun $x => $trm))
               | _ => throwError s!"{dir} incompatible with ∃"
             | _ => throwError s!"{dir}: malformed ∃: {goal}"
           else throwError s!"within/app: {dir} incompatible with {h}"
@@ -311,21 +378,23 @@ partial def mkWithinArg (path : Path) (pos : Nat) (rn : Term) (goal : Expr) : Ta
         let x ← mkIdentFromRef (← mkFreshUserName x)
         withLocalDecl x.getId bi ty fun v => do
           let trm ← mkWithinArg nextPath nextPos rn (bod.instantiate #[v])
-          `(go_down_all (fun $x => $trm))
+          ``(go_down_all (fun $x => $trm))
       | .i x _ =>
         withLocalDecl x.getId bi ty fun v => do
           let trm ← mkWithinArg nextPath nextPos rn (bod.instantiate #[v])
-          `(go_down_all (fun $x => $trm))
+          ``(go_down_all (fun $x => $trm))
       | .l _ =>
-        let trm ← mkWithinArg nextPath nextPos rn ty ; `(go_left_imp $trm)
+        let trm ← mkWithinArg nextPath nextPos rn ty ; ``(go_left_imp $trm)
       | .r _ =>
-        let trm ← mkWithinArg nextPath nextPos rn bod ; `(go_right_imp $trm)
+        let trm ← mkWithinArg nextPath nextPos rn bod ; ``(go_right_imp $trm)
     | _ => throwError s!"within/main: {dir} incompatible with {goal}"
 
 elab "within " path:term,* " use " rn:term : tactic => do
   let path ← parsePath path
   let goal := (← Lean.MVarId.getType (← getMainGoal))
   let arg ← mkWithinArg path 0 rn goal
+  let trm := Std.Format.pretty (← Lean.PrettyPrinter.formatTerm arg) 80
+  trace[Meta.debug] "within:\n{trm}"
   evalTactic (← `(tactic| refine' $arg _))
 
 end Profint_paths
