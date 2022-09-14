@@ -172,6 +172,14 @@ Theorem inst_l {T : Type} {p : T -> Prop} (t : T) :
   (forall x, p x) -> p t.
 Proof. intuition. Qed.
 
+Theorem rewrite_rtl {T : Type} {s t : T} {p : T -> Prop} :
+  p s -> s = t -> p t.
+Proof. intros x q. rewrite <- q. trivial. Qed.
+
+Theorem rewrite_ltr {T : Type} {s t : T} {p : T -> Prop} :
+  p t -> s = t -> p s.
+Proof. intros x q. rewrite q. trivial. Qed.
+
 Theorem simp_imp_true {a : Prop} :
   True -> a -> True.
 Proof. intuition. Qed.
@@ -222,56 +230,3 @@ Ltac profint_discharge_lemma :=
       intros (h1 & h2) ; revert h2 ; try rewrite h1 ; clear h1 ;
       profint_discharge_lemma
   end ; trivial.
-
-(* Theorem foo (T : Type) (s t u v w z : T) f : s = t /\ u = v /\ w = z -> f s t u v w z. *)
-(*   profint_discharge_lemma. *)
-
-(* Section Profint_examples. *)
-
-(* Context (T : Type). *)
-(* Context (f : T -> T). *)
-(* Context (a b c : Prop). *)
-(* Context (p q : T -> Prop). *)
-
-(* Lemma t0 : (a /\ b) -> (b /\ a). *)
-(* Proof. *)
-(* apply contract. *)
-(* apply (go_right_imp goal_ts_and_l). *)
-(* apply (go_right_imp (go_left_and goal_and_ts_r)). *)
-(* apply (go_right_imp (go_left_and (fun (_ : True) x => x))). *)
-(* apply (go_right_imp simp_and_true_r). *)
-(* apply goal_and_ts_l. *)
-(* apply (fun (_ : True) x => x). *)
-(* Qed. *)
-
-(* Lemma init1 {x y z w : T} {r : T -> T -> Prop} : x = y -> z = w -> r x z -> r y w. *)
-(*   repeat (intro H ; rewrite H ; clear H) ; trivial. *)
-(* Qed. *)
-
-(* (* Print init1. *) *)
-
-(* (* forall (A : Type) (x : A) (P : A -> Prop), P x -> forall y : A, y = x -> P y *) *)
-
-(* (* Check fun (j u : T) (H : f j = u) => *) *)
-(* (*   @eq_ind_r T u (fun y => p y -> p u) (fun x => x) (f j) H. *) *)
-
-(* Check @eq. *)
-
-
-(* Lemma t1 {j : T} : p (f j) -> exists u, p u. *)
-(* Proof. *)
-(* eapply goal_ts_ex. *)
-(* (* eapply (go_down_ex (fun u (H : f j = u) (x : p (f j)) => Hinit (f j) u H x)). *) *)
-(* unshelve eapply (go_down_ex (fun u => (?[init] : f j = u -> p (f j) -> p u))). *)
-
-
-
-
-
-(* eapply (go_down_ex (fun u (H : f j = u) => @eq_ind_r T u (fun y => p y -> p u) (fun x => x) (f j) H)). *)
-(* apply (inst (f j)). *)
-(* trivial. *)
-(* Qed. *)
-
-
-(* End Profint_examples. *)

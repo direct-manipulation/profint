@@ -138,6 +138,9 @@ let make_lemma (target : formx) (eqs : (T.term * T.term * ty) list) : string =
   Doc.(Appl (1, Infix (String " -> ", Right, [eq ; target]))) |>
   Doc.bracket |> Doc.lin_doc
 
+let lparen = Char.chr 40
+let rparen = Char.chr 41
+
 let pp_rule out goal rule =
   let has_subproof = ref false in
   let pp_rule cx f name =
@@ -194,7 +197,7 @@ let pp_rule out goal rule =
     match Q.take_front path with
     | None ->
         pp_rule cx f0 rule.Cos.name ;
-        Format.fprintf out "%s.@." @@ String.make n (Char.chr 41) ;
+        Format.fprintf out "%s _%c.@." (String.make (n - 1) rparen) rparen ;
         if !has_subproof then begin
           Format.fprintf out "  profint_discharge_lemma.@." ;
           has_subproof := false
@@ -241,7 +244,7 @@ let pp_rule out goal rule =
             |> unprintable
       end
   in
-  Format.fprintf out "unshelve eapply (" ;
+  Format.fprintf out "refine %c" lparen ;
   pp_path 1 goal.tycx goal.data rule.path
 
 let pp_step out (prem, rule, concl) =

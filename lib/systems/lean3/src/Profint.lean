@@ -92,8 +92,12 @@ theorem weaken : b → (a → b) :=
   fun xb xa, xb
 theorem inst_r (t : T) : p t → (∃ x, p x) :=
   exists.intro t
-theorem inst_l (t : T): (∀ x, p x) → p t :=
+theorem inst_l (t : T) : (∀ x, p x) → p t :=
   fun f, f t
+theorem rewrite_rtl {s t : T} : p s → s = t → p t :=
+  fun x q, q ▸ x
+theorem rewrite_ltr {s t : T} : p t → s = t → p s :=
+  fun x q, (eq.symm q) ▸ x
 theorem simp_imp_true : true → a → true :=
   fun _ _, true.intro
 theorem simp_true_imp_r : a → (true → a) :=

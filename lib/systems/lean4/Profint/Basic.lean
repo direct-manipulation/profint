@@ -69,6 +69,8 @@ theorem contract        : (a → a → b) → (a → b)                 := fun f
 theorem weaken          : b → (a → b)                           := fun x _ => x
 theorem inst_r t        : p t → (∃ x, p x)                      := fun f => Exists.intro t f
 theorem inst_l t        : (∀ x, p x) → p t                      := fun f => f t
+theorem rewrite_rtl {s t} : p s → (s = t) → p t                 := fun x q => q ▸ x
+theorem rewrite_ltr {s t} : p t → (s = t) → p s                 := fun x q => q ▸ x
 
 theorem simp_imp_true   : True → a → True                       := fun _ _ => True.intro
 theorem simp_true_imp_r : a → (True → a)                        := fun x _ => x
@@ -103,6 +105,17 @@ def Direction.toString (d : Direction) :=
 instance : ToString Direction := ⟨Direction.toString⟩
 
 abbrev Path := Array Direction
+
+def pushN.{u} {α : Type u} (arr : Array α) (thing : α) (n : Nat) :=
+  match n with
+  | 0 => arr
+  | n + 1 => pushN (arr.push thing) thing n
+
+def parseDirectionAlt (stx : Term) (arr : Path) : CoreM Path :=
+  match stx with
+  | `(l $n:num) => pure <| pushN arr (Direction.l 1) n.getNat
+  | `(l)        => pure <| arr.push (Direction.l 1)
+  | _ => throwErrorAt stx s!"illegal direction"
 
 def parseDirection (stx : Term) : TacticM Direction :=
   match stx with
