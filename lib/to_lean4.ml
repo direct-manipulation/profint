@@ -163,8 +163,12 @@ let files pf =
     Dir {
       dname = "Profint" ;
       contents = [
-        File { fname = "Basic.lean" ;
-               contents = [%blob "lib/systems/lean4/Profint/Basic.lean"] } ;
+        File { fname = "Theorems.lean" ;
+               contents = [%blob "lib/systems/lean4/Profint/Theorems.lean"] } ;
+        File { fname = "Paths.lean" ;
+               contents = [%blob "lib/systems/lean4/Profint/Paths.lean"] } ;
+        File { fname = "Within.lean" ;
+               contents = [%blob "lib/systems/lean4/Profint/Within.lean"] } ;
       ] } ;
     File { fname = "Profint.lean" ;
            contents = [%blob "lib/systems/lean4/Profint.lean"] } ;

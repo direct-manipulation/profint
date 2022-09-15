@@ -26,13 +26,13 @@ exception Bad_direction of { tycx : tycx option ; form : form ; dir : dir }
 let rec go (fx : formx) (dir : dir) =
   match expose fx.data, dir with
   | ( And (a, b) | Or (a, b) | Imp (a, b) ), (`l | `r) ->
-      { fx with data = if dir = `l then a else b }
+      ({ fx with data = if dir = `l then a else b }, dir)
   | Forall ({ var ; ty }, b), `d
   | Forall ({ ty ; _ }, b), `i var
   | Exists ({ var ; ty }, b), `d
   | Exists ({ ty ; _ }, b), `i var ->
-      with_var ~fresh:true fx.tycx { var ; ty } begin fun _ tycx ->
-        { tycx ; data = b }
+      with_var ~fresh:true fx.tycx { var ; ty } begin fun {var ; _} tycx ->
+        ({ tycx ; data = b }, `i var)
       end
   | Mdata (_, _, f), _ ->
       go { fx with data = f } dir

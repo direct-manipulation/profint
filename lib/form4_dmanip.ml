@@ -38,6 +38,11 @@ type dmanip = emit:(rule -> cos_premise) -> concl -> rule_result
 
 let prin (cp : cos_premise) = cp.prin
 
+let go_path fx cpath dir =
+  let (fx, dir) = go fx dir in
+  let cpath = Q.snoc cpath dir in
+  (fx, cpath)
+
 let try_goal_init : dmanip = fun ~emit concl ->
   abort_unless (concl.side = `r) ;
   abort_unless (concl.lpath = Q.of_list [`l]) ;
@@ -76,8 +81,7 @@ let try_goal_ts_and : dmanip = fun ~emit concl ->
       match expose f, Q.take_front rpath with
       | And _, Some ((`l | `r) as dir, rpath) ->
           let fx = prin @@ emit { name = Goal_ts_and dir ; path = concl.cpath } in
-          let fx = go fx dir in
-          let cpath = Q.snoc concl.cpath dir in
+          let fx, cpath = go_path fx concl.cpath dir in
           let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
@@ -117,8 +121,7 @@ let try_goal_or_ts : dmanip = fun ~emit concl ->
       match expose f, Q.take_front lpath with
       | Or _, Some ((`l | `r) as dir, lpath) ->
           let fx = prin @@ emit { name = Goal_or_ts ; path = concl.cpath } in
-          let fx = go fx dir in
-          let cpath = Q.snoc concl.cpath dir in
+          let fx, cpath = go_path fx concl.cpath dir in
           let lpath = Q.cons `l lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
@@ -133,14 +136,12 @@ let try_goal_ts_imp : dmanip = fun ~emit concl ->
       | Imp _, Some (`l, rpath) ->
           let fx = prin @@ emit { name = Goal_ts_imp `l ; path = concl.cpath } in
           let side = flip concl.side in
-          let fx = go fx `l in
-          let cpath = Q.snoc concl.cpath `l in
+          let fx, cpath = go_path fx concl.cpath `l in
           let rpath = Q.cons `r rpath in
           Continue { concl with fx ; side ; cpath ; rpath }
       | Imp _, Some (`r, rpath) ->
           let fx = prin @@ emit { name = Goal_ts_imp `r ; path = concl.cpath } in
-          let fx = go fx `r in
-          let cpath = Q.snoc concl.cpath `r in
+          let fx, cpath = go_path fx concl.cpath `r in
           let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
@@ -154,8 +155,7 @@ let try_goal_imp_ts : dmanip = fun ~emit concl ->
       match expose f, Q.take_front lpath with
       | Imp _, Some (`r, lpath) ->
           let fx = prin @@ emit { name = Goal_imp_ts ; path = concl.cpath } in
-          let fx = go fx `r in
-          let cpath = Q.snoc concl.cpath `r in
+          let fx, cpath = go_path fx concl.cpath `r in
           let lpath = Q.cons `l lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
@@ -184,8 +184,7 @@ let try_goal_ts_allex ~qsel : dmanip = fun ~emit concl ->
           let fx = prin @@ emit { name ; path = concl.cpath } in
           (* Format.printf "goal_ts_allex[%s]: %a => %a@." var *)
           (*   pp_formx fx pp_formx (go fx (`i var)) ; *)
-          let fx = go fx (`i var) in
-          let cpath = Q.snoc concl.cpath (`i var) in
+          let fx, cpath = go_path fx concl.cpath (`i var) in
           let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
@@ -206,8 +205,7 @@ let try_goal_allex_ts ~qsel : dmanip = fun ~emit concl ->
           let fx = prin @@ emit { name ; path = concl.cpath } in
           (* Format.printf "goal_allex_ts[%s]: %a => %a@." var *)
           (*   pp_formx fx pp_formx (go fx (`i var)) ; *)
-          let fx = go fx (`i var) in
-          let cpath = Q.snoc concl.cpath (`i var) in
+          let fx, cpath = go_path fx concl.cpath (`i var) in
           let lpath = Q.cons `l lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
@@ -280,8 +278,7 @@ let try_asms_or : dmanip = fun ~emit concl ->
       | Or _, Some ((`l | `r) as dir, lpath) ->
           let fx = prin @@ emit { name = Asms_or { minor = `r ; pick = dir } ;
                                   path = concl.cpath } in
-          let fx = go fx dir in
-          let cpath = Q.snoc concl.cpath dir in
+          let fx, cpath = go_path fx concl.cpath dir in
           let lpath = Q.cons `l lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
@@ -292,8 +289,7 @@ let try_asms_or : dmanip = fun ~emit concl ->
       | Or _, Some ((`l | `r) as dir, rpath) ->
           let fx = prin @@ emit { name = Asms_or { minor = `l ; pick = dir } ;
                                   path = concl.cpath } in
-          let fx = go fx dir in
-          let cpath = Q.snoc concl.cpath dir in
+          let fx, cpath = go_path fx concl.cpath dir in
           let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
@@ -312,16 +308,14 @@ let try_asms_imp : dmanip = fun ~emit concl ->
           let fx = prin @@ emit { name = Asms_imp { minor = `r ; pick = `l } ;
                                   path = concl.cpath } in
           let side = flip concl.side in
-          let fx = go fx `l in
-          let cpath = Q.snoc concl.cpath `l in
+          let fx, cpath = go_path fx concl.cpath `l in
           let rpath = Q.cons `r lpath in
           let lpath = Q.cons `l (Q.take_front_exn concl.rpath |> snd) in
           Continue { concl with fx ; side ; cpath ; lpath ; rpath }
       | Imp _, Some (`r, lpath) ->
           let fx = prin @@ emit { name = Asms_imp { minor = `r ; pick = `r } ;
                                   path = concl.cpath } in
-          let fx = go fx `r in
-          let cpath = Q.snoc concl.cpath `r in
+          let fx, cpath = go_path fx concl.cpath `r in
           let lpath = Q.cons `l lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
@@ -333,15 +327,13 @@ let try_asms_imp : dmanip = fun ~emit concl ->
           let fx = prin @@ emit { name = Asms_imp { minor = `l ; pick = `l } ;
                                   path = concl.cpath } in
           let side = flip concl.side in
-          let fx = go fx `l in
-          let cpath = Q.snoc concl.cpath `l in
+          let fx, cpath = go_path fx concl.cpath `l in
           let rpath = Q.cons `r rpath in
           Continue { concl with fx ; side ; cpath ; rpath }
       | Imp _, Some (`r, rpath) ->
           let fx = prin @@ emit { name = Asms_imp { minor = `l ; pick = `r } ;
                                   path = concl.cpath } in
-          let fx = go fx `r in
-          let cpath = Q.snoc concl.cpath `r in
+          let fx, cpath = go_path fx concl.cpath `r in
           let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
@@ -367,8 +359,7 @@ let try_asms_allex : dmanip = fun ~emit concl ->
           let fx = prin @@ emit { name ; path = concl.cpath } in
           (* Format.printf "goal_asms_allex[%s]: %a => %a@." var *)
           (*   pp_formx fx pp_formx (go fx (`i var)) ; *)
-          let fx = go fx (`i var) in
-          let cpath = Q.snoc concl.cpath (`i var) in
+          let fx, cpath = go_path fx concl.cpath (`i var) in
           let lpath = Q.cons `l lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
@@ -385,8 +376,7 @@ let try_asms_allex : dmanip = fun ~emit concl ->
             | _ -> Asms_ex { minor = `l }
           in
           let fx = prin @@ emit { name ; path = concl.cpath } in
-          let fx = go fx (`i var) in
-          let cpath = Q.snoc concl.cpath (`i var) in
+          let fx, cpath = go_path fx concl.cpath (`i var) in
           let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
