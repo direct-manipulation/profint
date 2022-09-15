@@ -31,6 +31,7 @@ module type TO = sig
 end with type 'a pp := Format.formatter -> 'a -> unit
 
 module Katex       : TO = To_katex
+module Pdf         : TO = To_pdf
 
 module Coq         : TO = To_coq
 module Coq_reflect : TO = To_coq_reflect
@@ -41,9 +42,10 @@ exception Unknown of string
 
 let select sel : (module TO) =
   match sel with
-  | "katex"       -> (module To_katex)
-  | "coq"         -> (module To_coq)
-  | "coq_reflect" -> (module To_coq_reflect)
-  | "lean3"       -> (module To_lean3)
-  | "lean4"       -> (module To_lean4)
+  | "katex"       -> (module Katex)
+  | "coq"         -> (module Coq)
+  | "coq_reflect" -> (module Coq_reflect)
+  | "lean3"       -> (module Lean3)
+  | "lean4"       -> (module Lean4)
+  | "pdf"         -> (module Pdf)
   | mode -> raise @@ Unknown mode

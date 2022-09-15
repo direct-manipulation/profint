@@ -294,25 +294,6 @@ function setFormula(text) {
   }
 }
 
-const proofSystems = {
-  "lean4": {
-    file: "Proof.lean",
-    comment: "/-PROOF-/\n",
-  },
-  "lean3": {
-    file: "src/Proof.lean",
-    comment: "/-PROOF-/\n",
-  },
-  "coq": {
-    file: "Proof.v",
-    comment: "(*PROOF*)\n",
-  },
-  "coq_reflect": {
-    file: "Proof.v",
-    comment: "(*PROOF*)\n",
-  },
-};
-
 function getProofKind() {
   return $("#proofSystem").val() || "-unknown-";
 }
