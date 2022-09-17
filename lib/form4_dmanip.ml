@@ -55,9 +55,9 @@ let try_goal_init : dmanip = fun ~emit concl ->
           Done
       | Eq (s, t, _), _ ->
           if Term.is_subterm s b then
-            ignore @@ emit { name = Rewrite `ltr ; path = concl.cpath }
+            ignore @@ emit { name = Rewrite { from = `l } ; path = concl.cpath }
           else if Term.is_subterm t b then
-            ignore @@ emit { name = Rewrite `rtl ; path = concl.cpath }
+            ignore @@ emit { name = Rewrite { from = `r } ; path = concl.cpath }
           else abort () ;
           Done
       | _ -> abort ()
@@ -80,7 +80,7 @@ let try_goal_ts_and : dmanip = fun ~emit concl ->
   | Imp (_, f), Some (`r, rpath) -> begin
       match expose f, Q.take_front rpath with
       | And _, Some ((`l | `r) as dir, rpath) ->
-          let fx = prin @@ emit { name = Goal_ts_and dir ; path = concl.cpath } in
+          let fx = prin @@ emit { name = Goal_ts_and { pick = dir } ; path = concl.cpath } in
           let fx, cpath = go_path fx concl.cpath dir in
           let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }
@@ -94,7 +94,7 @@ let try_goal_and_ts : dmanip = fun ~emit concl ->
   | Imp (f, _), Some (`l, lpath) -> begin
       match expose f, Q.take_front lpath with
       | And _, Some ((`l | `r) as dir, lpath) ->
-          let fx = prin @@ emit { name = Goal_and_ts dir ; path = concl.cpath } in
+          let fx = prin @@ emit { name = Goal_and_ts { pick = dir } ; path = concl.cpath } in
           let lpath = Q.cons `l lpath in
           Continue { concl with fx ; lpath }
       | _ -> abort ()
@@ -107,7 +107,7 @@ let try_goal_ts_or : dmanip = fun ~emit concl ->
   | Imp (_, f), Some (`r, rpath) -> begin
       match expose f, Q.take_front rpath with
       | Or _, Some ((`l | `r) as dir, rpath) ->
-          let fx = prin @@ emit { name = Goal_ts_or dir ; path = concl.cpath } in
+          let fx = prin @@ emit { name = Goal_ts_or { pick = dir } ; path = concl.cpath } in
           let rpath = Q.cons `r rpath in
           Continue { concl with fx ; rpath }
       | _ -> abort ()
@@ -134,13 +134,13 @@ let try_goal_ts_imp : dmanip = fun ~emit concl ->
   | Imp (_, f), Some (`r, rpath) -> begin
       match expose f, Q.take_front rpath with
       | Imp _, Some (`l, rpath) ->
-          let fx = prin @@ emit { name = Goal_ts_imp `l ; path = concl.cpath } in
+          let fx = prin @@ emit { name = Goal_ts_imp { pick = `l } ; path = concl.cpath } in
           let side = flip concl.side in
           let fx, cpath = go_path fx concl.cpath `l in
           let rpath = Q.cons `r rpath in
           Continue { concl with fx ; side ; cpath ; rpath }
       | Imp _, Some (`r, rpath) ->
-          let fx = prin @@ emit { name = Goal_ts_imp `r ; path = concl.cpath } in
+          let fx = prin @@ emit { name = Goal_ts_imp { pick = `r } ; path = concl.cpath } in
           let fx, cpath = go_path fx concl.cpath `r in
           let rpath = Q.cons `r rpath in
           Continue { concl with fx ; cpath ; rpath }

@@ -33,64 +33,74 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
   | And (a, b) -> begin
       let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path `l) side in
       let b = recursive_simplify ~emit (b |@ fx) (Q.snoc path `r) side in
-      match side with
-      | `l -> OTHER
-      | `r -> begin
-          match a, b with
-          | _, TOP ->
-              ignore @@ emit { name = Simp_and_true `l ; path } ; a
-          | TOP, _ ->
-              ignore @@ emit { name = Simp_and_true `r ; path } ; b
-          | _ ->
-              OTHER
-        end
+      match a, b with
+      | _, TOP ->
+          emit { name = Simp_and_top { cxkind = side ; minor = `l } ; path }
+          |> ignore ; a
+      | _, BOT ->
+          emit { name = Simp_and_bot { cxkind = side ; minor = `l } ; path }
+          |> ignore ; BOT
+      | TOP, _ ->
+          emit { name = Simp_and_top { cxkind = side ; minor = `r } ; path }
+          |> ignore ; b
+      | BOT, _ ->
+          emit { name = Simp_and_bot { cxkind = side ; minor = `r } ; path }
+          |> ignore ; BOT
+      | OTHER, OTHER -> OTHER
     end
   | Or (a, b) -> begin
       let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path `l) side in
       let b = recursive_simplify ~emit (b |@ fx) (Q.snoc path `r) side in
-      match side with
-      | `l -> OTHER
-      | `r -> begin
-          match a, b with
-          | _, TOP ->
-              ignore @@ emit { name = Simp_or_true `l ; path } ; TOP
-          | TOP, _ ->
-              ignore @@ emit { name = Simp_or_true `r ; path } ; TOP
-          | _ ->
-              OTHER
-        end
+      match a, b with
+      | _, TOP ->
+          emit { name = Simp_or_top { cxkind = side ; minor = `l } ; path }
+          |> ignore ; TOP
+      | _, BOT ->
+          emit { name = Simp_or_bot { cxkind = side ; minor = `l } ; path }
+          |> ignore ; a
+      | TOP, _ ->
+          emit { name = Simp_or_top { cxkind = side ; minor = `r } ; path }
+          |> ignore ; TOP
+      | BOT, _ ->
+          emit { name = Simp_or_top { cxkind = side ; minor = `r } ; path }
+          |> ignore ; b
+      | OTHER, OTHER -> OTHER
     end
   | Imp (a, b) -> begin
       let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path `l) (flip side) in
       let b = recursive_simplify ~emit (b |@ fx) (Q.snoc path `r) side in
-      match side, a, b with
-      | side, TOP, _ ->
-          ignore @@ emit { name = Simp_true_imp side ; path } ; b
-      | `r, _, TOP ->
-          ignore @@ emit { name = Simp_imp_true ; path } ; TOP
-      | `r, BOT, _ ->
-          ignore @@ emit { name = Simp_false_imp ; path } ; TOP
-      | _ ->
+      match a, b with
+      | TOP, _ ->
+          emit { name = Simp_imp_top { cxkind = side ; minor = `r } ; path }
+          |> ignore ; b
+      | _, TOP ->
+          emit { name = Simp_imp_top { cxkind = side ; minor = `l } ; path }
+          |> ignore ; TOP
+      | BOT, _ ->
+          emit { name = Simp_bot_imp { cxkind = side } ; path }
+          |> ignore ; TOP
+      | ( _, BOT | OTHER, OTHER ) ->
           OTHER
     end
   | Forall (vty, b) ->
       with_var ~fresh:true fx.tycx vty begin fun vty tycx ->
         let b = { tycx ; data = b } in
         let b = recursive_simplify ~emit b (Q.snoc path (`i vty.var)) side in
-        match side with
-        | `l -> OTHER
-        | `r -> begin
-            match b with
-            | TOP ->
-                ignore @@ emit { name = Simp_all_true ; path } ; TOP
-            | _ ->
-                OTHER
-          end
+        match b with
+        | TOP ->
+            emit { name = Simp_all_top { cxkind = side } ; path }
+            |> ignore ; TOP
+        | _ -> OTHER
       end
   | Exists (vty, b) ->
       with_var ~fresh:true fx.tycx vty begin fun vty tycx ->
         let b = { tycx ; data = b } in
-        recursive_simplify ~emit b (Q.snoc path (`i vty.var)) side
+        let b = recursive_simplify ~emit b (Q.snoc path (`i vty.var)) side in
+        match b with
+        | BOT ->
+            emit { name = Simp_ex_bot { cxkind = side } ; path }
+            |> ignore ; BOT
+        | _ -> OTHER
       end
   | Top -> TOP
   | Bot -> BOT

@@ -16,29 +16,36 @@ open Mk
 (* CoS rules *)
 
 type rule_name =
-  | Goal_ts_imp of side
+  | Goal_ts_imp of { pick : side }
   | Goal_imp_ts
-  | Goal_ts_and of side
-  | Goal_and_ts of side
-  | Goal_ts_or  of side
+  | Goal_ts_and of { pick : side }
+  | Goal_and_ts of { pick : side }
+  | Goal_ts_or  of { pick : side }
   | Goal_or_ts
   | Goal_ts_all
   | Goal_all_ts
   | Goal_ts_ex
   | Goal_ex_ts
+
+  | Init
+  | Rewrite of { from : side }
+
   | Asms_and of { minor : side ; pick : side }
   | Asms_or  of { minor : side ; pick : side }
   | Asms_imp of { minor : side ; pick : side }
   | Asms_all of { minor : side }
   | Asms_ex  of { minor : side }
-  | Simp_imp_true
-  | Simp_true_imp of side
-  | Simp_false_imp
-  | Simp_and_true of side
-  | Simp_or_true  of side
-  | Simp_all_true
-  | Init
-  | Rewrite of [`ltr | `rtl]
+
+  | Simp_and_top of { cxkind : side ; minor : side }
+  | Simp_or_top  of { cxkind : side ; minor : side }
+  | Simp_imp_top of { cxkind : side ; minor : side }
+  | Simp_all_top of { cxkind : side }
+
+  | Simp_and_bot of { cxkind : side ; minor : side }
+  | Simp_or_bot  of { cxkind : side ; minor : side }
+  | Simp_bot_imp of { cxkind : side }
+  | Simp_ex_bot  of { cxkind : side }
+
   | Congr
   | Contract
   | Weaken
@@ -56,16 +63,16 @@ let side_to_string (side : side) =
 
 let pp_rule_name out rn =
   match rn with
-  | Goal_ts_imp side ->
-      Format.fprintf out "goal_ts_imp_%s" (side_to_string side)
+  | Goal_ts_imp { pick} ->
+      Format.fprintf out "goal_ts_imp_%s" (side_to_string pick)
   | Goal_imp_ts ->
       Format.fprintf out "goal_imp_ts"
-  | Goal_ts_and side ->
-      Format.fprintf out "goal_ts_and_%s" (side_to_string side)
-  | Goal_and_ts side ->
-      Format.fprintf out "goal_and_ts_%s" (side_to_string side)
-  | Goal_ts_or  side ->
-      Format.fprintf out "goal_ts_or_%s" (side_to_string side)
+  | Goal_ts_and { pick } ->
+      Format.fprintf out "goal_ts_and_%s" (side_to_string pick)
+  | Goal_and_ts { pick } ->
+      Format.fprintf out "goal_and_ts_%s" (side_to_string pick)
+  | Goal_ts_or  { pick } ->
+      Format.fprintf out "goal_ts_or_%s" (side_to_string pick)
   | Goal_or_ts ->
       Format.fprintf out "goal_or_ts"
   | Goal_ts_all ->
@@ -91,28 +98,45 @@ let pp_rule_name out rn =
   | Asms_ex  { minor } ->
       Format.fprintf out "asms_ex_%s"
         (side_to_string minor)
-  | Simp_imp_true ->
-      Format.fprintf out "simp_imp_true"
-  | Simp_true_imp side ->
-      Format.fprintf out "simp_true_imp_%s"
-        (side_to_string side)
-  | Simp_false_imp ->
-      Format.fprintf out "simp_false_imp"
-  | Simp_and_true side ->
-      Format.fprintf out "simp_and_true_%s"
-        (side_to_string side)
-  | Simp_or_true side ->
-      Format.fprintf out "simp_or_true_%s"
-        (side_to_string side)
-  | Simp_all_true ->
-      Format.fprintf out "simp_all_true"
+  | Simp_and_top { cxkind ; minor } ->
+      Format.fprintf out "simp_%s_%s_%s"
+        (match cxkind with `r -> "goal" | _ -> "asms")
+        (match minor with `l -> "and" | _ -> "top")
+        (match minor with `l -> "top" | _ -> "and")
+  | Simp_or_top { cxkind ; minor } ->
+      Format.fprintf out "simp_%s_%s_%s"
+        (match cxkind with `r -> "goal" | _ -> "asms")
+        (match minor with `l -> "or" | _ -> "top")
+        (match minor with `l -> "top" | _ -> "or")
+  | Simp_imp_top { cxkind ; minor } ->
+      Format.fprintf out "simp_%s_%s_%s"
+        (match cxkind with `r -> "goal" | _ -> "asms")
+        (match minor with `l -> "imp" | _ -> "top")
+        (match minor with `l -> "top" | _ -> "imp")
+  | Simp_all_top { cxkind } ->
+      Format.fprintf out "simp_%s_all_top"
+        (match cxkind with `r -> "goal" | _ -> "asms")
+  | Simp_and_bot { cxkind ; minor } ->
+      Format.fprintf out "simp_%s_%s_%s"
+        (match cxkind with `r -> "goal" | _ -> "asms")
+        (match minor with `l -> "and" | _ -> "bot")
+        (match minor with `l -> "bot" | _ -> "and")
+  | Simp_or_bot { cxkind ; minor } ->
+      Format.fprintf out "simp_%s_%s_%s"
+        (match cxkind with `r -> "goal" | _ -> "asms")
+        (match minor with `l -> "or" | _ -> "bot")
+        (match minor with `l -> "bot" | _ -> "or")
+  | Simp_bot_imp { cxkind } ->
+      Format.fprintf out "simp_%s_bot_imp"
+        (match cxkind with `r -> "goal" | _ -> "asms")
+  | Simp_ex_bot { cxkind } ->
+      Format.fprintf out "simp_%s_ex_bot"
+        (match cxkind with `r -> "goal" | _ -> "asms")
   | Init ->
       Format.fprintf out "init"
-  | Rewrite dir ->
+  | Rewrite { from } ->
       Format.fprintf out "rewrite_%s"
-        (match dir with
-         | `ltr -> "ltr"
-         | _ -> "rtl")
+        (match from with `l -> "ltr" | _ -> "rtl")
   | Congr ->
       Format.fprintf out "congr"
   | Contract ->
@@ -184,8 +208,8 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
   let prin = {
     prin with data = match side, expose prin.data, rule.name with
       (* goal *)
-      | `r, Imp (a, f), Goal_ts_imp sel -> begin
-          match expose f, sel with
+      | `r, Imp (a, f), Goal_ts_imp { pick } -> begin
+          match expose f, pick with
           | Imp (b, f), `l ->
               mk_imp (mk_and a b) f
           | Imp (f, b), `r ->
@@ -198,23 +222,23 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
               mk_and f (mk_imp a b)
           | _ -> bad_match "1"
         end
-      | `r, Imp (a, f), Goal_ts_and sel -> begin
-          match expose f, sel with
+      | `r, Imp (a, f), Goal_ts_and { pick } -> begin
+          match expose f, pick with
           | And (b, f), `l ->
               mk_and (mk_imp a b) f
           | And (f, b), `r ->
               mk_and f (mk_imp a b)
           | _ -> bad_match "2"
         end
-      | `r, Imp (f, b), Goal_and_ts sel -> begin
-          match expose f, sel with
+      | `r, Imp (f, b), Goal_and_ts { pick } -> begin
+          match expose f, pick with
           | And (a, _), `l
           | And (_, a), `r ->
               mk_imp a b
           | _ -> bad_match "3"
         end
-      | `r, Imp (a, f), Goal_ts_or sel -> begin
-          match expose f, sel with
+      | `r, Imp (a, f), Goal_ts_or { pick } -> begin
+          match expose f, pick  with
           | Or (b, _), `l
           | Or (_, b), `r ->
               mk_imp a b
@@ -321,38 +345,65 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
               mk_ex vty (mk_and a (shift 1 b))
           | _ -> bad_match "19"
         end
-      (* simplification *)
-      | `r, Imp (_, f), Simp_imp_true -> begin
-          match expose f with
-          | Top -> f
-          | _ -> bad_match "20"
-        end
-      | _, Imp (f, a), Simp_true_imp side_ when side = side_ -> begin
+      (* simplification: top *)
+      | ( _, And (a, f), Simp_and_top { cxkind ; minor = `l }
+        | _, And (f, a), Simp_and_top { cxkind ; minor = `r } )
+        when cxkind = side -> begin
           match expose f with
           | Top -> a
+          | _ -> bad_match "20"
+        end
+      | ( _, Or (_, f), Simp_or_top { cxkind ; minor = `l }
+        | _, Or (f, _), Simp_or_top { cxkind ; minor = `r } )
+        when cxkind = side -> begin
+          match expose f with
+          | Top -> f
           | _ -> bad_match "21"
         end
-      | `r, Imp (f, _), Simp_false_imp -> begin
+      | _, Imp (_, f), Simp_imp_top { cxkind ; minor = `l }
+        when cxkind = side -> begin
           match expose f with
-          | Bot -> mk_top
+          | Top -> f
           | _ -> bad_match "22"
         end
-      | `r, And (a, f), Simp_and_true `l
-      | `r, And (f, a), Simp_and_true `r -> begin
+      | _, Imp (f, a), Simp_imp_top { cxkind ; minor = `r }
+        when cxkind = side -> begin
           match expose f with
           | Top -> a
           | _ -> bad_match "23"
         end
-      | `r, Or (_, f), Simp_or_true `l
-      | `r, Or (f, _), Simp_or_true `r -> begin
+      | _, Forall (_, f), Simp_all_top { cxkind }
+        when cxkind = side -> begin
           match expose f with
           | Top -> f
           | _ -> bad_match "24"
         end
-      | `r, Forall (_, f), Simp_all_true -> begin
+      (* simplification: bot *)
+      | ( _, And (_, f), Simp_and_bot { cxkind ; minor = `l }
+        | _, And (f, _), Simp_and_bot { cxkind ; minor = `r } )
+        when cxkind = side -> begin
           match expose f with
-          | Top -> f
+          | Bot -> f
           | _ -> bad_match "25"
+        end
+      | ( _, Or (a, f), Simp_or_bot { cxkind ; minor = `l }
+        | _, Or (f, a), Simp_or_bot { cxkind ; minor = `r } )
+        when cxkind = side -> begin
+          match expose f with
+          | Bot -> a
+          | _ -> bad_match "26"
+        end
+      | _, Imp (f, _), Simp_bot_imp { cxkind }
+        when cxkind = side -> begin
+          match expose f with
+          | Bot -> mk_top
+          | _ -> bad_match "27"
+        end
+      | _, Exists (_, f), Simp_ex_bot { cxkind }
+        when cxkind = side -> begin
+          match expose f with
+          | Bot -> f
+          | _ -> bad_match "28"
         end
       (* structural *)
       | `r, Imp (a, b), Init -> begin
@@ -360,25 +411,25 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
           | Atom (App { head = f ; spine = ss }),
             Atom (App { head = g ; spine = ts }) when Term.eq_head f g ->
               compute_spine_congruence (Term.ty_infer prin.tycx f) ss ts
-          | _ -> bad_match "26"
+          | _ -> bad_match "29"
         end
-      | `r, Imp (a, b), Rewrite dir -> begin
+      | `r, Imp (a, b), Rewrite { from } -> begin
           match expose a with
           | Eq (s, t, _) -> begin
-              let (tfrom, tto) = match dir with
-                | `ltr -> s, t
-                | `rtl -> t, s
+              let (tfrom, tto) = match from with
+                | `l -> s, t
+                | _ -> t, s
               in
               Term.rewrite ~tfrom ~tto b
             end
-          | _ -> bad_match "27"
+          | _ -> bad_match "30"
         end
       | `r, Eq (s, t, _), Congr -> begin
           match s, t with
           | App { head = f ; spine = ss },
             App { head = g ; spine = ts } when Term.eq_head f g ->
               compute_spine_congruence (Term.ty_infer prin.tycx f) ss ts
-          | _ -> bad_match "28"
+          | _ -> bad_match "31"
         end
       | `r, Imp (a, b), Contract ->
           mk_imp a (mk_imp a b)
@@ -388,7 +439,7 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
       | `r, Exists (vty, b), Inst { side = `r ; term = wtx } ->
           Term.ty_check prin.tycx wtx.data vty.ty ;
           Term.do_app (Abs {var = vty.var ; body = b}) [wtx.data]
-      | _ -> bad_match "29"
+      | _ -> bad_match "32"
   } in
   let goal = { goal with data = replace_at goal.data rule.path prin.data } in
   { goal ; prin }

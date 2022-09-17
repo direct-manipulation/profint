@@ -30,7 +30,7 @@ let kcomb = Mk.{ tycx = empty ; data = mk_imp a (mk_imp b a) }
 
 let run_kcomb () =
   let kderiv = [
-    Cos.{ name = Goal_ts_imp `r ; path = Q.empty   } ;
+    Cos.{ name = Goal_ts_imp { pick = `r } ; path = Q.empty   } ;
     Cos.{ name = Init           ; path = Q.singleton `r } ;
   ] in
   compute_forms_simp kcomb kderiv
@@ -42,18 +42,18 @@ let scomb = Mk.{ tycx = empty ;
 let run_scomb () =
   let sderiv = [
     Cos.{ name = Contract ; path = Q.of_list [`r ; `r] } ;
-    Cos.{ name = Goal_ts_imp `l ; path = Q.of_list [`r] } ;
+    Cos.{ name = Goal_ts_imp { pick = `l } ; path = Q.of_list [`r] } ;
     Cos.{ name = Asms_imp { minor = `r ; pick = `l } ;
           path = Q.of_list [`r ; `l] } ;
     Cos.{ name = Init ; path = Q.of_list [`r ; `l ; `l] } ;
-    Cos.{ name = Goal_ts_imp `r ; path = Q.of_list [] } ;
-    Cos.{ name = Goal_ts_imp `r ; path = Q.of_list [`r] } ;
+    Cos.{ name = Goal_ts_imp { pick = `r } ; path = Q.of_list [] } ;
+    Cos.{ name = Goal_ts_imp { pick = `r } ; path = Q.of_list [`r] } ;
     Cos.{ name = Goal_imp_ts ; path = Q.of_list [`r ; `r] } ;
     Cos.{ name = Goal_imp_ts ; path = Q.of_list [`r ; `r ; `r] } ;
     Cos.{ name = Init ; path = Q.of_list [`r ; `r ; `r ; `r] } ;
-    Cos.{ name = Goal_ts_imp `r ; path = Q.of_list [] } ;
-    Cos.{ name = Goal_ts_and `r ; path = Q.of_list [`r] } ;
-    Cos.{ name = Goal_ts_and `l ; path = Q.of_list [] } ;
+    Cos.{ name = Goal_ts_imp { pick = `r } ; path = Q.of_list [] } ;
+    Cos.{ name = Goal_ts_and { pick = `r } ; path = Q.of_list [`r] } ;
+    Cos.{ name = Goal_ts_and { pick = `l } ; path = Q.of_list [] } ;
     Cos.{ name = Init ; path = Q.of_list [`l] } ;
     Cos.{ name = Init ; path = Q.of_list [] } ;
   ] in
