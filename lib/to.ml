@@ -37,6 +37,7 @@ module Coq         : TO = To_coq
 module Coq_reflect : TO = To_coq_reflect
 module Lean3       : TO = To_lean3
 module Lean4       : TO = To_lean4
+module IsaHOL      : TO = To_isahol
 
 exception Unknown of string
 
@@ -47,5 +48,6 @@ let select sel : (module TO) =
   | "coq_reflect" -> (module Coq_reflect)
   | "lean3"       -> (module Lean3)
   | "lean4"       -> (module Lean4)
+  | "isahol"      -> (module IsaHOL)
   | "pdf"         -> (module Pdf)
   | mode -> raise @@ Unknown mode
