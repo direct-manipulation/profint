@@ -233,15 +233,32 @@ Inductive rule_name : Type :=
 | RN_inst_l {T : Type} (t : T)   (* (forall x, p x) -> p t *)
 | RN_rewrite_rtl                 (* p s -> s = t -> p t *)
 | RN_rewrite_ltr                 (* p t -> s = t -> p s *)
-| RN_simp_imp_true               (* True -> a -> True *)
-| RN_simp_true_imp_r             (* a -> (True -> a) *)
-| RN_simp_true_imp_l             (* (True -> a) -> a *)
-| RN_simp_false_imp              (* True -> (False -> a) *)
-| RN_simp_and_true_l             (* a -> (a /\ True) *)
-| RN_simp_and_true_r             (* a -> (True /\ a) *)
-| RN_simp_or_true_l              (* True -> (a \/ True) *)
-| RN_simp_or_true_r              (* True -> (True \/ a) *)
-| RN_simp_all_true               (* True -> forall (_ : T), True *)
+| RN_simp_goal_and_top           (* a -> (a /\ True) *)
+| RN_simp_goal_top_and           (* a -> (True /\ a) *)
+| RN_simp_asms_and_top           (* (a /\ True) -> a *)
+| RN_simp_asms_top_and           (* (True /\ a) -> a *)
+| RN_simp_goal_or_top            (* True -> (a \/ True) *)
+| RN_simp_goal_top_or            (* True -> (True \/ a) *)
+| RN_simp_asms_or_top            (* (a \/ True) -> True *)
+| RN_simp_asms_top_or            (* (True \/ a) -> True *)
+| RN_simp_goal_imp_top           (* True -> (a -> True) *)
+| RN_simp_goal_top_imp           (* a -> (True -> a) *)
+| RN_simp_asms_imp_top           (* (a -> True) -> True *)
+| RN_simp_asms_top_imp           (* (True -> a) -> a *)
+| RN_simp_goal_and_bot           (* False -> (a /\ False) *)
+| RN_simp_goal_bot_and           (* False -> (False /\ a) *)
+| RN_simp_asms_and_bot           (* (a /\ False) -> False *)
+| RN_simp_asms_bot_and           (* (False /\ a) -> False *)
+| RN_simp_goal_or_bot            (* a -> (a \/ False) *)
+| RN_simp_goal_bot_or            (* a -> (False \/ a) *)
+| RN_simp_asms_or_bot            (* (a \/ False) -> a *)
+| RN_simp_asms_bot_or            (* (False \/ a) -> a *)
+| RN_simp_goal_bot_imp           (* True -> (False -> a) *)
+| RN_simp_asms_bot_imp           (* (False -> a) -> True *)
+| RN_simp_goal_all_top           (* True -> forall (_ : T), True *)
+| RN_simp_asms_all_top           (* (forall (_ : T), True) -> True *)
+| RN_simp_goal_ex_bot            (* False -> exists (_ : T), False *)
+| RN_simp_asms_ex_bot            (* (exists (_ : T), False) -> False *)
 | RN_init                        (* True -> p -> p *)
 | RN_congr                       (* True -> t = t *)
 .
@@ -438,51 +455,136 @@ Fixpoint check (deriv : deriv) (goal : Prop) : Prop :=
           exists Ts ctx U (s t : Ts ▷ U) p,
           resolve goal path Pos Ts ctx ((s ≐ t) → (p ◆ s))
           /\ check deriv (ctx{{ p ◆ t}})
-      | RN_simp_imp_true =>
-          (* True -> a -> True *)
-          exists Ts ctx a,
-          resolve goal path Pos Ts ctx (a → ⊤)
-          /\ check deriv (ctx{{ ⊤ }})
-      | RN_simp_true_imp_r =>
-          (* a -> (True -> a) *)
-          exists Ts ctx a,
-          resolve goal path Pos Ts ctx (⊤ → a)
-          /\ check deriv (ctx{{ a }})
-      | RN_simp_true_imp_l =>
-          (* (True -> a) -> a *)
-          exists Ts ctx a,
-          resolve goal path Neg Ts ctx (⊤ → a)
-          /\ check deriv (ctx{{ a }})
-      | RN_simp_false_imp =>
-          (* True -> (False -> a) *)
-          exists Ts ctx a,
-          resolve goal path Pos Ts ctx (⊥ → a)
-          /\ check deriv (ctx{{ ⊤ }})
-      | RN_simp_and_true_l =>
+      | RN_simp_goal_and_top =>
           (* a -> (a /\ True) *)
           exists Ts ctx a,
           resolve goal path Pos Ts ctx (a ∧ ⊤)
           /\ check deriv (ctx{{ a }})
-      | RN_simp_and_true_r =>
+      | RN_simp_goal_top_and =>
           (* a -> (True /\ a) *)
           exists Ts ctx a,
           resolve goal path Pos Ts ctx (⊤ ∧ a)
           /\ check deriv (ctx{{ a }})
-      | RN_simp_or_true_l =>
+      | RN_simp_asms_and_top =>
+          (* (a /\ True) -> a *)
+          exists Ts ctx a,
+          resolve goal path Neg Ts ctx (a ∧ ⊤)
+          /\ check deriv (ctx{{ a }})
+      | RN_simp_asms_top_and =>
+          (* (True /\ a) -> a *)
+          exists Ts ctx a,
+          resolve goal path Neg Ts ctx (⊤ ∧ a)
+          /\ check deriv (ctx{{ a }})
+      | RN_simp_goal_or_top =>
           (* True -> (a \/ True) *)
           exists Ts ctx a,
           resolve goal path Pos Ts ctx (a ∨ ⊤)
           /\ check deriv (ctx{{ ⊤ }})
-      | RN_simp_or_true_r =>
+      | RN_simp_goal_top_or =>
           (* True -> (True \/ a) *)
           exists Ts ctx a,
           resolve goal path Pos Ts ctx (⊤ ∨ a)
           /\ check deriv (ctx{{ ⊤ }})
-      | RN_simp_all_true =>
-          (* True -> forall (_ : T), True *)
-          exists Ts U ctx,
-          resolve goal path Pos Ts ctx (∀ (x : U), ⊤)
+      | RN_simp_asms_or_top =>
+          (* (a \/ True) -> True *)
+          exists Ts ctx a,
+          resolve goal path Neg Ts ctx (a ∨ ⊤)
           /\ check deriv (ctx{{ ⊤ }})
+      | RN_simp_asms_top_or =>
+          (* (True \/ a) -> True *)
+          exists Ts ctx a,
+          resolve goal path Neg Ts ctx (a ∨ ⊤)
+          /\ check deriv (ctx{{ ⊤ }})
+      | RN_simp_goal_imp_top =>
+          (* True -> (a -> True) *)
+          exists Ts ctx a,
+          resolve goal path Pos Ts ctx (a → ⊤)
+          /\ check deriv (ctx{{ ⊤ }})
+      | RN_simp_goal_top_imp =>
+          (* a -> (True -> a) *)
+          exists Ts ctx a,
+          resolve goal path Pos Ts ctx (⊤ → a)
+          /\ check deriv (ctx{{ a }})
+      | RN_simp_asms_imp_top =>
+          (* (a -> True) -> True *)
+          exists Ts ctx a,
+          resolve goal path Neg Ts ctx (a → ⊤)
+          /\ check deriv (ctx{{ ⊤ }})
+      | RN_simp_asms_top_imp =>
+          (* (True -> a) -> a *)
+          exists Ts ctx a,
+          resolve goal path Neg Ts ctx (⊤ → a)
+          /\ check deriv (ctx{{ a }})
+      | RN_simp_goal_and_bot =>
+          (* False -> (a /\ False) *)
+          exists Ts ctx a,
+          resolve goal path Pos Ts ctx (a ∧ ⊥)
+          /\ check deriv (ctx{{ ⊥ }})
+      | RN_simp_goal_bot_and =>
+          (* False -> (False /\ a) *)
+          exists Ts ctx a,
+          resolve goal path Pos Ts ctx (⊥ ∧ a)
+          /\ check deriv (ctx{{ ⊥ }})
+      | RN_simp_asms_and_bot =>
+          (* (a /\ False) -> False *)
+          exists Ts ctx a,
+          resolve goal path Neg Ts ctx (a ∧ ⊥)
+          /\ check deriv (ctx{{ ⊥ }})
+      | RN_simp_asms_bot_and =>
+          (* (False /\ a) -> False *)
+          exists Ts ctx a,
+          resolve goal path Neg Ts ctx (a ∧ ⊥)
+          /\ check deriv (ctx{{ ⊥ }})
+      | RN_simp_goal_or_bot =>
+          (* a -> (a \/ False) *)
+          exists Ts ctx a,
+          resolve goal path Pos Ts ctx (a ∨ ⊥)
+          /\ check deriv (ctx{{ a }})
+      | RN_simp_goal_bot_or =>
+          (* a -> (False \/ a) *)
+          exists Ts ctx a,
+          resolve goal path Pos Ts ctx (⊥ ∨ a)
+          /\ check deriv (ctx{{ a }})
+      | RN_simp_asms_or_bot =>
+          (* (a \/ False) -> a *)
+          exists Ts ctx a,
+          resolve goal path Neg Ts ctx (a ∨ ⊥)
+          /\ check deriv (ctx{{ a }})
+      | RN_simp_asms_bot_or =>
+          (* (False \/ a) -> a *)
+          exists Ts ctx a,
+          resolve goal path Neg Ts ctx (⊥ ∨ a)
+          /\ check deriv (ctx{{ a }})
+      | RN_simp_goal_bot_imp =>
+          (* True -> (False -> a) *)
+          exists Ts ctx a,
+          resolve goal path Pos Ts ctx (⊥ → a)
+          /\ check deriv (ctx{{ ⊤ }})
+      | RN_simp_asms_bot_imp =>
+          (* (False -> a) -> True *)
+          exists Ts ctx a,
+          resolve goal path Neg Ts ctx (⊥ → a)
+          /\ check deriv (ctx{{ ⊤ }})
+      | RN_simp_goal_all_top =>
+          (* True -> forall (_ : T), True *)
+          exists Ts ctx U,
+          resolve goal path Pos Ts ctx (∀ (_ : U), ⊤)
+          /\ check deriv (ctx{{ ⊤ }})
+      | RN_simp_asms_all_top =>
+          (* (forall (_ : T), True) -> True *)
+          exists Ts ctx U,
+          resolve goal path Neg Ts ctx (∀ (_ : U), ⊤)
+          /\ check deriv (ctx{{ ⊤ }})
+      | RN_simp_goal_ex_bot =>
+          (* False -> exists (_ : T), False *)
+          exists Ts ctx U,
+          resolve goal path Pos Ts ctx (∃ (_ : U), ⊥)
+          /\ check deriv (ctx{{ ⊥ }})
+      | RN_simp_asms_ex_bot
+          (* (exists (_ : T), False) -> False *) =>
+          exists Ts ctx U,
+          resolve goal path Pos Ts ctx (∃ (_ : U), ⊥)
+          /\ check deriv (ctx{{ ⊥ }})
       | RN_init =>
           (* True -> p -> p *)
           exists Ts ctx p,
@@ -522,7 +624,6 @@ Proof.
           | [ x : (_ :: _ ▷ _), IH : (forall (_ : _ ▷ Prop), _) |- _ ] =>
               specialize (IH (x u)) ; cbn in x ; try tauto
           end.
-  13 : tauto.
   all : try match goal with
           | [ x : list Type |- _ ] =>
               clear ;

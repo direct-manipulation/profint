@@ -1,11 +1,9 @@
 namespace Profint
 
-universe  u
-variable  {T : Type u}
-variables {a b c : Prop}
-variables {p q : T -> Prop}
+universe u
+variables {T : Type u} {a b c : Prop} {p q : T -> Prop}
 
--- These utility theorems are used for traversal
+-- These are the transport theorems
 
 theorem go_left_and : (a → b) → (a ∧ c → b ∧ c) :=
   fun f ac, and.intro (f (and.left ac)) (and.right ac)
@@ -54,6 +52,7 @@ theorem goal_ts_ex : (∃ x, a → p x) → (a → ∃ x, p x) :=
   fun fex xa, exists.elim fex (fun x f, exists.intro x (f xa))
 theorem goal_ex_ts : (∀ x, p x → a) → (∃ x, p x) → a :=
   fun ff xpex, exists.elim xpex (fun x xp, ff x xp)
+
 theorem asms_and_l_l : (a ∧ (b ∧ c)) → (a ∧ b) :=
   fun xabc, and.intro (and.left xabc) (and.left (and.right xabc))
 theorem asms_and_l_r : (a ∧ (c ∧ b)) → (a ∧ b) :=
@@ -86,6 +85,7 @@ theorem asms_ex_l : (a ∧ ∃ x, p x) → ∃ x, (a ∧ p x) :=
   fun xaep, exists.elim (and.right xaep) (fun x xp, exists.intro x (and.intro (and.left xaep) xp))
 theorem asms_ex_r : ((∃ x, p x) ∧ a) → ∃ x, (p x ∧ a) :=
   fun epxa, exists.elim (and.left epxa) (fun x xp, exists.intro x (and.intro xp (and.right epxa)))
+
 theorem contract : (a → a → b) → (a → b) :=
   fun f xa, f xa xa
 theorem weaken : b → (a → b) :=
@@ -98,24 +98,65 @@ theorem rewrite_rtl {s t : T} : p s → s = t → p t :=
   fun x q, q ▸ x
 theorem rewrite_ltr {s t : T} : p t → s = t → p s :=
   fun x q, (eq.symm q) ▸ x
-theorem simp_imp_true : true → a → true :=
-  fun _ _, true.intro
-theorem simp_true_imp_r : a → (true → a) :=
-  fun xa _, xa
-theorem simp_true_imp_l : (true → a) → a :=
-  fun f, f true.intro
-theorem simp_false_imp : true → (false → a) :=
-  fun _, false.elim
-theorem simp_and_true_l : a → (a ∧ true) :=
-  fun xa, and.intro xa true.intro
-theorem simp_and_true_r : a → (true ∧ a) :=
-  fun xa, and.intro true.intro xa
-theorem simp_or_true_l : true → (a ∨ true) :=
+
+theorem simp_goal_and_top : a → (a ∧ true) :=
+  fun x, and.intro x true.intro
+theorem simp_goal_top_and : a → (true ∧ a) :=
+  fun x, and.intro true.intro x
+theorem simp_asms_and_top : (a ∧ true) → a :=
+  fun x, and.left x
+theorem simp_asms_top_and : (true ∧ a) → a :=
+  fun x, and.right x
+
+theorem simp_goal_or_top  : true → (a ∨ true) :=
   fun _, or.inr true.intro
-theorem simp_or_true_r : true -> (true ∨ a) :=
+theorem simp_goal_top_or  : true → (true ∨ a) :=
   fun _, or.inl true.intro
-theorem simp_all_true : true → ∀ (_ : T), true :=
+theorem simp_asms_or_top  : (a ∨ true) → true :=
+  fun _, true.intro
+theorem simp_asms_top_or  : (true ∨ a) → true :=
+  fun _, true.intro
+
+theorem simp_goal_imp_top : true → (a → true) :=
   fun _ _, true.intro
+theorem simp_goal_top_imp : a → (true → a) :=
+  fun x _, x
+theorem simp_asms_imp_top : (a → true) → true :=
+  fun _, true.intro
+theorem simp_asms_top_imp : (true → a) → a :=
+  fun x, x true.intro
+
+theorem simp_goal_and_bot : false → (a ∧ false) :=
+  fun x, false.elim x
+theorem simp_goal_bot_and : false → (false ∧ a) :=
+  fun x, false.elim x
+theorem simp_asms_and_bot : (a ∧ false) → false :=
+  fun x, false.elim x.2
+theorem simp_asms_bot_and : (false ∧ a) → false :=
+  fun x, false.elim x.1
+
+theorem simp_goal_or_bot  : a → (a ∨ false) :=
+  fun x, or.inl x
+theorem simp_goal_bot_or  : a → (false ∨ a) :=
+  fun x, or.inr x
+theorem simp_asms_or_bot  : (a ∨ false) → a :=
+  fun x, or.elim x (fun u, u) (fun u, false.elim u)
+theorem simp_asms_bot_or  : (false ∨ a) → a :=
+  fun x, or.elim x (fun u, false.elim u) (fun u, u)
+
+theorem simp_goal_bot_imp : true → (false → a) :=
+  fun _ x, false.elim x
+theorem simp_asms_bot_imp : (false → a) → true :=
+  fun _, true.intro
+
+theorem simp_goal_all_top : true → ∀ (_ : T), true :=
+  fun _ _, true.intro
+theorem simp_asms_all_top : (∀ (_ : T), true) → true :=
+  fun _, true.intro
+theorem simp_goal_ex_bot  : false → ∃ (_ : T), false :=
+  fun x, false.elim x
+theorem simp_asms_ex_bot  : (∃ (_ : T), false) → false :=
+  fun x, exists.elim x (fun _ u, false.elim u)
 
 open tactic
 
@@ -138,33 +179,8 @@ meta def profint_discharge : tactic unit := do
     `[exact id <|> apply eq.refl]
   end
 
-/- ignore this namespace -/
-namespace Debug
-
-theorem init0 (f : Prop) :
-   true → f → f :=
-by profint_discharge
-
-theorem congr0 (f : T) :
-   true → f = f :=
-by profint_discharge
-
-theorem init1 (s t : T) (f : T → Prop) :
-   s = t → f s → f t :=
-by profint_discharge
-
-theorem congr1 (s t : T) (f : T → T) :
-   s = t → f s = f t :=
-by profint_discharge
-
-theorem initN (s t u v z w : T) (f : T → T → T → Prop) :
-   s = t ∧ u = v ∧ z = w → f s u z → f t v w :=
-by profint_discharge
-
-theorem congrN (s t u v z w : T) (f : T → T → T → T) :
-   s = t ∧ u = v ∧ z = w → f s u z = f t v w :=
-by profint_discharge
-
-end Debug
-
 end Profint
+
+-- Local Variables:
+-- mode: lean
+-- End:
