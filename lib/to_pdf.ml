@@ -95,7 +95,7 @@ let pp_path out (path : path) =
            Format.pp_print_string out x) out
 
 let pp_header out () =
-  Format.pp_print_string out {|\documentclass{article}
+  Format.pp_print_string out {|\documentclass[landscape]{article}
 \usepackage{proof}
 \usepackage{amsmath}
 \usepackage[a4paper,margin=1cm]{geometry}
@@ -113,17 +113,22 @@ let pp_footer out () =
 
 let pp_deriv out (sg, deriv) =
   pp_header out () ;
-  Format.fprintf out {|\begin{gather*}
+  let chunks = CCList.chunks 30 (deriv.Cos.middle) in
+  List.iter begin fun chunk ->
+    let (top, _, _) = List.hd chunk in
+    let chunk = List.rev chunk in
+    Format.fprintf out {|\begin{gather*}
 |} ;
-  List.iter begin fun (_, rule, concl) ->
-    Format.fprintf out {|\infer{
+    List.iter begin fun (_, rule, concl) ->
+      Format.fprintf out {|\infer{\mathstrut
 %a
 }{|} pp_formx (mark_location concl rule)
-  end (List.rev deriv.Cos.middle) ;
-  Format.fprintf out {|%a%s
+    end chunk ;
+    Format.fprintf out {|\mathstrut %a%s
 \end{gather*}
 \clearpage
-|} pp_formx deriv.Cos.top (String.make (List.length deriv.Cos.middle) '}') ;
+|} pp_formx top (String.make (List.length chunk) '}') ;
+  end (List.rev chunks) ;
   pp_sigma out sg ;
   pp_footer out ()
 

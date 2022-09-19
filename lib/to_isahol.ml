@@ -329,8 +329,7 @@ let pp_rule stepno out (prem, rule, goal) =
     |> List.iter (Format.fprintf out "%s@,")
   end !bufs
 
-let pp_step out stepno (prem, _, _ as prc) =
-  pp_rule stepno out prc
+let pp_step out stepno prc = pp_rule stepno out prc
 
 let pp_deriv out (sg, deriv) =
   Format.fprintf out "lemma profint__export:@.%a  assumes prem: \"%a\"@.  shows \"%a\"@."
