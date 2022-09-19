@@ -4,7 +4,7 @@ PROFILE := release
 # PROFILE := dev
 DELIVERABLES := $(wildcard *.html favicon.ico icons $(notdir $(PROFJS)) demo.js vendor)
 
-.PHONY: all clean sync list
+.PHONY: all clean sync list cpp23-anon
 
 all:
 	dune build \
@@ -31,6 +31,12 @@ all:
 
 sync: all
 	rsync -avz $(DELIVERABLES) chaudhuri.info:chaudhuri/research/profint
+
+CPP23ANON := $(HOME)/work/cpp2023p33
+
+cpp23-anon: all
+	cp --force --archive $(filter-out Makefile README.md,$(wildcard *)) $(CPP23ANON)/
+	cd $(CPP23ANON) && git add . && git commit -m $(shell date --iso-8601=seconds --utc)
 
 clean:
 	dune clean --root=$(ROOT)
