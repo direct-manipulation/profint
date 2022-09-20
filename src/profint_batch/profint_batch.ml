@@ -131,7 +131,7 @@ let main () =
   let set_outdir dir = outdir := FilePath.reduce dir in
   let doit = ref false in
   let opts = Arg.[
-      "-format", String set_mode, "FMT Set output format to FMT (coq, coq_reflect, lean3, lean4)" ;
+      "-format", String set_mode, "FMT Set output format to FMT (coq, coq_reflect, lean3, lean4, isahol)" ;
       "-d", String set_outdir, "DIR Set output direcory to DIR" ;
       "-run", Set doit, " ALso run the generated build" ;
     ] |> Arg.align in
