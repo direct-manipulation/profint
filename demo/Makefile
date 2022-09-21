@@ -21,7 +21,7 @@ all:
 	cp -a $(ROOT)/node_modules/jquery/dist/jquery.min.js vendor/
 	cp -a $(ROOT)/node_modules/jquery-color/dist/jquery.color.min.js vendor/
 	cp -a $(ROOT)/node_modules/ace-builds/src-min/ace.js vendor/
-	cp -a $(ROOT)/node_modules/ace-builds/src-min/theme-twilight.js vendor/
+	cp -a $(ROOT)/node_modules/ace-builds/src-min/theme-chrome.js vendor/
 	cp -a $(ROOT)/node_modules/katex/dist/katex.min.css vendor/
 	cp -a $(ROOT)/node_modules/katex/dist/katex.min.js vendor/
 	cp -a $(ROOT)/node_modules/katex/dist/fonts vendor/

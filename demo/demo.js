@@ -377,7 +377,7 @@ function demoSetup() {
   renderFormula() ;
   $("#signature").html(sigText);
   var sigEditor = ace.edit("signature");
-  sigEditor.setTheme("ace/theme/twilight");
+  sigEditor.setTheme("ace/theme/chrome");
   sigEditor.setOptions({
     minLines: 5,
     maxLines: 20,

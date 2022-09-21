@@ -126,6 +126,12 @@ let profint_object =
     method getStateHTML =
       pp_to_string (pp_stage ~ppfx:To.Katex.pp_formx) state.goal |> Js.string
 
+    method termToHTML text =
+      try
+        let (f, _) = Uterm.term_of_string @@ Js.to_string text in
+        Js.some @@ Js.string @@ pp_to_string To.Katex.pp_termx @@ Types.triv f
+      with _ -> Js.null
+
     method formulaToHTML text =
       try
         let f = Uterm.form_of_string @@ Js.to_string text in
