@@ -27,11 +27,11 @@ Instructions:
   `google-chrome`, etc.)
 
 * The `Profint` tool packages all its dependencies together, and there should be
-  no network requests that are triggered to the general internet. Reviewers can
-  verify this for themselves by means of the "network monitor" tab or the
-  equivalent in the developer tools section of the browser. For instance, in
-  Firefox, this is accessed with the "Menu Button > More Tools > Web Developer
-  Tools" (or by pressing Ctrl+Shift+I).
+  no network requests that are triggered to the general internet. This can be
+  verified by means of the "network monitor" tab or the equivalent in the
+  developer tools section of the browser. In Firefox, for instance, this is
+  accessed with the "Menu Button > More Tools > Web Developer Tools" (or by
+  pressing Ctrl+Shift+I).
 
 * A fully anonymized version of this tool is also being uploaded to Github at
   the following bespoke url: https://cpp2023p33.github.io/

@@ -335,6 +335,13 @@ function toggleSignature() {
 demo.toggleSignature = toggleSignature;
 
 function demoSetup() {
+  // [START] JSZip hack
+  // for below see: https://github.com/Stuk/jszip/issues/369#issuecomment-546204220
+  // reset the JSZip default date
+  const currDate = new Date();
+  const dateWithOffset = new Date(currDate.getTime() - currDate.getTimezoneOffset() * 60000);
+  JSZip.defaults.date = dateWithOffset;
+  // [END] JSZip hack
   hotkeys("ctrl+up,ctrl+y,ctrl+down,ctrl+z,w,ctrl+c,n,d,escape", function (event, handler){
     switch (handler.key) {
     case "escape":
