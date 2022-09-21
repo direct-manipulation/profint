@@ -35,7 +35,7 @@ sync: all
 CPP23ANON := $(HOME)/work/cpp2023p33
 
 cpp23-anon: all
-	cp --force --archive $(filter-out Makefile README.md,$(wildcard *)) $(CPP23ANON)/
+	cp --force --archive $(filter-out Makefile,$(wildcard *)) $(CPP23ANON)/
 	cd $(CPP23ANON) && git add . && git commit -m $(shell date --iso-8601=seconds --utc)
 
 clean:
