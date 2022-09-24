@@ -15,7 +15,7 @@ open! Form4
 let rec ty_to_exp ty =
   match ty with
   | Basic a ->
-      let rep = if a = K.k_o then "Prop" else a in
+      let rep = if a = K.k_o then "Prop" else repr a in
       Doc.(Atom (String rep))
   | Arrow (ta, tb) ->
       Doc.(Appl (1, Infix (StringAs (3, " → "), Right,
@@ -32,8 +32,8 @@ let ty_to_string ty = pp_to_string pp_ty ty
 let rec termx_to_exp_ ~cx t =
   match t with
   | T.Abs { var ; body } ->
-      with_var ~fresh:true cx { var ; ty = K.ty_any } begin fun vty cx ->
-        let rep = Doc.String (Printf.sprintf "fun %s, " vty.var) in
+      with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
+        let rep = Doc.String (Printf.sprintf "fun %s, " (repr vty.var)) in
         Doc.(Appl (1, Prefix (rep, termx_to_exp_  ~cx body)))
       end
   | T.App { head ; spine = [] } ->
@@ -68,10 +68,10 @@ let rec formx_to_exp_ ~cx f =
       let b = formx_to_exp_ ~cx b in
       Doc.(Appl (10, Infix (StringAs (3, " → "), Right, [a ; b])))
   | Forall (vty, b) ->
-      with_var ~fresh:true cx vty begin fun vty cx ->
+      with_var cx vty begin fun vty cx ->
         let q = Doc.Fmt Format.(fun out ->
             pp_print_as out 3 "∀ (" ;
-            pp_print_string out vty.var ;
+            pp_print_string out (repr vty.var) ;
             pp_print_string out " : " ;
             pp_ty out vty.ty ;
             pp_print_string out "), ") in
@@ -79,10 +79,10 @@ let rec formx_to_exp_ ~cx f =
         Doc.(Appl (5, Prefix (q, b)))
       end
   | Exists (vty, b) ->
-      with_var ~fresh:true cx vty begin fun vty cx ->
+      with_var cx vty begin fun vty cx ->
         let q = Doc.Fmt Format.(fun out ->
             pp_print_as out 3 "∃ (" ;
-            pp_print_string out vty.var ;
+            pp_print_string out (repr vty.var) ;
             pp_print_string out " : " ;
             pp_ty out vty.ty ;
             pp_print_string out "), ") in
@@ -98,12 +98,14 @@ let pp_sigma out sg =
   Format.fprintf out "universe u@." ;
   IdSet.iter begin fun i ->
     if IdSet.mem i sigma0.basics then () else
-      Format.fprintf out "variable {%s : Type u}@.include %s@." i i
+    let i = repr i in
+    Format.fprintf out "variable {%s : Type u}@.include %s@." i i
   end sg.basics ;
   IdMap.iter begin fun k ty ->
     if IdMap.mem k sigma0.consts then () else
-      Format.fprintf out "variable {%s : %s}@.include %s@."
-        k (ty_to_string @@ thaw_ty ty) k
+    let k = repr k in
+    Format.fprintf out "variable {%s : %s}@.include %s@."
+      k (ty_to_string @@ thaw_ty ty) k
   end sg.consts
 
 exception Unprintable
@@ -184,11 +186,11 @@ let pp_rule out (prem, rule, goal) =
         match expose f with
         | Forall ({ var ; ty }, b)
         | Exists ({ var ; ty }, b) ->
-            with_var ~fresh:true cx { var ; ty } begin fun { var ; ty } cx ->
+            with_var cx { var ; ty } begin fun { var ; ty } cx ->
               Format.fprintf out "@@inst_%s %a (fun (%s : %a), %a) (%a)"
                 (match side with `l -> "l" | _ -> "r")
                 pp_ty ty
-                var pp_ty ty
+                (repr var) pp_ty ty
                 pp_formx { tycx = cx ; data = b }
                 pp_termx tx
             end
@@ -245,7 +247,8 @@ let pp_rule out (prem, rule, goal) =
             pp_path (n + 1) cx b a path
         | Forall ({ var ; ty }, q), Forall (_, p), `d
         | Forall ({ ty ; _ }, q), Forall (_, p), `i var ->
-            with_var ~fresh:true cx { var ; ty } begin fun { var ; _ } cx ->
+            with_var cx { var ; ty } begin fun { var ; _ } cx ->
+              let var = repr var in
               Format.fprintf out "@@go_down_all (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "
                 pp_ty ty
                 var pp_ty ty pp_formx { tycx = cx ; data = p }
@@ -255,7 +258,8 @@ let pp_rule out (prem, rule, goal) =
             end
         | Exists ({ var ; ty }, q), Exists (_, p), `d
         | Exists ({ ty ; _ }, q), Exists (_, p), `i var ->
-            with_var ~fresh:true cx { var ; ty } begin fun { var ; _ } cx ->
+            with_var cx { var ; ty } begin fun { var ; _ } cx ->
+              let var = repr var in
               Format.fprintf out "@@go_down_ex (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "
                 pp_ty ty
                 var pp_ty ty pp_formx { tycx = cx ; data = p }

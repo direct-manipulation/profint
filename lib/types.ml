@@ -20,7 +20,7 @@ module K = struct
   let next_internal =
     let count = ref 0 in
     fun hint -> incr count ;
-      Printf.sprintf {|#%s@%d#|} hint !count
+      Printf.ksprintf ident {|#%s@%d#|} hint !count
 
   let k_mdata = next_internal "mdata"
   let k_all = next_internal "forall"
@@ -44,7 +44,7 @@ let rec ty_to_exp ty =
   match ty with
   | Basic a ->
       if a = K.k_o then Doc.(Atom (String "\\o"))
-      else Doc.(Atom (String a))
+      else Doc.(Atom (String (repr a)))
   | Arrow (ta, tb) ->
       Doc.(Appl (1, Infix (String " -> ", Right,
                            [ty_to_exp ta ; ty_to_exp tb])))
@@ -148,11 +148,11 @@ let thaw_ty pty =
 let pp_sigma out sigma =
   IdSet.iter begin fun i ->
     if not @@ IdSet.mem i sigma0.basics then
-      Format.fprintf out "%s : \\type.@." i
+      Format.fprintf out "%s : \\type.@." (repr i)
   end sigma.basics ;
   IdMap.iter begin fun k pty ->
     if not @@ IdMap.mem k sigma0.consts then
-      Format.fprintf out "%s : %a.@." k pp_ty (thaw_ty pty)
+      Format.fprintf out "%s : %a.@." (repr k) pp_ty (thaw_ty pty)
   end sigma.consts
 
 let lookup_ty k = thaw_ty @@ IdMap.find k !sigma.consts
@@ -193,41 +193,24 @@ type typed_var = {
 
 type tycx = {
   linear : typed_var list ;
-  used : IdSet.t ;
+  lasts : ident SMap.t ;
 }
 
 let empty = {
   linear = [] ;
-  used = IdSet.empty ;
+  lasts = SMap.empty ;
 }
 
-let[@inline] salt v k =
-  if k = 0 then v else v ^ "_" ^ string_of_int k
-
-let with_var ?(fresh = false) tycx vty go =
-  let rec freshen v k =
-    let vk = salt v k in
-    if IdSet.mem vk tycx.used then freshen v (k + 1) else vk
+let with_var tycx vty go =
+  let salt = match SMap.find_opt vty.var.base tycx.lasts with
+    | None -> 0
+    | Some old -> old.salt + 1
   in
-  let var = if fresh then freshen vty.var 0 else vty.var in
-  let used = IdSet.add var tycx.used in
-  let vty = { vty with var } in
+  let vty = { vty with var = { vty.var with salt } } in
+  let lasts = SMap.add vty.var.base vty.var tycx.lasts in
   let linear = vty :: tycx.linear in
-  go vty {linear ; used}
-
-let last_var tycx = List.hd tycx.linear
-
-let last tycx =
-  match tycx.linear with
-  | [] -> raise Not_found
-  | tv :: linear ->
-      (tv, { linear ; used = IdSet.remove tv.var tycx.used })
-
-let last_opt tycx =
-  match tycx.linear with
-  | [] -> None
-  | tv :: linear ->
-      Some (tv, { linear ; used = IdSet.remove tv.var tycx.used })
+  let tycx = { linear ; lasts } in
+  go vty tycx
 
 type 'a incx = {
   tycx : tycx ;

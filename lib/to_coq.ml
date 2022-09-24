@@ -15,7 +15,7 @@ open! Form4
 let rec ty_to_exp ty =
   match ty with
   | Basic a ->
-      let rep = if a = K.k_o then "Prop" else a in
+      let rep = if a = K.k_o then "Prop" else repr a in
       Doc.(Atom (String rep))
   | Arrow (ta, tb) ->
       Doc.(Appl (1, Infix (String (" -> "), Right,
@@ -32,8 +32,8 @@ let ty_to_string ty = pp_to_string pp_ty ty
 let rec termx_to_exp_ ~cx t =
   match t with
   | T.Abs { var ; body } ->
-      with_var ~fresh:true cx { var ; ty = K.ty_any } begin fun vty cx ->
-        let rep = Doc.String (Printf.sprintf "fun %s => " vty.var) in
+      with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
+        let rep = Doc.String (Printf.sprintf "fun %s => " (repr vty.var)) in
         Doc.(Appl (1, Prefix (rep, termx_to_exp_  ~cx body)))
       end
   | T.App { head ; spine = [] } ->
@@ -68,10 +68,10 @@ let rec formx_to_exp_ ~cx f =
       let b = formx_to_exp_ ~cx b in
       Doc.(Appl (10, Infix (String " -> ", Right, [a ; b])))
   | Forall (vty, b) ->
-      with_var ~fresh:true cx vty begin fun vty cx ->
+      with_var cx vty begin fun vty cx ->
         let q = Doc.Fmt Format.(fun out ->
             pp_print_as out 3 "forall (" ;
-            pp_print_string out vty.var ;
+            pp_print_string out (repr vty.var) ;
             pp_print_string out " : " ;
             pp_ty out vty.ty ;
             pp_print_string out "), ") in
@@ -79,10 +79,10 @@ let rec formx_to_exp_ ~cx f =
         Doc.(Appl (5, Prefix (q, b)))
       end
   | Exists (vty, b) ->
-      with_var ~fresh:true cx vty begin fun vty cx ->
+      with_var cx vty begin fun vty cx ->
         let q = Doc.Fmt Format.(fun out ->
             pp_print_as out 3 "exists (" ;
-            pp_print_string out vty.var ;
+            pp_print_string out (repr vty.var) ;
             pp_print_string out " : " ;
             pp_ty out vty.ty ;
             pp_print_string out "), ") in
@@ -97,11 +97,11 @@ let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_lin_doc out
 let pp_sigma out sg =
   IdSet.iter begin fun i ->
     if IdSet.mem i sigma0.basics then () else
-      Format.fprintf out "Context {%s : Type}.@." i
+      Format.fprintf out "Context {%s : Type}.@." (repr i)
   end sg.basics ;
   IdMap.iter begin fun k ty ->
     if IdMap.mem k sigma0.consts then () else
-      Format.fprintf out "Context {%s : %s}.@." k (ty_to_string @@ thaw_ty ty)
+      Format.fprintf out "Context {%s : %s}.@." (repr k) (ty_to_string @@ thaw_ty ty)
   end sg.consts
 
 exception Unprintable
@@ -182,10 +182,10 @@ let pp_rule out goal rule =
         match side, expose f with
         | `l, Forall ({ var ; ty }, b)
         | `r, Exists ({ var ; ty }, b) ->
-            with_var ~fresh:true cx { var ; ty } begin fun { var ; ty } cx ->
+            with_var cx { var ; ty } begin fun { var ; ty } cx ->
               Format.fprintf out "inst_%s (p := fun (%s : %a) => %a) (%a)"
                 (match side with  `l -> "l" | _ -> "r")
-                var pp_ty ty
+                (repr var) pp_ty ty
                 pp_formx { tycx = cx ; data = b }
                 pp_termx tx
             end
@@ -224,16 +224,16 @@ let pp_rule out goal rule =
             pp_path (n + 1) cx f path
         | Forall ({ var ; ty }, f), `d
         | Forall ({ ty ; _ }, f), `i var ->
-            with_var ~fresh:true cx { var ; ty } begin fun { var ; _ } cx ->
+            with_var cx { var ; ty } begin fun { var ; _ } cx ->
               Format.fprintf out "go_down_all (fun (%s : %a) => "
-                var pp_ty ty ;
+                (repr var) pp_ty ty ;
               pp_path (n + 1) cx f path
             end
         | Exists ({ var ; ty }, f), `d
         | Exists ({ ty ; _ }, f), `i var ->
-            with_var ~fresh:true cx { var ; ty } begin fun { var ; _ } cx ->
+            with_var cx { var ; ty } begin fun { var ; _ } cx ->
               Format.fprintf out "go_down_ex (fun (%s : %a) => "
-                var pp_ty ty ;
+                (repr var) pp_ty ty ;
               pp_path (n + 1) cx f path
             end
         | _ ->

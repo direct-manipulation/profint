@@ -15,7 +15,7 @@ open! Form4
 let rec ty_to_exp ty =
   match ty with
   | Basic a ->
-      let rep = if a = K.k_o then "bool" else "'" ^ a in
+      let rep = if a = K.k_o then "bool" else "'" ^ (repr a) in
       Doc.(Atom (String rep))
   | Arrow (ta, tb) ->
       Doc.(Appl (1, Infix (StringAs (3, " \\<Rightarrow> "), Right,
@@ -32,8 +32,8 @@ let ty_to_string ty = pp_to_string pp_ty ty
 let rec termx_to_exp_ ~cx t =
   match t with
   | T.Abs { var ; body } ->
-      with_var ~fresh:true cx { var ; ty = K.ty_any } begin fun vty cx ->
-        let rep = Doc.String (Printf.sprintf "\\<lambda> %s. " vty.var) in
+      with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
+        let rep = Doc.String (Printf.sprintf "\\<lambda> %s. " (repr vty.var)) in
         Doc.(Appl (1, Prefix (rep, termx_to_exp_  ~cx body)))
       end
   | T.App { head ; spine = [] } ->
@@ -68,10 +68,10 @@ let rec formx_to_exp_ ~cx f =
       let b = formx_to_exp_ ~cx b in
       Doc.(Appl (10, Infix (StringAs (3, " \\<longrightarrow> "), Right, [a ; b])))
   | Forall (vty, b) ->
-      with_var ~fresh:true cx vty begin fun vty cx ->
+      with_var cx vty begin fun vty cx ->
         let q = Doc.Fmt Format.(fun out ->
             pp_print_as out 3 "\\<forall> " ;
-            pp_print_string out vty.var ;
+            pp_print_string out (repr vty.var) ;
             pp_print_string out " :: " ;
             pp_ty out vty.ty ;
             pp_print_string out ". ") in
@@ -79,10 +79,10 @@ let rec formx_to_exp_ ~cx f =
         Doc.(Appl (5, Prefix (q, b)))
       end
   | Exists (vty, b) ->
-      with_var ~fresh:true cx vty begin fun vty cx ->
+      with_var cx vty begin fun vty cx ->
         let q = Doc.Fmt Format.(fun out ->
             pp_print_as out 3 "\\<exists> " ;
-            pp_print_string out vty.var ;
+            pp_print_string out (repr vty.var) ;
             pp_print_string out " :: " ;
             pp_ty out vty.ty ;
             pp_print_string out ". ") in
@@ -98,7 +98,7 @@ let pp_sigma out sg =
   IdMap.iter begin fun k ty ->
     if IdMap.mem k sigma0.consts then () else
       Format.fprintf out "  fixes %s :: \"%s\"@."
-        k (ty_to_string @@ thaw_ty ty)
+        (repr k) (ty_to_string @@ thaw_ty ty)
   end sg.consts
 
 exception Unprintable
@@ -157,7 +157,7 @@ let init_like_lemma ~emit sss ty ss ts target =
             Doc.bracket |> Doc.lin_doc in
   let lem = List.fold_left begin fun lem vty ->
       Format.asprintf "\\<And> %s :: %a. %s"
-        vty.var pp_ty vty.ty lem
+        (repr vty.var) pp_ty vty.ty lem
     end lem sss.tycx.linear in
   let buf = Buffer.create 19 in
   emit buf ;
@@ -212,10 +212,10 @@ let rec step_surgery ~emit sss =
           match expose f with
           | Forall ({ var ; ty }, b)
           | Exists ({ var ; ty }, b) ->
-              with_var ~fresh:true sss.tycx { var ; ty } begin fun { var ; ty } cx ->
+              with_var sss.tycx { var ; ty } begin fun { var ; ty } cx ->
                 Format.fprintf sss.out "inst_%s[of \"\\<lambda> %s :: %a. %a\" \"%a\"]%s"
                   (match side with `l -> "l" | _ -> "r")
-                  var pp_ty ty
+                  (repr var) pp_ty ty
                   pp_formx { tycx = cx ; data = b }
                   pp_termx tx
                   (CCString.of_list sss.close)
@@ -264,7 +264,7 @@ let rec step_surgery ~emit sss =
       | `d, Exists ({ var ; ty }, q), Exists (_, p)
       | `i var, Forall ({ ty ; _ }, q), Forall (_, p)
       | `i var, Exists ({ ty ; _ }, q), Exists (_, p) ->
-          with_var ~fresh:true sss.tycx { var ; ty } begin fun vty tycx ->
+          with_var sss.tycx { var ; ty } begin fun vty tycx ->
             let lemid = "d" ^ fresh_inner_counter () in
             let transport_rule = match expose sss.conclusion with
               | Forall _ -> "go_down_all"
@@ -281,16 +281,16 @@ let rec step_surgery ~emit sss =
             let out = Format.formatter_of_buffer buf in
             let prefix = List.fold_left begin fun lem vty ->
                 Format.asprintf "\\<And> %s :: %a. %s"
-                  vty.var pp_ty vty.ty lem
+                  (repr vty.var) pp_ty vty.ty lem
               end "" sss.tycx.linear in
             Format.fprintf out "@[<v0>have %s: \"%s%a\"@," lemid
               prefix
               pp_formx { tycx = sss.tycx ; data = Mk.mk_all vty (Mk.mk_imp p q) } ;
             Format.fprintf out "proof@," ;
             List.iter begin fun vty ->
-              Format.fprintf out "  fix %s :: \"%a\"@," vty.var pp_ty vty.ty
+              Format.fprintf out "  fix %s :: \"%a\"@," (repr vty.var) pp_ty vty.ty
             end (List.rev sss.tycx.linear) ;
-            Format.fprintf out "  fix %s :: \"%a\"@," vty.var pp_ty vty.ty ;
+            Format.fprintf out "  fix %s :: \"%a\"@," (repr vty.var) pp_ty vty.ty ;
             Format.fprintf out "  show \"%a\"@,"
               pp_formx { tycx ; data = Mk.mk_imp p q } ;
             Format.fprintf out "  by (rule " ;

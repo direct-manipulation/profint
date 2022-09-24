@@ -5,35 +5,44 @@
  * See LICENSE for licensing details.
  *)
 
-module IntHashEq = struct
-  type t = int
-  let equal = Int.equal
-  let compare = Int.compare
-  let hash (x : t) = Hashtbl.hash x
-end
+(* module IntHashEq = struct *)
+(*   type t = int *)
+(*   let equal = Int.equal *)
+(*   let compare = Int.compare *)
+(*   let hash (x : t) = Hashtbl.hash x *)
+(* end *)
 
-module ISet : Stdlib.Set.S with type elt := int =
-  Stdlib.Set.Make(IntHashEq)
-module IMap : Stdlib.Map.S with type key := int =
-  Stdlib.Map.Make(IntHashEq)
-module ITab : Stdlib.Hashtbl.S with type key := int =
-  Stdlib.Hashtbl.Make(IntHashEq)
+module ISet = Stdlib.Set.Make(CCInt)
+module IMap = Stdlib.Map.Make(CCInt)
+module ITab = Stdlib.Hashtbl.Make(CCInt)
 
-type ident = string
+module SSet = Stdlib.Set.Make(CCString)
+module SMap = Stdlib.Map.Make(CCString)
+module STab = Stdlib.Hashtbl.Make(CCString)
+
+type ident = {
+  base : string ;
+  salt : int ;
+}
+let ident base = { base ; salt = 0 }
+let repr ident =
+  if ident.salt = 0 then ident.base
+  else ident.base ^ "_" ^ string_of_int ident.salt
 
 module IdHashEq = struct
   type t = ident
-  let equal : t -> t -> bool = String.equal
-  let compare : t -> t -> int = String.compare
-  let hash (x : t) = Hashtbl.hash x
+  let equal (x : ident) (y : ident) =
+    String.equal x.base y.base && Int.equal x.salt y.salt
+  let compare (x : ident) (y : ident) =
+    match String.compare x.base y.base with
+    | 0 -> Int.compare x.salt y.salt
+    | k -> k
+  let hash : ident -> int = Hashtbl.hash
 end
 
-module IdSet : Stdlib.Set.S with type elt := ident =
-  Stdlib.Set.Make(IdHashEq)
-module IdMap : Stdlib.Map.S with type key := ident =
-  Stdlib.Map.Make(IdHashEq)
-module IdTab : Stdlib.Hashtbl.S with type key := ident =
-  Stdlib.Hashtbl.Make(IdHashEq)
+module IdSet = Stdlib.Set.Make(IdHashEq)
+module IdMap = Stdlib.Map.Make(IdHashEq)
+module IdTab = Stdlib.Hashtbl.Make(IdHashEq)
 
 let panic =
   (* hiding the exception in a local module to make it impossible to

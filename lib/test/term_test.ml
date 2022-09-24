@@ -7,7 +7,7 @@ module Ord = struct
   let index n = App {head = Index n ; spine = []}
   let app1 f t = Term.do_app f [t]
   let app = Term.do_app
-  let abs x t = Abs {var = x ; body = t}
+  let abs x t = Abs {var = Util.ident x ; body = t}
 end
 
 module Terms = struct
@@ -29,16 +29,17 @@ let test_type_check term ty : test_fun =
   fun _ -> assert_equal (Term.ty_check empty term ty) ()
 
 let tests =
+  let basic x = Basic (Util.ident x) in
   "Term" >::: [
     "type_check(i)" >::
-    test_type_check Terms.ti Types.(Arrow (Basic "a", Basic "a")) ;
+    test_type_check Terms.ti Types.(Arrow (basic "a", basic "a")) ;
     "type_check(k)" >::
-    test_type_check Terms.tk Types.(Arrow (Basic "a", Arrow (Basic "b", Basic "a"))) ;
+    test_type_check Terms.tk Types.(Arrow (basic "a", Arrow (basic "b", basic "a"))) ;
     "type_check(s)" >:: begin
       let open Types in
-      let a = Basic "a" in
-      let b = Basic "b" in
-      let c = Basic "c" in
+      let a = basic "a" in
+      let b = basic "b" in
+      let c = basic "c" in
       let tyx = Arrow (a, Arrow (b, c)) in
       let tyy = Arrow (a, b) in
       let ty = Arrow (tyx, Arrow (tyy, Arrow (a, c))) in
@@ -59,7 +60,7 @@ let tests =
     end ;
     "type_check(a |- a => T)" >:: begin fun _ ->
       Types.reset_sigma () ;
-      Types.sigma := Types.add_const !Types.sigma "a" { nvars = 0 ; ty = K.ty_o } ;
+      Types.sigma := Types.add_const !Types.sigma (Util.ident "a") { nvars = 0 ; ty = K.ty_o } ;
       let fstr = {|a \to \top|} in
       let uf = Uterm.(thing_of_string Proprs.one_form fstr) in
       let (f, _ty) = Uterm.ty_check empty uf in
@@ -67,7 +68,7 @@ let tests =
       | Imp (a, b) -> begin
           match Form4.expose a, Form4.expose b with
           | Atom T.(App {head = Const (a, ty) ; spine = []}), Top ->
-              assert_equal a "a" ;
+              assert_equal a (Util.ident "a") ;
               assert_equal ty K.ty_o
           | _ -> assert_bool "bad consruction 1" false
         end

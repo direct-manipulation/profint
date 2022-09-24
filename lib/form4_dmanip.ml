@@ -507,9 +507,9 @@ let compute_derivation goal msteps =
   Form4_cos.{ top = !top ; middle = !middle ; bottom }
 
 let mk_src f =
-  Mk.mk_mdata (T.App { head = Const ("src", K.ty_any) ; spine = [] }) K.ty_any f
+  Mk.mk_mdata (T.App { head = Const (ident "src", K.ty_any) ; spine = [] }) K.ty_any f
 let mk_dest f =
-  Mk.mk_mdata (T.App { head = Const ("dest", K.ty_any) ; spine = [] }) K.ty_any f
+  Mk.mk_mdata (T.App { head = Const (ident "dest", K.ty_any) ; spine = [] }) K.ty_any f
 
 let mark_locations goal mstep =
   match mstep with

@@ -42,7 +42,7 @@ let rec tygen ~emit (cx : tycx) tm ty_expected =
           Kon (k, Some ty_a)
       | exception Not_found ->
           raise @@ TypeError { ty = Some ty_expected ;
-                               msg = "Unknown contstant or variable " ^ k }
+                               msg = "Unknown contstant or variable " ^ (repr k) }
     end
   | App (tm, tn) ->
       let tyarg = fresh_tyvar () in
@@ -130,7 +130,7 @@ let rec norm_term tm =
       | ty -> T.(App {head = Const (k, ty) ; spine = []})
       | exception Free_tyvar _ ->
           ty_error "inferred non-monomorphic type for %s: %s"
-            k (ty_to_string ty)
+            (repr k) (ty_to_string ty)
     end
   | App (tm, tn) ->
       Term.(do_app (norm_term tm) [norm_term tn])
@@ -184,15 +184,15 @@ let rec uterm_to_exp ~cx ut =
   match ut with
   | Idx n -> begin
       match List.nth cx.linear n with
-      | { var ; _ } -> Doc.(Atom (String var))
+      | { var ; _ } -> Doc.(Atom (String (repr var)))
       | exception Failure _ ->
           Doc.(Atom (Fmt (fun out -> Format.fprintf out "`%d" n)))
     end
   | Var v
-  | Kon (v, None) -> Doc.(Atom (String v))
+  | Kon (v, None) -> Doc.(Atom (String (repr v)))
   | Kon (v, Some ty) ->
       Doc.(Atom (Fmt (fun out ->
-          Format.fprintf out "@[<hv1>(%s:@,%a)@]" v pp_ty ty)))
+          Format.fprintf out "@[<hv1>(%s:@,%a)@]" (repr v) pp_ty ty)))
   | App (t1, t2) ->
       Doc.(Appl (100, Infix (String " ", Left, [
           uterm_to_exp ~cx t1 ;
@@ -202,7 +202,7 @@ let rec uterm_to_exp ~cx ut =
       let ty = Option.value ty ~default:K.ty_any in
       with_var cx { var ; ty } begin fun { var ; ty } cx ->
         let rep = Doc.(Fmt (fun out ->
-            Format.fprintf out "@[<hv1>[%s:@,%a]@]@ " var pp_ty ty)) in
+            Format.fprintf out "@[<hv1>[%s:@,%a]@]@ " (repr var) pp_ty ty)) in
         Doc.(Appl (1, Prefix (rep, uterm_to_exp ~cx body)))
       end
 
@@ -214,20 +214,9 @@ let uterm_to_string cx ut =
 let rec pp_uterm_ out ut =
   match ut with
   | Idx n -> Format.fprintf out "Idx(%d)" n
-  | Var v -> Format.fprintf out "Var(%s)" v
-  | Kon (v, None) -> Format.fprintf out "Kon(%s)" v
-  | Kon (v, Some ty) -> Format.fprintf out "Kon(%s,%a)" v pp_ty ty
+  | Var v -> Format.fprintf out "Var(%s)" (repr v)
+  | Kon (v, None) -> Format.fprintf out "Kon(%s)" (repr v)
+  | Kon (v, Some ty) -> Format.fprintf out "Kon(%s,%a)" (repr v) pp_ty ty
   | App (t1, t2) -> Format.fprintf out "App(%a,%a)" pp_uterm_ t1 pp_uterm_ t2
-  | Abs (v, None, b) -> Format.fprintf out "Lam(%s,%a)" v pp_uterm_ b
-  | Abs (v, Some ty, b) -> Format.fprintf out "Lam(%s:%a,%a)" v pp_ty ty pp_uterm_ b
-
-(* module Test () = struct *)
-(*   let () = declare_basic "i" *)
-(*   let () = declare_const "p" {| i -> i -> \o |} *)
-(*   let () = declare_const "f" {| i -> i -> i |} *)
-(*   let t1 = term_of_string {| [x] f x x |} *)
-(*   let t2 = term_of_string {| [x, y] f x y |} *)
-(*   let t3 = term_of_string {| [x, y] [z:\o] f x (f y x) |} *)
-(*   let f1 = form_of_string {| \A [x, y, z] p x (f y z) |} *)
-(*   let () = reset_sigma () *)
-(* end *)
+  | Abs (v, None, b) -> Format.fprintf out "Lam(%s,%a)" (repr v) pp_uterm_ b
+  | Abs (v, Some ty, b) -> Format.fprintf out "Lam(%s:%a,%a)" (repr v) pp_ty ty pp_uterm_ b

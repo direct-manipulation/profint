@@ -148,12 +148,12 @@ let pp_rule_name out rn =
         (side_to_string side)
         (Term.pp_term ~cx:tx.tycx) tx.data
 
-let rec pp_path_list out path =
+let rec pp_path_list out (path : dir list) =
   match path with
   | [] -> ()
   | [`l] -> Format.fprintf out "l"
   | [`r] -> Format.fprintf out "r"
-  | [`i x] -> Format.fprintf out "i %s" x
+  | [`i x] -> Format.fprintf out "i %s" (repr x)
   | [`d] -> Format.fprintf out "d"
   | dir :: (_ :: _ as path) ->
       Format.fprintf out "%a, %a" pp_path_list [dir] pp_path_list path

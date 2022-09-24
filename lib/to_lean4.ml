@@ -15,8 +15,8 @@ open! Form4
 let rec ty_to_exp ty =
   match ty with
   | Basic a ->
-      let rep = if a = K.k_o then "Prop" else a in
-      Doc.(Atom (String rep))
+      let rep = if a = K.k_o then ident "Prop" else a in
+      Doc.(Atom (String (repr rep)))
   | Arrow (ta, tb) ->
       Doc.(Appl (1, Infix (StringAs (3, " → "), Right,
                            [ty_to_exp ta ; ty_to_exp tb])))
@@ -32,8 +32,8 @@ let ty_to_string ty = pp_to_string pp_ty ty
 let rec termx_to_exp_ ~cx t =
   match t with
   | T.Abs { var ; body } ->
-      with_var ~fresh:true cx { var ; ty = K.ty_any } begin fun vty cx ->
-        let rep = Doc.String (Printf.sprintf "fun %s => " vty.var) in
+      with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
+        let rep = Doc.String (Printf.sprintf "fun %s => " (repr vty.var)) in
         Doc.(Appl (1, Prefix (rep, termx_to_exp_  ~cx body)))
       end
   | T.App { head ; spine = [] } ->
@@ -68,10 +68,10 @@ let rec formx_to_exp_ ~cx f =
       let b = formx_to_exp_ ~cx b in
       Doc.(Appl (10, Infix (StringAs (3, " → "), Right, [a ; b])))
   | Forall (vty, b) ->
-      with_var ~fresh:true cx vty begin fun vty cx ->
+      with_var cx vty begin fun vty cx ->
         let q = Doc.Fmt Format.(fun out ->
             pp_print_as out 3 "∀ (" ;
-            pp_print_string out vty.var ;
+            pp_print_string out (repr vty.var) ;
             pp_print_string out " : " ;
             pp_ty out vty.ty ;
             pp_print_string out "), ") in
@@ -79,10 +79,10 @@ let rec formx_to_exp_ ~cx f =
         Doc.(Appl (5, Prefix (q, b)))
       end
   | Exists (vty, b) ->
-      with_var ~fresh:true cx vty begin fun vty cx ->
+      with_var cx vty begin fun vty cx ->
         let q = Doc.Fmt Format.(fun out ->
             pp_print_as out 3 "∃ (" ;
-            pp_print_string out vty.var ;
+            pp_print_string out (repr vty.var) ;
             pp_print_string out " : " ;
             pp_ty out vty.ty ;
             pp_print_string out "), ") in
@@ -98,11 +98,11 @@ let pp_sigma out sg =
   Format.fprintf out "universe u@." ;
   IdSet.iter begin fun i ->
     if IdSet.mem i sigma0.basics then () else
-      Format.fprintf out "variable {%s : Type u}@." i
+      Format.fprintf out "variable {%s : Type u}@." (repr i)
   end sg.basics ;
   IdMap.iter begin fun k ty ->
     if IdMap.mem k sigma0.consts then () else
-      Format.fprintf out "variable {%s : %s}@." k (ty_to_string @@ thaw_ty ty)
+      Format.fprintf out "variable {%s : %s}@." (repr k) (ty_to_string @@ thaw_ty ty)
   end sg.consts
 
 let pp_path out path =
@@ -115,7 +115,7 @@ let pp_path out path =
        | `d -> Format.pp_print_string out "d"
        | `i x ->
            Format.pp_print_string out "i " ;
-           Format.pp_print_string out x)
+           Format.pp_print_string out (repr x))
     out
 
 let pp_rule_name out rn =

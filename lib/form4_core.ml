@@ -79,10 +79,10 @@ let rec form_to_exp ~cx f =
       let b = form_to_exp ~cx b in
       Doc.(Appl (10, Infix (StringAs (3, " → "), Right, [a ; b])))
   | Forall (vty, b) ->
-      with_var ~fresh:true cx vty begin fun vty cx ->
+      with_var cx vty begin fun vty cx ->
         let q = Doc.Fmt Format.(fun out ->
             pp_print_as out 3 "∀ (" ;
-            pp_print_string out vty.var ;
+            pp_print_string out (repr vty.var) ;
             pp_print_string out " : " ;
             pp_ty out vty.ty ;
             pp_print_string out "), ") in
@@ -90,10 +90,10 @@ let rec form_to_exp ~cx f =
         Doc.(Appl (5, Prefix (q, b)))
       end
   | Exists (vty, b) ->
-      with_var ~fresh:true cx vty begin fun vty cx ->
+      with_var cx vty begin fun vty cx ->
         let q = Doc.Fmt Format.(fun out ->
             pp_print_as out 3 "∃ (" ;
-            pp_print_string out vty.var ;
+            pp_print_string out (repr vty.var) ;
             pp_print_string out " : " ;
             pp_ty out vty.ty ;
             pp_print_string out "), ") in

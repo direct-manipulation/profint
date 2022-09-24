@@ -6,7 +6,7 @@ let tests =
   "Pro" >::: [
     "signature_fresh_basic" >:: begin fun _ ->
       let sg = Uterm.thing_of_string Proprs.signature {| i : \type. |} in
-      assert_bool "basic type not added" (IdSet.mem "i" sg.basics)
+      assert_bool "basic type not added" (IdSet.mem (ident "i") sg.basics)
     end ;
     "signature_no_repeated_basics" >:: begin fun _ ->
       assert_raises ~msg:"repeated basic type" Types.Invalid_sigma_extension
@@ -14,7 +14,7 @@ let tests =
     end ;
     "signature_fresh_const" >:: begin fun _ ->
       let sg = Uterm.thing_of_string Proprs.signature {| i : \o. |} in
-      assert_bool "constant not added" (IdMap.mem "i" sg.consts)
+      assert_bool "constant not added" (IdMap.mem (ident "i") sg.consts)
     end ;
     "signature_no_repeated_consts" >:: begin fun _ ->
       assert_raises ~msg:"repeated const" Types.Invalid_sigma_extension

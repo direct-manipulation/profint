@@ -149,8 +149,8 @@ let rec term_to_exp ?(cx = empty) term =
   let open Doc in
   match term with
   | Abs {var ; body} ->
-      with_var ~fresh:true cx { var ; ty = K.ty_any } begin fun vty cx ->
-        let rep = String (Printf.sprintf "[%s] " vty.var) in
+      with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
+        let rep = String (Printf.sprintf "[%s] " (repr vty.var)) in
         Appl (1, Prefix (rep, term_to_exp ~cx body))
       end
   | App {head ; spine = []} ->
@@ -173,11 +173,11 @@ and head_to_exp ?(cx = empty) head =
   match head with
   | Index n -> begin
       try
-        let vstr = (List.nth cx.linear n).var in
+        let vstr = repr (List.nth cx.linear n).var in
         Atom (String vstr)
       with _ -> Atom (String ("?" ^ string_of_int n))
     end
-  | Const (k, _) -> Atom (String k)
+  | Const (k, _) -> Atom (String (repr k))
 
 let termx_to_exp tx = term_to_exp ~cx:tx.tycx tx.data
 let headx_to_exp hx = head_to_exp ~cx:hx.tycx hx.data

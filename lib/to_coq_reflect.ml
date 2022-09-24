@@ -40,7 +40,7 @@ let pp_rule out goal rule =
           (match side with `l -> "l" | _ -> "r") ;
         List.rev tx.tycx.linear |>
         List.iter begin fun vty ->
-          Format.fprintf out "fun (%s : %a) => " vty.var pp_ty vty.ty
+          Format.fprintf out "fun (%s : %a) => " (repr vty.var) pp_ty vty.ty
         end ;
         Format.fprintf out "%a)" pp_termx tx
       end
@@ -67,12 +67,12 @@ let pp_rule out goal rule =
             pp_path (n + 1) cx f (1 :: dirs) path
         | Forall ({ var ; ty }, f), `d
         | Forall ({ ty ; _ }, f), `i var ->
-            with_var ~fresh:true cx { var ; ty } begin fun _ cx ->
+            with_var cx { var ; ty } begin fun _ cx ->
               pp_path (n + 1) cx f (0 :: dirs) path
             end
         | Exists ({ var ; ty }, f), `d
         | Exists ({ ty ; _ }, f), `i var ->
-            with_var ~fresh:true cx { var ; ty } begin fun _ cx ->
+            with_var cx { var ; ty } begin fun _ cx ->
               pp_path (n + 1) cx f (0 :: dirs) path
             end
         | _ ->

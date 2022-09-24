@@ -31,7 +31,7 @@ let rec go (fx : formx) (dir : dir) =
   | Forall ({ ty ; _ }, b), `i var
   | Exists ({ var ; ty }, b), `d
   | Exists ({ ty ; _ }, b), `i var ->
-      with_var ~fresh:true fx.tycx { var ; ty } begin fun {var ; _} tycx ->
+      with_var fx.tycx { var ; ty } begin fun {var ; _} tycx ->
         ({ tycx ; data = b }, `i var)
       end
   | Mdata (_, _, f), _ ->

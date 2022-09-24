@@ -83,7 +83,7 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
           OTHER
     end
   | Forall (vty, b) ->
-      with_var ~fresh:true fx.tycx vty begin fun vty tycx ->
+      with_var fx.tycx vty begin fun vty tycx ->
         let b = { tycx ; data = b } in
         let b = recursive_simplify ~emit b (Q.snoc path (`i vty.var)) side in
         match b with
@@ -93,7 +93,7 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
         | _ -> OTHER
       end
   | Exists (vty, b) ->
-      with_var ~fresh:true fx.tycx vty begin fun vty tycx ->
+      with_var fx.tycx vty begin fun vty tycx ->
         let b = { tycx ; data = b } in
         let b = recursive_simplify ~emit b (Q.snoc path (`i vty.var)) side in
         match b with

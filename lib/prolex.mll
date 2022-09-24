@@ -20,10 +20,10 @@
     let kwds : (string, P.token) Hashtbl.t = Hashtbl.create 19 in
     (* Hashtbl.replace kwds "forall" P.FORALL ;
      * Hashtbl.replace kwds "exists" P.EXISTS ; *)
-    fun ident ->
-      match Hashtbl.find kwds ident with
+    fun str ->
+      match Hashtbl.find kwds str with
       | tok -> tok
-      | exception Not_found -> P.IDENT ident
+      | exception Not_found -> P.IDENT (Util.ident str)
 
 }
 

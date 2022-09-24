@@ -34,7 +34,7 @@ include struct
     find_head tm []
   let parse_dir dir : Form4.dir =
     with_app dir begin fun k args ->
-      match k, args with
+      match repr k, args with
       | "l", [] -> `l
       | "r", [] -> `r
       | "d", [] -> `d
@@ -43,21 +43,21 @@ include struct
     end
   let parse_path path : Form4.path =
     with_app path begin fun k args ->
-      match k, args with
+      match repr k, args with
       | "go", dirs ->
           Q.of_list @@ List.map parse_dir dirs
       | _ -> bad_json ()
     end
   let parse_bool copy =
     with_app copy begin fun k args ->
-      match k, args with
+      match repr k, args with
       | "t", [] -> true
       | "f", [] -> false
       | _ -> bad_json ()
     end
   let parse_mstep tm =
     with_app tm begin fun k args ->
-      match k, args with
+      match repr k, args with
       | "P", [] -> Form4.Pristine
       | "C", [path] ->
           let path = parse_path path in

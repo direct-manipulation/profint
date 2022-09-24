@@ -43,7 +43,7 @@ let to_trail str : F.path =
       | "r" -> `r
       | "d" -> `d
       | dir when dir.[0] = 'i' ->
-          `i (String.sub dir 2 (String.length dir - 3))
+          `i (String.sub dir 2 (String.length dir - 3) |> Util.ident)
       | dir -> failwith @@ "invalid direction: " ^ dir
       end
 
@@ -103,16 +103,16 @@ let profint_object =
   object%js
     method startup =
       try
-        let pmap = Url.Current.arguments |> List.to_seq |> IdMap.of_seq in
+        let pmap = Url.Current.arguments |> List.to_seq |> SMap.of_seq in
         Option.iter begin fun sigText ->
           if not @@ sig_change (Url.urldecode sigText) then
             raise Cannot_start;
-        end @@ IdMap.find_opt "s" pmap ;
+        end @@ SMap.find_opt "s" pmap ;
         (* Printf.printf "signature initailized\n%!" ; *)
         Option.iter begin fun formText ->
           if not @@ change_formula (Url.urldecode formText) then
             raise Cannot_start
-        end @@ IdMap.find_opt "f" pmap ;
+        end @@ SMap.find_opt "f" pmap ;
         (* Printf.printf "formula initailized\n%!" ; *)
         Js.some @@ Js.string @@ pp_to_string Types.pp_sigma !Types.sigma
       with Cannot_start -> Js.null
@@ -232,8 +232,8 @@ let profint_object =
         match F.expose ex.data, side with
         | F.Forall ({ var ; ty }, _), `l
         | F.Exists ({ var ; ty }, _), `r ->
-            Types.with_var ~fresh:true ex.tycx { var ; ty } begin fun { var ; _ } _ ->
-              Js.some @@ Js.string var
+            Types.with_var ex.tycx { var ; ty } begin fun { var ; _ } _ ->
+              Js.some @@ Js.string (repr var)
             end
         | _ -> fail @@ "not an exists: " ^ F.formx_to_string ex
       with e -> fail (Printexc.to_string e)

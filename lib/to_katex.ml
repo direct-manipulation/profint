@@ -29,7 +29,7 @@ let texify id =
 let rec ty_to_exp ty =
   match ty with
   | Basic a ->
-      let rep = if a = K.k_o then "Prop" else a in
+      let rep = if a = K.k_o then "Prop" else (repr a) in
       let len = String.length rep in
       let rep = "\\mathsf{" ^ texify rep ^ "}" in
       Doc.(Atom (StringAs (len, rep)))
@@ -64,8 +64,8 @@ let fresh_id =
 let rec termx_to_exp_ ~cx t =
   match t with
   | T.Abs { var ; body } ->
-      with_var ~fresh:true cx { var ; ty = K.ty_any } begin fun vty cx ->
-        Doc.(Appl (1, Prefix (rep_lambda vty.var, termx_to_exp_  ~cx body)))
+      with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
+        Doc.(Appl (1, Prefix (rep_lambda (repr vty.var), termx_to_exp_  ~cx body)))
       end
   | T.App { head ; spine = [] } -> begin
       match Term.head_to_exp ~cx head with
@@ -110,7 +110,8 @@ let rep_imp =
 let rep_forall vty =
   Doc.Fmt Format.(fun out ->
       pp_print_as out 1 "\\forall{" ;
-      pp_print_as out (String.length vty.var) (texify vty.var) ;
+      let v = repr vty.var in
+      pp_print_as out (String.length v) (texify v) ;
       pp_print_as out 1 "{:}" ;
       pp_ty out vty.ty ;
       pp_print_as out 1 "}.\\," ;
@@ -119,7 +120,8 @@ let rep_forall vty =
 let rep_exists vty =
   Doc.Fmt Format.(fun out ->
       pp_print_as out 1 "\\exists{" ;
-      pp_print_as out (String.length vty.var) (texify vty.var) ;
+      let v = repr vty.var in
+      pp_print_as out (String.length v) (texify v) ;
       pp_print_as out 1 "{:}" ;
       pp_ty out vty.ty ;
       pp_print_as out 1 "}.\\," ;
@@ -131,7 +133,7 @@ let dir_to_string (d : dir) =
   | `l -> "l"
   | `r -> "r"
   | `d -> "d"
-  | `i x -> "i(" ^ x ^ ")"
+  | `i x -> "i(" ^ (repr x) ^ ")"
 let path_to_string path =
   path
   |> Q.to_list
@@ -168,23 +170,23 @@ let rec formx_to_exp_ ~cx (path : path) f =
       let b = formx_to_exp_ ~cx (Q.snoc path `r) b in
       Doc.(Appl (10, Infix (rep_imp, Right, [a ; b]))) |> wrap path
   | Forall (vty, b) ->
-      with_var ~fresh:true cx vty begin fun vty cx ->
+      with_var cx vty begin fun vty cx ->
         let b = formx_to_exp_ ~cx (Q.snoc path (`i vty.var)) b in
         Doc.(Appl (5, Prefix (rep_forall vty, b))) |> wrap path
       end
   | Exists (vty, b) ->
-      with_var ~fresh:true cx vty begin fun vty cx ->
+      with_var cx vty begin fun vty cx ->
         let b = formx_to_exp_ ~cx (Q.snoc path (`i vty.var)) b in
         Doc.(Appl (5, Prefix (rep_exists vty, b))) |> wrap path
       end
   | Mdata (md, _, f) -> begin
       let doc = formx_to_exp_ ~cx path f in
       match md with
-      | T.App { head = Const ("src", _) ; _ } ->
+      | T.App { head = Const ({base = "src" ; _}, _) ; _ } ->
           Doc.(Wrap (Transparent,
                      StringAs (0, "\\lnsrc{"),
                      doc, StringAs (0, "}")))
-      | T.App { head = Const ("dest", _) ; _ } ->
+      | T.App { head = Const ({base = "dest" ; _}, _) ; _ } ->
           Doc.(Wrap (Transparent,
                      StringAs (0, "\\lndest{"),
                      doc, StringAs (0, "}")))
@@ -198,11 +200,11 @@ let pp_sigma out sg =
   Format.pp_open_vbox out 0 ; begin
     IdSet.iter begin fun i ->
       if IdSet.mem i sigma0.basics then () else
-        Format.fprintf out {|%s : \mathsf{type}.@,|} i
+        Format.fprintf out {|%s : \mathsf{type}.@,|} (repr i)
     end sg.basics ;
     IdMap.iter begin fun k ty ->
       if IdMap.mem k sigma0.consts then () else
-        Format.fprintf out {|%s : %a.@,|} k pp_ty (thaw_ty ty)
+        Format.fprintf out {|%s : %a.@,|} (repr k) pp_ty (thaw_ty ty)
     end sg.consts
   end ; Format.pp_close_box out ()
 
@@ -216,7 +218,7 @@ let pp_path out (path : path) =
        | `d -> Format.pp_print_string out "d"
        | `i x ->
            Format.pp_print_string out "i " ;
-           Format.pp_print_string out x) out
+           Format.pp_print_string out (repr x)) out
 
 let pp_deriv out (sg, deriv) =
   pp_sigma out sg ;
