@@ -1,8 +1,8 @@
 (library
   (name profint)
   (public_name profint.lib)
-  (libraries containers-data)
-  (preprocess (pps ppx_blob))
+  (libraries containers-data yojson)
+  (preprocess (pps ppx_blob ppx_expect ppx_yojson_conv))
   (preprocessor_deps (glob_files_rec systems/**))
 )
 

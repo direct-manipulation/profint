@@ -5,13 +5,6 @@
  * See LICENSE for licensing details.
  *)
 
-(* module IntHashEq = struct *)
-(*   type t = int *)
-(*   let equal = Int.equal *)
-(*   let compare = Int.compare *)
-(*   let hash (x : t) = Hashtbl.hash x *)
-(* end *)
-
 module ISet = Stdlib.Set.Make(CCInt)
 module IMap = Stdlib.Map.Make(CCInt)
 module ITab = Stdlib.Hashtbl.Make(CCInt)
@@ -24,10 +17,16 @@ type ident = {
   base : string ;
   salt : int ;
 }
+(* [@@deriving show] *)
+
 let ident base = { base ; salt = 0 }
 let repr ident =
   if ident.salt = 0 then ident.base
   else ident.base ^ "_" ^ string_of_int ident.salt
+
+let pp_ident out ident =
+  Format.pp_print_string out (repr ident)
+let yojson_of_ident ident = `String (repr ident)
 
 module IdHashEq = struct
   type t = ident

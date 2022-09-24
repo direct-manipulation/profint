@@ -11,6 +11,7 @@ type ty =
   | Basic of ident
   | Arrow of ty * ty
   | Tyvar of {id : int ; mutable subst : ty option}
+[@@deriving yojson_of]
 
 let rec ty_norm = function
   | Tyvar { subst = Some ty ; _ } -> ty_norm ty
@@ -167,6 +168,7 @@ module U = struct
     | Kon of ident * ty option
     | App of term * term
     | Abs of ident * ty option * term
+  [@@deriving yojson_of]
 end
 
 (** Typed and normalized terms *)
