@@ -5,22 +5,24 @@
  * See LICENSE for licensing details.
  *)
 
-(* Output suitable for Coq *)
+(** Output suitable for Coq *)
 
-open! Util
-open! Types
-open! Term
-open! Form4
+open Base
+
+open Util
+open Types
+open Term
+open Form4
 
 let rec ty_to_exp ty =
   match ty with
-  | Basic a ->
-      let rep = if a = K.k_o then "Prop" else repr a in
+  | Ty.Basic a ->
+      let rep = if Ident.equal a Ty.k_o then "Prop" else Ident.to_string a in
       Doc.(Atom (String rep))
-  | Arrow (ta, tb) ->
+  | Ty.Arrow (ta, tb) ->
       Doc.(Appl (1, Infix (StringAs (3, " → "), Right,
                            [ty_to_exp ta ; ty_to_exp tb])))
-  | Tyvar v -> begin
+  | Ty.Var v -> begin
       match v.subst with
       | None -> Doc.(Atom (String "_"))
       | Some ty -> ty_to_exp ty
@@ -33,14 +35,14 @@ let rec termx_to_exp_ ~cx t =
   match t with
   | T.Abs { var ; body } ->
       with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
-        let rep = Doc.String (Printf.sprintf "fun %s, " (repr vty.var)) in
+        let rep = Doc.String (Printf.sprintf "fun %s, " (Ident.to_string vty.var)) in
         Doc.(Appl (1, Prefix (rep, termx_to_exp_  ~cx body)))
       end
   | T.App { head ; spine = [] } ->
       Term.head_to_exp ~cx head
   | T.App { head ; spine } ->
       let head = Term.head_to_exp ~cx head in
-      let spine = List.map (termx_to_exp_ ~cx) spine in
+      let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
       Doc.(Appl (100, Infix (String " ", Left, (head :: spine))))
 
 let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
@@ -69,9 +71,9 @@ let rec formx_to_exp_ ~cx f =
       Doc.(Appl (10, Infix (StringAs (3, " → "), Right, [a ; b])))
   | Forall (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Doc.Fmt Format.(fun out ->
+        let q = Doc.Fmt Caml.Format.(fun out ->
             pp_print_as out 3 "∀ (" ;
-            pp_print_string out (repr vty.var) ;
+            pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " : " ;
             pp_ty out vty.ty ;
             pp_print_string out "), ") in
@@ -80,9 +82,9 @@ let rec formx_to_exp_ ~cx f =
       end
   | Exists (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Doc.Fmt Format.(fun out ->
+        let q = Doc.Fmt Caml.Format.(fun out ->
             pp_print_as out 3 "∃ (" ;
-            pp_print_string out (repr vty.var) ;
+            pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " : " ;
             pp_ty out vty.ty ;
             pp_print_string out "), ") in
@@ -95,37 +97,37 @@ let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx fx.data
 let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_lin_doc out
 
 let pp_sigma out sg =
-  Format.fprintf out "universe u@." ;
-  IdSet.iter begin fun i ->
-    if IdSet.mem i sigma0.basics then () else
-    let i = repr i in
-    Format.fprintf out "variable {%s : Type u}@.include %s@." i i
+  Caml.Format.fprintf out "universe u@." ;
+  Set.iter ~f:begin fun i ->
+    if Set.mem sigma0.basics i then () else
+    let i = Ident.to_string i in
+    Caml.Format.fprintf out "variable {%s : Type u}@.include %s@." i i
   end sg.basics ;
-  IdMap.iter begin fun k ty ->
-    if IdMap.mem k sigma0.consts then () else
-    let k = repr k in
-    Format.fprintf out "variable {%s : %s}@.include %s@."
+  Map.iteri ~f:begin fun ~key:k ~data:ty ->
+    if Map.mem sigma0.consts k then () else
+    let k = Ident.to_string k in
+    Caml.Format.fprintf out "variable {%s : %s}@.include %s@."
       k (ty_to_string @@ thaw_ty ty) k
   end sg.consts
 
 exception Unprintable
 let unprintable reason =
-  Format.eprintf "to_lean3: failure: %s@." reason ;
+  Caml.Format.eprintf "to_lean3: failure: %s@." reason ;
   raise Unprintable
 
 let rec make_eqns ty ss ts =
   match ty, ss, ts with
   | _, [], [] -> []
-  | Arrow (a, ty), (s :: ss), (t :: tt) ->
+  | Ty.Arrow (a, ty), (s :: ss), (t :: tt) ->
       let eqs = make_eqns ty ss tt in
       if Term.eq_term s t then eqs else (s, t, a) :: eqs
   | _ ->
       unprintable "make_eqns"
 
-let make_lemma (target : formx) (eqs : (T.term * T.term * ty) list) : string =
+let make_lemma (target : formx) (eqs : (T.term * T.term * Ty.t) list) : string =
   let tycx = target.tycx in
   let target = formx_to_exp target in
-  let eqs = List.filter_map begin fun (l, r, ty) ->
+  let eqs = List.filter_map ~f:begin fun (l, r, ty) ->
       if Term.eq_term l r then None else
       let ex = Doc.(Appl (100, Infix (String " ", Left,
                                       [ Atom (String "@eq") ;
@@ -155,9 +157,9 @@ let pp_rule out (prem, rule, goal) =
             match expose a, expose b with
             | Atom T.(App { head = Const (_, ty) ; spine = ss }),
               Atom T.(App { spine = ts ; _ }) ->
-                make_eqns (ty_norm ty) ss ts |>
+                make_eqns (Ty.norm ty) ss ts |>
                 make_lemma { tycx = cx ; data = fc } |>
-                Format.fprintf out "(_ : %s)" ;
+                Caml.Format.fprintf out "(_ : %s)" ;
                 has_subproof := true
             | _ -> fail ()
           end
@@ -169,17 +171,17 @@ let pp_rule out (prem, rule, goal) =
                          pp_to_string Form4.pp_formx { tycx = cx ; data = fc } in
         match expose fc with
         | Eq (T.(App { spine = ss ; head }), T.(App { spine = ts ; _ }), _) ->
-            let ty = ty_norm @@ ty_infer cx head in
+            let ty = Ty.norm @@ ty_infer cx head in
             make_eqns ty ss ts |>
             make_lemma { tycx = cx ; data = fc } |>
-            Format.fprintf out "(_ : %s)" ;
+            Caml.Format.fprintf out "(_ : %s)" ;
             has_subproof := true
         | _ -> fail ()
       end
     | Cos.Inst { side ; term = tx } -> begin
-        let f = if side = `l then fp else fc in
+        let f = if Poly.(side = `l) then fp else fc in
         let fail () =
-          Format.kasprintf unprintable
+          Caml.Format.kasprintf unprintable
             "inst_%s: got %a"
             (match side with `l -> "l" | _ -> "r")
             Form4.pp_formx { tycx = cx ; data = f } in
@@ -187,10 +189,10 @@ let pp_rule out (prem, rule, goal) =
         | Forall ({ var ; ty }, b)
         | Exists ({ var ; ty }, b) ->
             with_var cx { var ; ty } begin fun { var ; ty } cx ->
-              Format.fprintf out "@@inst_%s %a (fun (%s : %a), %a) (%a)"
+              Caml.Format.fprintf out "@@inst_%s %a (fun (%s : %a), %a) (%a)"
                 (match side with `l -> "l" | _ -> "r")
                 pp_ty ty
-                (repr var) pp_ty ty
+                (Ident.to_string var) pp_ty ty
                 pp_formx { tycx = cx ; data = b }
                 pp_termx tx
             end
@@ -202,45 +204,45 @@ let pp_rule out (prem, rule, goal) =
     match Q.take_front path with
     | None ->
         pp_rule cx goal prem rule.Cos.name ;
-        Format.fprintf out "%s _,@." @@ String.make n (Char.chr 41) ;
+        Caml.Format.fprintf out "%s _,@." @@ String.make n ')' ;
         if !has_subproof then begin
-          Format.fprintf out "  { profint_discharge },@." ;
+          Caml.Format.fprintf out "  { profint_discharge },@." ;
           has_subproof := false
         end
     | Some (dir, path) -> begin
         match expose goal, expose prem, dir with
         | And (b, c), And (a, _), `l ->
-            Format.fprintf out "@@go_left_and (%a) (%a) (%a) ("
+            Caml.Format.fprintf out "@@go_left_and (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
         | And (c, b), And (_, a), `r ->
-            Format.fprintf out "@@go_right_and (%a) (%a) (%a) ("
+            Caml.Format.fprintf out "@@go_right_and (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
         | Or (b, c), Or (a, _), `l ->
-            Format.fprintf out "@@go_left_or (%a) (%a) (%a) ("
+            Caml.Format.fprintf out "@@go_left_or (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
         | Or (c, b), Or (_, a), `r ->
-            Format.fprintf out "@@go_right_or (%a) (%a) (%a) ("
+            Caml.Format.fprintf out "@@go_right_or (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
         | Imp (b, c), Imp (a, _), `l ->
-            Format.fprintf out "@@go_left_imp (%a) (%a) (%a) ("
+            Caml.Format.fprintf out "@@go_left_imp (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx a b path
         | Imp (c, b), Imp (_, a), `r ->
-            Format.fprintf out "@@go_right_imp (%a) (%a) (%a) ("
+            Caml.Format.fprintf out "@@go_right_imp (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
@@ -248,8 +250,8 @@ let pp_rule out (prem, rule, goal) =
         | Forall ({ var ; ty }, q), Forall (_, p), `d
         | Forall ({ ty ; _ }, q), Forall (_, p), `i var ->
             with_var cx { var ; ty } begin fun { var ; _ } cx ->
-              let var = repr var in
-              Format.fprintf out "@@go_down_all (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "
+              let var = Ident.to_string var in
+              Caml.Format.fprintf out "@@go_down_all (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "
                 pp_ty ty
                 var pp_ty ty pp_formx { tycx = cx ; data = p }
                 var pp_ty ty pp_formx { tycx = cx ; data = q }
@@ -259,8 +261,8 @@ let pp_rule out (prem, rule, goal) =
         | Exists ({ var ; ty }, q), Exists (_, p), `d
         | Exists ({ ty ; _ }, q), Exists (_, p), `i var ->
             with_var cx { var ; ty } begin fun { var ; _ } cx ->
-              let var = repr var in
-              Format.fprintf out "@@go_down_ex (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "
+              let var = Ident.to_string var in
+              Caml.Format.fprintf out "@@go_down_ex (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "
                 pp_ty ty
                 var pp_ty ty pp_formx { tycx = cx ; data = p }
                 var pp_ty ty pp_formx { tycx = cx ; data = q }
@@ -268,40 +270,41 @@ let pp_rule out (prem, rule, goal) =
               pp_path (n + 1) cx q p path
             end
         | _ ->
-            String.concat " " [ "pp_rule:" ;
-                                pp_to_string Cos.pp_rule rule ;
-                                "::" ;
-                                pp_to_string pp_formx { tycx = cx ; data = goal } ]
+            String.concat ~sep:" "
+              [ "pp_rule:" ;
+                pp_to_string Cos.pp_rule rule ;
+                "::" ;
+                pp_to_string pp_formx { tycx = cx ; data = goal } ]
             |> unprintable
       end
   in
-  Format.fprintf out "refine (" ;
+  Caml.Format.fprintf out "refine (" ;
   pp_path 1 goal.tycx goal.data prem.data rule.path
 
 let pp_step out (prem, _, _ as prc) =
   pp_rule out prc ;
-  Format.fprintf out "show %a,@." pp_formx prem
+  Caml.Format.fprintf out "show %a,@." pp_formx prem
 
 let pp_deriv out (sg, deriv) =
-  Format.fprintf out "section Example@." ;
+  Caml.Format.fprintf out "section Example@." ;
   pp_sigma out sg ;
-  Format.fprintf out "example (__profint : %a) : %a :=@."
+  Caml.Format.fprintf out "example (__profint : %a) : %a :=@."
     pp_formx deriv.Cos.top
     pp_formx deriv.Cos.bottom ;
-  Format.fprintf out "begin@." ;
-  List.iter (pp_step out) (List.rev deriv.Cos.middle) ;
-  Format.fprintf out "exact __profint@." ;
-  Format.fprintf out "end@." ;
-  Format.fprintf out "end Example.@."
+  Caml.Format.fprintf out "begin@." ;
+  List.iter ~f:(pp_step out) (List.rev deriv.Cos.middle) ;
+  Caml.Format.fprintf out "exact __profint@." ;
+  Caml.Format.fprintf out "end@." ;
+  Caml.Format.fprintf out "end Example.@."
 
 let pp_header out () =
-  Format.fprintf out "import Profint@." ;
-  Format.fprintf out "open Profint@."
+  Caml.Format.fprintf out "import Profint@." ;
+  Caml.Format.fprintf out "open Profint@."
 
 let pp_footer _out () = ()
 
 let pp_comment out str =
-  Format.fprintf out "/- %s -/@\n" str
+  Caml.Format.fprintf out "/- %s -/@\n" str
 
 let name = "lean3"
 let files pf =

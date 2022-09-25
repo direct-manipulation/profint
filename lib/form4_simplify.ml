@@ -5,6 +5,8 @@
  * See LICENSE for licensing details.
  *)
 
+open Base
+
 open Util
 open Types
 open Form4_core
@@ -22,10 +24,10 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
   match expose fx.data with
   | Mdata (_, _, f) ->
       recursive_simplify ~emit (f |@ fx) path side
-  | Eq (s, t, _) when side = `r -> begin
+  | Eq (s, t, _) when Poly.(side = `r) -> begin
       match s, t with
       | T.App { head = f ; _ }, T.App { head = g ; _ }
-          when f = g ->
+          when T.equal_head f g ->
             let res = emit { name = Congr ; path } |> prin in
             recursive_simplify ~emit res path side
       | _ -> OTHER

@@ -5,6 +5,8 @@
  * See LICENSE for licensing details.
  *)
 
+open Base
+
 open Util
 open Types
 open Form4_core
@@ -13,7 +15,7 @@ open Mk
 (******************************************************************************)
 (* Formula Paths *)
 
-type dir = [`l | `r | `i of ident | `d]
+type dir = [`l | `r | `i of Ident.t | `d]
 type path = dir q
 
 type side = [`l | `r]
@@ -26,7 +28,7 @@ exception Bad_direction of { tycx : tycx option ; form : form ; dir : dir }
 let rec go (fx : formx) (dir : dir) =
   match expose fx.data, dir with
   | ( And (a, b) | Or (a, b) | Imp (a, b) ), (`l | `r) ->
-      ({ fx with data = if dir = `l then a else b }, dir)
+      ({ fx with data = if Poly.(dir = `l) then a else b }, dir)
   | Forall ({ var ; ty }, b), `d
   | Forall ({ ty ; _ }, b), `i var
   | Exists ({ var ; ty }, b), `d

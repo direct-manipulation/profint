@@ -5,12 +5,13 @@
  * See LICENSE for licensing details.
  *)
 
-(* output PDF *)
+(** output PDF *)
 
-open! Util
-open! Types
-open! Term
-open! Form4
+open Base
+
+open Util
+open Types
+open Form4
 
 let ty_to_exp = To_katex.ty_to_exp
 let pp_ty = To_katex.pp_ty
@@ -63,39 +64,39 @@ let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx Q.empty fx.data
 let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_lin_doc out
 
 let mk_hl f =
-  Mk.mk_mdata (T.App { head = Const (ident "hl", K.ty_any) ; spine = [] }) K.ty_any f
+  Mk.mk_mdata (T.App { head = Const (Ident.of_string "hl", K.ty_any) ; spine = [] }) K.ty_any f
 let mark_location fx rule =
   { fx with data = Paths.transform_at fx.data rule.Cos.path mk_hl }
 
 let pp_sigma out sg =
-  Format.pp_print_string out {|\begin{align*}|} ;
-  Format.pp_open_vbox out 0 ; begin
-    IdSet.iter begin fun i ->
-      if IdSet.mem i sigma0.basics then () else
-        Format.fprintf out {|%s &: \mathsf{type}.\\@,|} (repr i)
+  Caml.Format.pp_print_string out {|\begin{align*}|} ;
+  Caml.Format.pp_open_vbox out 0 ; begin
+    Set.iter ~f:begin fun i ->
+      if Set.mem sigma0.basics i then () else
+        Caml.Format.fprintf out {|%s &: \mathsf{type}.\\@,|} (Ident.to_string i)
     end sg.basics ;
-    IdMap.iter begin fun k ty ->
-      if IdMap.mem k sigma0.consts then () else
-        Format.fprintf out {|%s &: %a.\\@,|} (repr k) pp_ty (thaw_ty ty)
+    Map.iteri ~f:begin fun ~key:k ~data:ty ->
+      if Map.mem sigma0.consts k then () else
+        Caml.Format.fprintf out {|%s &: %a.\\@,|} (Ident.to_string k) pp_ty (thaw_ty ty)
     end sg.consts
-  end ; Format.pp_close_box out () ;
-  Format.pp_print_string out {|\end{align*}
+  end ; Caml.Format.pp_close_box out () ;
+  Caml.Format.pp_print_string out {|\end{align*}
 |}
 
 let pp_path out (path : path) =
   Q.to_seq path |>
-  Format.pp_print_seq
-    ~pp_sep:(fun out () -> Format.pp_print_string out ", ")
+  Caml.Format.pp_print_seq
+    ~pp_sep:(fun out () -> Caml.Format.pp_print_string out ", ")
     (fun out -> function
-       | `l -> Format.pp_print_string out "l"
-       | `r -> Format.pp_print_string out "r"
-       | `d -> Format.pp_print_string out "d"
+       | `l -> Caml.Format.pp_print_string out "l"
+       | `r -> Caml.Format.pp_print_string out "r"
+       | `d -> Caml.Format.pp_print_string out "d"
        | `i x ->
-           Format.pp_print_string out "i " ;
-           Format.pp_print_string out (repr x)) out
+           Caml.Format.pp_print_string out "i " ;
+           Caml.Format.pp_print_string out (Ident.to_string x)) out
 
 let pp_header out () =
-  Format.pp_print_string out {|\documentclass[landscape]{article}
+  Caml.Format.pp_print_string out {|\documentclass[landscape]{article}
 \usepackage{proof}
 \usepackage{amsmath}
 \usepackage[a4paper,margin=1cm]{geometry}
@@ -107,24 +108,24 @@ let pp_header out () =
 |}
 
 let pp_footer out () =
-  Format.pp_print_string out {|
+  Caml.Format.pp_print_string out {|
 \end{document}
 |}
 
 let pp_deriv out (sg, deriv) =
   pp_header out () ;
   let chunks = CCList.chunks 30 (deriv.Cos.middle) in
-  List.iter begin fun chunk ->
-    let (top, _, _) = List.hd chunk in
+  List.iter ~f:begin fun chunk ->
+    let (top, _, _) = List.hd_exn chunk in
     let chunk = List.rev chunk in
-    Format.fprintf out {|\begin{gather*}
+    Caml.Format.fprintf out {|\begin{gather*}
 |} ;
-    List.iter begin fun (_, rule, concl) ->
-      Format.fprintf out {|\infer{\mathstrut
+    List.iter ~f:begin fun (_, rule, concl) ->
+      Caml.Format.fprintf out {|\infer{\mathstrut
 %a
 }{|} pp_formx (mark_location concl rule)
     end chunk ;
-    Format.fprintf out {|\mathstrut %a%s
+    Caml.Format.fprintf out {|\mathstrut %a%s
 \end{gather*}
 \clearpage
 |} pp_formx top (String.make (List.length chunk) '}') ;
@@ -133,7 +134,7 @@ let pp_deriv out (sg, deriv) =
   pp_footer out ()
 
 let pp_comment out str =
-  Format.( pp_print_string out "% " ;
+  Caml.Format.( pp_print_string out "% " ;
            pp_print_string out str ;
            pp_print_newline out () )
 

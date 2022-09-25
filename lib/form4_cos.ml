@@ -5,6 +5,8 @@
  * See LICENSE for licensing details.
  *)
 
+open Base
+
 open Util
 open Types
 open T
@@ -64,115 +66,119 @@ let side_to_string (side : side) =
 let pp_rule_name out rn =
   match rn with
   | Goal_ts_imp { pick} ->
-      Format.fprintf out "goal_ts_imp_%s" (side_to_string pick)
+      Caml.Format.fprintf out "goal_ts_imp_%s" (side_to_string pick)
   | Goal_imp_ts ->
-      Format.fprintf out "goal_imp_ts"
+      Caml.Format.fprintf out "goal_imp_ts"
   | Goal_ts_and { pick } ->
-      Format.fprintf out "goal_ts_and_%s" (side_to_string pick)
+      Caml.Format.fprintf out "goal_ts_and_%s" (side_to_string pick)
   | Goal_and_ts { pick } ->
-      Format.fprintf out "goal_and_ts_%s" (side_to_string pick)
+      Caml.Format.fprintf out "goal_and_ts_%s" (side_to_string pick)
   | Goal_ts_or  { pick } ->
-      Format.fprintf out "goal_ts_or_%s" (side_to_string pick)
+      Caml.Format.fprintf out "goal_ts_or_%s" (side_to_string pick)
   | Goal_or_ts ->
-      Format.fprintf out "goal_or_ts"
+      Caml.Format.fprintf out "goal_or_ts"
   | Goal_ts_all ->
-      Format.fprintf out "goal_ts_all"
+      Caml.Format.fprintf out "goal_ts_all"
   | Goal_all_ts ->
-      Format.fprintf out "goal_all_ts"
+      Caml.Format.fprintf out "goal_all_ts"
   | Goal_ts_ex ->
-      Format.fprintf out "goal_ts_ex"
+      Caml.Format.fprintf out "goal_ts_ex"
   | Goal_ex_ts ->
-      Format.fprintf out "goal_ex_ts"
+      Caml.Format.fprintf out "goal_ex_ts"
   | Asms_and { minor ; pick } ->
-      Format.fprintf out "asms_and_%s_%s"
+      Caml.Format.fprintf out "asms_and_%s_%s"
         (side_to_string minor) (side_to_string pick)
   | Asms_or  { minor ; pick } ->
-      Format.fprintf out "asms_or_%s_%s"
+      Caml.Format.fprintf out "asms_or_%s_%s"
         (side_to_string minor) (side_to_string pick)
   | Asms_imp { minor ; pick } ->
-      Format.fprintf out "asms_imp_%s_%s"
+      Caml.Format.fprintf out "asms_imp_%s_%s"
         (side_to_string minor) (side_to_string pick)
   | Asms_all { minor } ->
-      Format.fprintf out "asms_all_%s"
+      Caml.Format.fprintf out "asms_all_%s"
         (side_to_string minor)
   | Asms_ex  { minor } ->
-      Format.fprintf out "asms_ex_%s"
+      Caml.Format.fprintf out "asms_ex_%s"
         (side_to_string minor)
   | Simp_and_top { cxkind ; minor } ->
-      Format.fprintf out "simp_%s_%s_%s"
+      Caml.Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with `r -> "goal" | _ -> "asms")
         (match minor with `l -> "and" | _ -> "top")
         (match minor with `l -> "top" | _ -> "and")
   | Simp_or_top { cxkind ; minor } ->
-      Format.fprintf out "simp_%s_%s_%s"
+      Caml.Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with `r -> "goal" | _ -> "asms")
         (match minor with `l -> "or" | _ -> "top")
         (match minor with `l -> "top" | _ -> "or")
   | Simp_imp_top { cxkind ; minor } ->
-      Format.fprintf out "simp_%s_%s_%s"
+      Caml.Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with `r -> "goal" | _ -> "asms")
         (match minor with `l -> "imp" | _ -> "top")
         (match minor with `l -> "top" | _ -> "imp")
   | Simp_all_top { cxkind } ->
-      Format.fprintf out "simp_%s_all_top"
+      Caml.Format.fprintf out "simp_%s_all_top"
         (match cxkind with `r -> "goal" | _ -> "asms")
   | Simp_and_bot { cxkind ; minor } ->
-      Format.fprintf out "simp_%s_%s_%s"
+      Caml.Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with `r -> "goal" | _ -> "asms")
         (match minor with `l -> "and" | _ -> "bot")
         (match minor with `l -> "bot" | _ -> "and")
   | Simp_or_bot { cxkind ; minor } ->
-      Format.fprintf out "simp_%s_%s_%s"
+      Caml.Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with `r -> "goal" | _ -> "asms")
         (match minor with `l -> "or" | _ -> "bot")
         (match minor with `l -> "bot" | _ -> "or")
   | Simp_bot_imp { cxkind } ->
-      Format.fprintf out "simp_%s_bot_imp"
+      Caml.Format.fprintf out "simp_%s_bot_imp"
         (match cxkind with `r -> "goal" | _ -> "asms")
   | Simp_ex_bot { cxkind } ->
-      Format.fprintf out "simp_%s_ex_bot"
+      Caml.Format.fprintf out "simp_%s_ex_bot"
         (match cxkind with `r -> "goal" | _ -> "asms")
   | Init ->
-      Format.fprintf out "init"
+      Caml.Format.fprintf out "init"
   | Rewrite { from } ->
-      Format.fprintf out "rewrite_%s"
+      Caml.Format.fprintf out "rewrite_%s"
         (match from with `l -> "ltr" | _ -> "rtl")
   | Congr ->
-      Format.fprintf out "congr"
+      Caml.Format.fprintf out "congr"
   | Contract ->
-      Format.fprintf out "contract"
+      Caml.Format.fprintf out "contract"
   | Weaken ->
-      Format.fprintf out "weaken"
+      Caml.Format.fprintf out "weaken"
   | Inst { side ; term = tx } ->
-      Format.fprintf out "inst_%s[@[%a@]]"
+      Caml.Format.fprintf out "inst_%s[@[%a@]]"
         (side_to_string side)
         (Term.pp_term ~cx:tx.tycx) tx.data
 
 let rec pp_path_list out (path : dir list) =
   match path with
   | [] -> ()
-  | [`l] -> Format.fprintf out "l"
-  | [`r] -> Format.fprintf out "r"
-  | [`i x] -> Format.fprintf out "i %s" (repr x)
-  | [`d] -> Format.fprintf out "d"
+  | [`l] -> Caml.Format.fprintf out "l"
+  | [`r] -> Caml.Format.fprintf out "r"
+  | [`i x] -> Caml.Format.fprintf out "i %s" (Ident.to_string x)
+  | [`d] -> Caml.Format.fprintf out "d"
   | dir :: (_ :: _ as path) ->
-      Format.fprintf out "%a, %a" pp_path_list [dir] pp_path_list path
+      Caml.Format.fprintf out "%a, %a" pp_path_list [dir] pp_path_list path
 
 let pp_path out (path : path) =
   pp_path_list out (Q.to_list path)
 
 let pp_rule out rule =
-  Format.fprintf out "@[%a%s:: %a@]"
+  Caml.Format.fprintf out "@[%a%s:: %a@]"
     pp_path rule.path
     (if Q.size rule.path = 0 then "" else " ")
     pp_rule_name rule.name
 
 let rule_to_string rule = pp_to_string pp_rule rule
 
-exception Bad_spines of {ty : ty ; ss : spine ; ts : spine}
+exception Bad_spines of {
+    ty : Ty.t ;
+    ss : spine ;
+    ts : spine ;
+  }
 
-let rec spine_equations (ty : ty) (ss : spine) (ts : spine) : form list =
-  let ty = ty_norm ty in
+let rec spine_equations (ty : Ty.t) (ss : spine) (ts : spine) : form list =
+  let ty = Ty.norm ty in
   match ty, ss, ts with
   | Arrow (tya, ty), (s :: ss), (t :: ts) ->
       (if Term.eq_term s t then [] else [mk_eq s t tya]) @
@@ -186,7 +192,7 @@ let rec mk_big_and fs =
   | [f] -> f
   | f :: fs -> mk_and f (mk_big_and fs)
 
-let compute_spine_congruence (ty : ty) (ss : spine) (ts : spine) : form =
+let compute_spine_congruence (ty : Ty.t) (ss : spine) (ts : spine) : form =
   mk_big_and @@ spine_equations ty ss ts
 
 exception Bad_match of {goal : formx ; rule : rule}
@@ -200,9 +206,9 @@ type cos_premise = {
 
 let compute_premise (goal : formx) (rule : rule) : cos_premise =
   let bad_match msg =
-    (* Format.printf "@.Bad_match[%s]:@. rule = %a@.goal = %a@." *)
+    (* Caml.Format.printf "@.Bad_match[%s]:@. rule = %a@.goal = %a@." *)
     (*   msg pp_rule rule pp_formx goal ; *)
-    Format.eprintf "compute_premise: bad_match: %s@." msg ;
+    Caml.Format.eprintf "compute_premise: bad_match: %s@." msg ;
     raise @@ Bad_match {goal ; rule} in
   let (prin, side) = formx_at goal rule.path in
   let prin = {
@@ -348,32 +354,32 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
       (* simplification: top *)
       | ( _, And (a, f), Simp_and_top { cxkind ; minor = `l }
         | _, And (f, a), Simp_and_top { cxkind ; minor = `r } )
-        when cxkind = side -> begin
+        when Poly.(cxkind = side) -> begin
           match expose f with
           | Top -> a
           | _ -> bad_match "20"
         end
       | ( _, Or (_, f), Simp_or_top { cxkind ; minor = `l }
         | _, Or (f, _), Simp_or_top { cxkind ; minor = `r } )
-        when cxkind = side -> begin
+        when Poly.(cxkind = side) -> begin
           match expose f with
           | Top -> f
           | _ -> bad_match "21"
         end
       | _, Imp (_, f), Simp_imp_top { cxkind ; minor = `l }
-        when cxkind = side -> begin
+        when Poly.(cxkind = side) -> begin
           match expose f with
           | Top -> f
           | _ -> bad_match "22"
         end
       | _, Imp (f, a), Simp_imp_top { cxkind ; minor = `r }
-        when cxkind = side -> begin
+        when Poly.(cxkind = side) -> begin
           match expose f with
           | Top -> a
           | _ -> bad_match "23"
         end
       | _, Forall (_, f), Simp_all_top { cxkind }
-        when cxkind = side -> begin
+        when Poly.(cxkind = side) -> begin
           match expose f with
           | Top -> f
           | _ -> bad_match "24"
@@ -381,26 +387,26 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
       (* simplification: bot *)
       | ( _, And (_, f), Simp_and_bot { cxkind ; minor = `l }
         | _, And (f, _), Simp_and_bot { cxkind ; minor = `r } )
-        when cxkind = side -> begin
+        when Poly.(cxkind = side) -> begin
           match expose f with
           | Bot -> f
           | _ -> bad_match "25"
         end
       | ( _, Or (a, f), Simp_or_bot { cxkind ; minor = `l }
         | _, Or (f, a), Simp_or_bot { cxkind ; minor = `r } )
-        when cxkind = side -> begin
+        when Poly.(cxkind = side) -> begin
           match expose f with
           | Bot -> a
           | _ -> bad_match "26"
         end
       | _, Imp (f, _), Simp_bot_imp { cxkind }
-        when cxkind = side -> begin
+        when Poly.(cxkind = side) -> begin
           match expose f with
           | Bot -> mk_top
           | _ -> bad_match "27"
         end
       | _, Exists (_, f), Simp_ex_bot { cxkind }
-        when cxkind = side -> begin
+        when Poly.(cxkind = side) -> begin
           match expose f with
           | Bot -> f
           | _ -> bad_match "28"

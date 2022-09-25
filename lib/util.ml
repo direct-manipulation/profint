@@ -5,45 +5,9 @@
  * See LICENSE for licensing details.
  *)
 
-module ISet = Stdlib.Set.Make(CCInt)
-module IMap = Stdlib.Map.Make(CCInt)
-module ITab = Stdlib.Hashtbl.Make(CCInt)
+open Base
 
-module SSet = Stdlib.Set.Make(CCString)
-module SMap = Stdlib.Map.Make(CCString)
-module STab = Stdlib.Hashtbl.Make(CCString)
-
-type ident = {
-  base : string ;
-  salt : int ;
-}
-(* [@@deriving show] *)
-
-let ident base = { base ; salt = 0 }
-let repr ident =
-  if ident.salt = 0 then ident.base
-  else ident.base ^ "_" ^ string_of_int ident.salt
-
-let pp_ident out ident =
-  Format.pp_print_string out (repr ident)
-let yojson_of_ident ident = `String (repr ident)
-
-module IdHashEq = struct
-  type t = ident
-  let equal (x : ident) (y : ident) =
-    String.equal x.base y.base && Int.equal x.salt y.salt
-  let compare (x : ident) (y : ident) =
-    match String.compare x.base y.base with
-    | 0 -> Int.compare x.salt y.salt
-    | k -> k
-  let hash : ident -> int = Hashtbl.hash
-end
-
-module IdSet = Stdlib.Set.Make(IdHashEq)
-module IdMap = Stdlib.Map.Make(IdHashEq)
-module IdTab = Stdlib.Hashtbl.Make(IdHashEq)
-
-let panic =
+let panic___REMOVE =
   (* hiding the exception in a local module to make it impossible to
    * handle except with a catchall handler *)
   let module P = struct
@@ -51,31 +15,50 @@ let panic =
   end in
   fun msg -> raise @@ P.Panic msg
 
-let failwith_s fmt = Printf.ksprintf failwith fmt
-let failwith_fmt fmt =
+let failwith_s___REMOVE fmt = Printf.ksprintf failwith fmt
+let failwith_fmt___REMOVE fmt =
   let buf = Buffer.create 19 in
-  let out = Format.formatter_of_buffer buf in
-  Format.kfprintf (fun _ -> failwith (Buffer.contents buf)) out fmt
+  let out = Caml.Format.formatter_of_buffer buf in
+  Caml.Format.kfprintf (fun _ -> failwith (Buffer.contents buf)) out fmt
 
-let rec range_up step lo hi : int Seq.t = fun () ->
-  if lo >= hi then Seq.Nil else
-    Seq.Cons (lo, range_up step (lo + step) hi)
-
-let rec range_down step hi lo : int Seq.t = fun () ->
-  if hi <= lo then Seq.Nil else
-    Seq.Cons (hi, range_down step (hi + step) lo)
-
-let range ?(step = 1) x y =
-  if step >= 0
-  then range_up step x y
-  else range_down step x y
+let range___REMOVE ~step ~lo ~hi =
+  let open Sequence in
+  if step > 0 then begin
+    let f cur =
+      if cur < hi then Step.Yield (cur, cur + step) else Step.Done
+    in unfold_step ~init:lo ~f
+  end else if step < 0 then begin
+    let f cur =
+      if cur >= lo then Step.Yield (cur, cur + step) else Step.Done
+    in unfold_step ~init:hi ~f
+  end else begin
+    if lo < hi then Sequence.repeat lo else Sequence.empty
+  end
 
 module Q = CCFQueue
 type 'a q = 'a Q.t
 
 let pp_to_string pp thing =
   let buf = Buffer.create 19 in
-  let out = Format.formatter_of_buffer buf in
+  let out = Caml.Format.formatter_of_buffer buf in
   pp out thing ;
-  Format.pp_print_flush out () ;
+  Caml.Format.pp_print_flush out () ;
   Buffer.contents buf
+
+let setoff prefix str =
+  String.split ~on:'\n' str |>
+  List.map ~f:(fun line -> prefix ^ line) |>
+  String.concat ~sep:"\n"
+
+let read_all ic =
+  let len = 64 in
+  let byte_buf = Bytes.create len in
+  let buf = Buffer.create 19 in
+  let rec spin () =
+    match Stdlib.input ic byte_buf 0 len with
+    | 0 -> ()                   (* EOF reached *)
+    | n ->
+        Buffer.add_subbytes buf byte_buf ~pos:0 ~len:n ;
+        spin ()
+  in
+  spin () ; Buffer.contents buf

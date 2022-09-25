@@ -5,7 +5,7 @@
  * See LICENSE for licensing details.
  *)
 
-open Format
+open Base
 
 type box =
   | NOBOX
@@ -14,7 +14,7 @@ type box =
 type doc =
   | String of string
   | StringAs of int * string
-  | Fmt of (formatter -> unit)
+  | Fmt of (Caml.Format.formatter -> unit)
   | Break of int * int
   | Group of box * doc list
   | Newline
@@ -25,48 +25,48 @@ let cut = Break (0, 0)
 let rec doc_map_strings fn = function
   | String s -> fn ~elen:(String.length s) s
   | StringAs (elen, s) -> fn ~elen s
-  | Group (b, ds) -> Group (b, List.map (doc_map_strings fn) ds)
+  | Group (b, ds) -> Group (b, List.map ~f:(doc_map_strings fn) ds)
   | (Fmt _ | Break _ | Newline) as d -> d
 
 let rec pp_doc ff = function
   | String s ->
-      pp_print_string ff s
+      Caml.Format.pp_print_string ff s
   | StringAs (n, s) ->
-      pp_print_as ff n s
+      Caml.Format.pp_print_as ff n s
   | Fmt fmt -> fmt ff
   | Break (nsp, offs) ->
-      pp_print_break ff nsp offs
+      Caml.Format.pp_print_break ff nsp offs
   | Group (b, ds) ->
       begin match b with
       | NOBOX -> ()
-      | H -> pp_open_hbox ff ()
-      | V ind -> pp_open_vbox ff ind
-      | HV ind -> pp_open_hvbox ff ind
-      | HOV ind -> pp_open_hovbox ff ind
+      | H -> Caml.Format.pp_open_hbox ff ()
+      | V ind -> Caml.Format.pp_open_vbox ff ind
+      | HV ind -> Caml.Format.pp_open_hvbox ff ind
+      | HOV ind -> Caml.Format.pp_open_hovbox ff ind
       end ;
-      List.iter (pp_doc ff) ds ;
+      List.iter ~f:(pp_doc ff) ds ;
       begin match b with
       | NOBOX -> ()
-      | _ -> pp_close_box ff ()
+      | _ -> Caml.Format.pp_close_box ff ()
       end
   | Newline ->
-      pp_force_newline ff ()
+      Caml.Format.pp_force_newline ff ()
 
 let lin_doc_buffer buf d =
-  let out = Format.formatter_of_buffer buf in
+  let out = Caml.Format.formatter_of_buffer buf in
   let rec output = function
     | String s | StringAs (_, s) ->
-        Format.pp_print_string out s
+        Caml.Format.pp_print_string out s
     | Fmt fmt ->
-        Format.fprintf out "%t" fmt
+        Caml.Format.fprintf out "%t" fmt
     | Group (_, ds) ->
-        List.iter output ds
+        List.iter ~f:output ds
     | Break (0, _) -> ()
     | Break _ | Newline ->
-        Format.pp_print_char out ' '
+        Caml.Format.pp_print_char out ' '
   in
   output d ;
-  Format.pp_print_flush out ()
+  Caml.Format.pp_print_flush out ()
 
 let lin_doc d =
   let buf = Buffer.create 10 in
@@ -74,7 +74,7 @@ let lin_doc d =
   Buffer.contents buf
 
 let pp_lin_doc out d =
-  lin_doc d |> Format.pp_print_string out
+  lin_doc d |> Caml.Format.pp_print_string out
 
 type wrapping = Transparent | Opaque
 
@@ -119,7 +119,7 @@ let rec infix_incompat_for tasc pr asc = function
   | Appl (spr, (Prefix _ | Postfix _))
     when pr >= spr -> true
   | Appl (spr, Infix (_, sasc, _))
-    when pr = spr && not (asc = tasc && sasc = tasc) -> true
+    when pr = spr && not (Poly.(asc = tasc) && Poly.(sasc = tasc)) -> true
   | Wrap (Transparent, _, be, _) ->
       infix_incompat_for tasc pr asc be
   | _ -> false
@@ -130,7 +130,7 @@ let rec reprec e =
   begin match e with
   | Atom _ -> (e, NVM)
   | Appl (p, Infix (d, asc, es)) ->
-      let es = List.map (fun e -> fst (reprec e)) es in
+      let es = List.map ~f:(fun e -> fst (reprec e)) es in
       (Appl (p, Infix (d, asc, es)), NVM)
   | Appl (p, Prefix (d, e)) ->
       begin
@@ -195,7 +195,7 @@ let rec bracket ~ld ~rd = function
               ~cond:(prec >? r
                      || infix_incompat_for Right prec asc r) in
           let ms = List.map
-              begin fun e ->
+              ~f:begin fun e ->
                 [oprep ; delimit (bracket ~ld ~rd e) ~ld ~rd ~cond:(prec >=? e)]
               end ms in
           let ms = List.concat ms in

@@ -5,21 +5,23 @@
  * See LICENSE for licensing details.
  *)
 
+open Base
+
 open! Profint
 open! Util
 open! Types
 module YS = Yojson.Safe
-module M = Map.Make(String)
-module S = Set.Make(String)
 
-let failwithf fmt = Format.kasprintf failwith fmt
+let failwithf fmt = Caml.Format.kasprintf failwith fmt
 
 let bad_json () = failwithf "Bad JSON"
 
 let rec maybe_concat (json : YS.t) =
   match json with
   | `String str -> str
-  | `List jsons -> String.concat " " (List.map maybe_concat jsons)
+  | `List jsons ->
+      String.concat ~sep:" "
+        (List.map ~f:maybe_concat jsons)
   | _ -> bad_json ()
 
 include struct
@@ -34,7 +36,7 @@ include struct
     find_head tm []
   let parse_dir dir : Form4.dir =
     with_app dir begin fun k args ->
-      match repr k, args with
+      match Ident.to_string k, args with
       | "l", [] -> `l
       | "r", [] -> `r
       | "d", [] -> `d
@@ -43,21 +45,21 @@ include struct
     end
   let parse_path path : Form4.path =
     with_app path begin fun k args ->
-      match repr k, args with
+      match Ident.to_string k, args with
       | "go", dirs ->
-          Q.of_list @@ List.map parse_dir dirs
+          Q.of_list @@ List.map ~f:parse_dir dirs
       | _ -> bad_json ()
     end
   let parse_bool copy =
     with_app copy begin fun k args ->
-      match repr k, args with
+      match Ident.to_string k, args with
       | "t", [] -> true
       | "f", [] -> false
       | _ -> bad_json ()
     end
   let parse_mstep tm =
     with_app tm begin fun k args ->
-      match repr k, args with
+      match Ident.to_string k, args with
       | "P", [] -> Form4.Pristine
       | "C", [path] ->
           let path = parse_path path in
@@ -83,19 +85,19 @@ let serialize_into outdir system thing =
   let rec aux cwd t =
     match t with
     | File { fname ; contents } ->
-        let fname = Filename.concat cwd fname in
-        let oc = open_out_bin fname in
-        output_string oc contents ;
-        close_out oc
+        let fname = Caml.Filename.concat cwd fname in
+        let oc = Stdlib.open_out_bin fname in
+        Stdlib.output_string oc contents ;
+        Stdlib.close_out oc
     | Dir { dname ; contents } ->
-        let cwd = Filename.concat cwd dname in
+        let cwd = Caml.Filename.concat cwd dname in
         FileUtil.mkdir ~parent:true cwd ;
-        List.iter (aux cwd) contents
+        List.iter ~f:(aux cwd) contents
   in
-  let outdir = Filename.concat outdir T.name in
+  let outdir = Caml.Filename.concat outdir T.name in
   FileUtil.mkdir ~parent:true outdir ;
   let dirtree = T.files thing in
-  List.iter (aux outdir) dirtree ;
+  List.iter ~f:(aux outdir) dirtree ;
   outdir
 
 let process_problem out ~mode ~fname no prob =
@@ -104,9 +106,9 @@ let process_problem out ~mode ~fname no prob =
   let goal = YS.Util.(prob |> member "goal" |> maybe_concat)
              |> Uterm.form_of_string |> Types.triv in
   let msteps = YS.Util.(prob |> member "msteps" |> to_list)
-               |> List.map maybe_concat
-               |> List.map (Uterm.thing_of_string Proprs.one_term)
-               |> List.map parse_mstep in
+               |> List.map ~f:maybe_concat
+               |> List.map ~f:(Uterm.thing_of_string Proprs.one_term)
+               |> List.map ~f:parse_mstep in
   let deriv = Form4.compute_derivation goal msteps in
   let module O = (val mode : To.TO) in
   Printf.ksprintf (O.pp_comment out) "problem #%d in %s" (no + 1) fname ;
@@ -117,8 +119,19 @@ let process_file out ~mode fname =
   O.pp_comment out fname ;
   match Yojson.Safe.from_file fname with
   | `List probs ->
-      List.iteri (process_problem out ~mode ~fname) probs
+      List.iteri ~f:(process_problem out ~mode ~fname) probs
   | _ -> bad_json ()
+
+let run_command cmd =
+  let cmd = cmd ^ " 2>&1" in
+  let ic = Unix.open_process_in cmd in
+  match Unix.waitpid [] (Unix.process_in_pid ic) with
+  | (_, Unix.WEXITED 0) ->
+      read_all ic
+  | _ | exception _ ->
+      Caml.Printf.eprintf "Error in subprocess\nCommand: \"%s\"\n%s\n%!"
+        cmd (setoff "> " (read_all ic)) ;
+      failwith "Error in subprocess"
 
 let main () =
   let sysname = ref "lean4" in
@@ -127,34 +140,34 @@ let main () =
     sysname := str ;
     mode := To.select str
   in
-  let outdir = ref @@ FilePath.concat (Filename.get_temp_dir_name ()) "batch" in
+  let outdir = ref @@ FilePath.concat (Caml.Filename.get_temp_dir_name ()) "batch" in
   let set_outdir dir = outdir := FilePath.reduce dir in
   let doit = ref false in
-  let opts = Arg.[
+  let opts = Caml.Arg.[
       "-format", String set_mode, "FMT Set output format to FMT (coq, coq_reflect, lean3, lean4, isahol)" ;
       "-d", String set_outdir, "DIR Set output direcory to DIR" ;
       "-run", Set doit, " ALso run the generated build" ;
-    ] |> Arg.align in
+    ] |> Caml.Arg.align in
   let input_files : string list ref = ref [] in
   let add_input_file fname =
-    if List.exists (String.equal fname) !input_files then
+    if List.exists ~f:(String.equal fname) !input_files then
       failwithf "Repeated input file %S" fname ;
     input_files := fname :: !input_files
   in
-  Arg.parse opts add_input_file @@
+  Caml.Arg.parse opts add_input_file @@
   Printf.sprintf "Usage: %s [OPTIONS] file1.json ...\n\nWhere OPTIONS are:"
-    (Filename.basename Sys.executable_name) ;
+    (Caml.Filename.basename Caml.Sys.executable_name) ;
   let module T = (val !mode : To.TO) in
   let buf = Buffer.create 19 in
-  let out = Format.formatter_of_buffer buf in
-  List.iter (process_file out ~mode:!mode) @@ List.rev !input_files ;
-  Format.pp_print_flush out () ;
+  let out = Caml.Format.formatter_of_buffer buf in
+  List.iter ~f:(process_file out ~mode:!mode) @@ List.rev !input_files ;
+  Caml.Format.pp_print_flush out () ;
   let proofs = Buffer.contents buf in
   let outdir = serialize_into !outdir !mode proofs in
   if !doit then begin
-    Sys.chdir outdir ;
-    assert (Sys.command (T.build ()) = 0) ;
-    Printf.printf "Build complete.\n"
+    Unix.chdir outdir ;
+    ignore (run_command (T.build ()) : string) ;
+    Caml.Printf.printf "Build complete.\n"
   end
 
 let () = main ()

@@ -1,3 +1,12 @@
+(*
+ * Author: Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>
+ * Copyright (C) 2022  Inria (Institut National de Recherche
+ *                     en Informatique et en Automatique)
+ * See LICENSE for licensing details.
+ *)
+
+open Base
+
 open Profint
 open Util
 open Js_of_ocaml
@@ -29,11 +38,11 @@ let sig_change text =
     Types.sigma := sigma ;
     true
   end with _e ->
-    (* Format.eprintf "sig_change: %s@." (Printexc.to_string e) ; *)
+    (* Caml.Format.eprintf "sig_change: %s@." (Printexc.to_string e) ; *)
     false
 
 let to_trail str : F.path =
-  let path = Js.to_string str |> String.split_on_char ';' in
+  let path = Js.to_string str |> String.split ~on:';' in
   match path with
   | [""] -> Q.empty
   | dirs ->
@@ -42,8 +51,9 @@ let to_trail str : F.path =
       | "l" -> `l
       | "r" -> `r
       | "d" -> `d
-      | dir when dir.[0] = 'i' ->
-          `i (String.sub dir 2 (String.length dir - 3) |> Util.ident)
+      | dir when Char.equal dir.[0] 'i' ->
+          `i (String.sub dir ~pos:2 ~len:(String.length dir - 3)
+              |> Ident.of_string)
       | dir -> failwith @@ "invalid direction: " ^ dir
       end
 
@@ -58,7 +68,7 @@ let change_formula text =
 
 let get_proof kind =
   let fail reason =
-    Format.eprintf "get_proof(%s): failure: %s@." kind reason ;
+    Caml.Format.eprintf "get_proof(%s): failure: %s@." kind reason ;
     failwith "get_proof"
   in
   try
@@ -67,11 +77,11 @@ let get_proof kind =
     | [] -> assert false    (* impossible! *)
     | last :: _ ->
         let deriv = F.compute_derivation last.fx
-            (List.map (fun stg -> stg.mstep) stages) in
+            (List.map ~f:(fun stg -> stg.mstep) stages) in
         let module O = (val To.select kind) in
         let str = pp_to_string O.pp_deriv (!Types.sigma, deriv) in
         str
-  with e -> fail (Printexc.to_string e)
+  with e -> fail (Exn.to_string e)
 
 let get_proof_bundle_zip name kind : Js.Unsafe.top Js.t =
   let proof = get_proof kind in
@@ -88,13 +98,13 @@ let get_proof_bundle_zip name kind : Js.Unsafe.top Js.t =
         let obj = Js.Unsafe.meth_call obj "folder" [|
             Js.Unsafe.coerce @@ Js.string dname ;
           |] in
-        List.iter (dirtree_to_obj obj) contents
+        List.iter ~f:(dirtree_to_obj obj) contents
   in
   let zip = Js.Unsafe.new_obj (Js.Unsafe.pure_js_expr "JSZip") [| |] in
   let obj = Js.Unsafe.meth_call zip "folder" [|
       Js.Unsafe.coerce @@ Js.string name
     |] in
-  List.iter (dirtree_to_obj obj) files ;
+  List.iter ~f:(dirtree_to_obj obj) files ;
   zip
 
 exception Cannot_start
@@ -103,16 +113,16 @@ let profint_object =
   object%js
     method startup =
       try
-        let pmap = Url.Current.arguments |> List.to_seq |> SMap.of_seq in
-        Option.iter begin fun sigText ->
+        let pmap = Map.of_alist_exn (module String) Url.Current.arguments in
+        Option.iter ~f:begin fun sigText ->
           if not @@ sig_change (Url.urldecode sigText) then
             raise Cannot_start;
-        end @@ SMap.find_opt "s" pmap ;
+        end @@ Map.find pmap "s" ;
         (* Printf.printf "signature initailized\n%!" ; *)
-        Option.iter begin fun formText ->
+        Option.iter ~f:begin fun formText ->
           if not @@ change_formula (Url.urldecode formText) then
             raise Cannot_start
-        end @@ SMap.find_opt "f" pmap ;
+        end @@ Map.find pmap "f" ;
         (* Printf.printf "formula initailized\n%!" ; *)
         Js.some @@ Js.string @@ pp_to_string Types.pp_sigma !Types.sigma
       with Cannot_start -> Js.null
@@ -137,7 +147,7 @@ let profint_object =
         let f = Uterm.form_of_string @@ Js.to_string text in
         Js.some @@ Js.string @@ pp_to_string To.Katex.pp_formx @@ Types.triv f
       with _e ->
-        (* Format.eprintf "formulaToHTML: %S: %s@." *)
+        (* Caml.Format.eprintf "formulaToHTML: %S: %s@." *)
         (*   (Js.to_string text) *)
         (*   (Printexc.to_string e) ; *)
         Js.null
@@ -145,8 +155,8 @@ let profint_object =
     method historyHTML =
       let contents =
         state.history
-        |> List.map (pp_to_string (pp_stage ~ppfx:To.Katex.pp_formx))
-        |> String.concat {| \mathstrut \\ \hline |}
+        |> List.map ~f:(pp_to_string (pp_stage ~ppfx:To.Katex.pp_formx))
+        |> String.concat ~sep:{| \mathstrut \\ \hline |}
       in
       {| \begin{array}{c} \hline |} ^ contents ^ {| \end{array} |}
       |> Js.string
@@ -160,8 +170,8 @@ let profint_object =
         | _ ->
             let contents =
               state.future
-              |> List.rev_map (pp_to_string (pp_stage ~ppfx:To.Katex.pp_formx))
-              |> String.concat {| \mathstrut \\ \hline |}
+              |> List.rev_map ~f:(pp_to_string (pp_stage ~ppfx:To.Katex.pp_formx))
+              |> String.concat ~sep:{| \mathstrut \\ \hline |}
             in
             {| \begin{array}{c} |} ^ contents ^ {| \\ \hline \end{array} |}
       in
@@ -225,7 +235,7 @@ let profint_object =
 
     method testWitness src =
       let fail reason =
-        Format.eprintf "testWitness: failure: %s@." reason ;
+        Caml.Format.eprintf "testWitness: failure: %s@." reason ;
         Js.null in
       try
         let ex, side = F.Paths.formx_at state.goal.fx @@ to_trail src in
@@ -233,15 +243,15 @@ let profint_object =
         | F.Forall ({ var ; ty }, _), `l
         | F.Exists ({ var ; ty }, _), `r ->
             Types.with_var ex.tycx { var ; ty } begin fun { var ; _ } _ ->
-              Js.some @@ Js.string (repr var)
+              Js.some @@ Js.string (Ident.to_string var)
             end
         | _ -> fail @@ "not an exists: " ^ F.formx_to_string ex
-      with e -> fail (Printexc.to_string e)
+      with e -> fail (Exn.to_string e)
 
     method doWitness path text =
       let old_goal = state.goal in
       let fail reason =
-        Format.printf "doWitness: failure: %s@." reason ;
+        Caml.Format.printf "doWitness: failure: %s@." reason ;
         state.goal <- old_goal ;
         false
       in
@@ -257,7 +267,7 @@ let profint_object =
             push_goal { fx = deriv.top ; mstep = F.Pristine } ;
             true
         | _ -> fail "not an exists"
-      with e -> fail (Printexc.to_string e)
+      with e -> fail (Exn.to_string e)
 
     method getProof kind =
       try Js.some @@ Js.string @@ get_proof (Js.to_string kind)

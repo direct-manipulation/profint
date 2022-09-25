@@ -1,3 +1,4 @@
 (executable
  (name profint_batch)
- (libraries profint yojson fileutils))
+ (libraries unix fileutils yojson base profint)
+ (preprocess (pps ppx_base)))

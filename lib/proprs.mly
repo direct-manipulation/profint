@@ -6,13 +6,14 @@
  *)
 
 %{
-  open Util
+  open Base
   open Types
+  module Printf = Caml.Printf   (* [HACK] Menhir inserts calls to Printf *)
 
   let make_quant q vs bod =
     List.fold_right
-      (fun (x, ty) f -> U.(App (Kon (q, None), Abs (x, ty, f))))
-      vs bod
+      ~f:(fun (x, ty) f -> U.(App (Kon (q, None), Abs (x, ty, f))))
+      ~init:bod vs
 
   let rec make_app ts =
     match ts with
@@ -21,8 +22,8 @@
     | f :: t :: ts -> make_app (U.App (f, t) :: ts)
 
   type sig_one =
-    | Basic of ident
-    | Const of ident * ty
+    | Basic of Ident.t
+    | Const of Ident.t * Ty.t
 
   let assemble_signature things =
     let rec aux sigma = function
@@ -36,7 +37,7 @@
 %}
 
 %token  EOS PREC_MIN (* PREC_MAX *)
-%token  <Util.ident> IDENT
+%token  <Ident.t> IDENT
 %token  LPAREN RPAREN LBRACK RBRACK COMMA COLON DOT
 %token  ARROW OMICRON TYPE
 %token  EQ
@@ -51,7 +52,7 @@
 (* %nonassoc PREC_MAX *)
 
 %start <U.term> one_term
-%start <ty> one_ty
+%start <Ty.t> one_ty
 %start <U.term> one_form
 %start <Types.sigma> signature
 
@@ -71,7 +72,7 @@ one_form:
 
 term:
 | vs=loption(lambda) bod=app_term
-  { List.fold_right (fun (x, ty) t -> U.Abs (x, ty, t)) vs bod }
+  { List.fold_right ~f:(fun (x, ty) t -> U.Abs (x, ty, t)) ~init:bod vs }
 
 app_term:
 | ts=nonempty_list(wrapped_term)
@@ -84,9 +85,9 @@ lambda:
 ids_ty:
 | xs=separated_nonempty_list(COMMA, IDENT) COLON ty=ty
   { let ty = Some ty in
-    List.map (fun x -> (x, ty)) xs }
+    List.map ~f:(fun x -> (x, ty)) xs }
 | xs=separated_nonempty_list(COMMA, IDENT)
-  { List.map (fun x -> (x, None)) xs }
+  { List.map ~f:(fun x -> (x, None)) xs }
 
 wrapped_term:
 | v=IDENT
@@ -120,11 +121,11 @@ form:
 
 ty:
 | OMICRON
-  { K.ty_o }
+  { Ty.o }
 | b=IDENT
-  { Basic b }
+  { Ty.Basic b }
 | a=ty ARROW b=ty
-  { Arrow (a, b) }
+  { Ty.Arrow (a, b) }
 | LPAREN ty=ty RPAREN
   { ty }
 
@@ -134,6 +135,6 @@ signature:
 
 signature_elem:
 | vs=separated_nonempty_list(COMMA, IDENT) COLON ty=ty DOT
-  { List.map (fun v -> Const (v, ty)) vs }
+  { List.map ~f:(fun v -> Const (v, ty)) vs }
 | vs=separated_nonempty_list(COMMA, IDENT) COLON TYPE DOT
-  { List.map (fun v -> Basic v) vs }
+  { List.map ~f:(fun v -> Basic v) vs }

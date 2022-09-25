@@ -7,11 +7,15 @@
 
 (** Untyped terms and types with free variables *)
 
-open! Util
-open! Types
-open! U
+open Base
 
-exception TypeError of {ty : ty option ; msg : string}
+open Types
+open U
+
+exception TypeError of {
+    ty : Ty.t option ;
+    msg : string ;
+  }
 
 let ty_error ?ty fmt =
   Printf.ksprintf (fun msg -> raise (TypeError {ty ; msg})) fmt
@@ -20,29 +24,31 @@ let rec tygen ~emit (cx : tycx) tm ty_expected =
   match tm with
   | Idx n -> begin
       match List.nth cx.linear n with
-      | { ty ; _ } ->
+      | Some { ty ; _ } ->
           emit ty ty_expected ; Idx n
-      | exception Failure _ ->
+      | None ->
           raise @@ TypeError { ty = Some ty_expected ;
-                               msg = "Invalid index " ^ string_of_int n }
+                               msg = "Invalid index " ^ Int.to_string n }
     end
   | Var x -> begin
       match tyget cx.linear x with
-      | (n, ty) ->
+      | Some (n, ty) ->
           emit ty ty_expected ;
           Idx n
-      | exception Not_found ->
+      | None ->
           tygen ~emit cx (Kon (x, None)) ty_expected
     end
   | Kon (k, ty) -> begin
       match lookup_ty k with
-      | ty_a ->
+      | Some ty_a ->
           emit ty_a ty_expected ;
-          Option.iter (emit ty_a) ty ;
+          Option.iter ~f:(emit ty_a) ty ;
           Kon (k, Some ty_a)
-      | exception Not_found ->
-          raise @@ TypeError { ty = Some ty_expected ;
-                               msg = "Unknown contstant or variable " ^ (repr k) }
+      | None ->
+          raise @@ TypeError {
+            ty = Some ty_expected ;
+            msg = "Unknown contstant or variable " ^ (Ident.to_string k)
+          }
     end
   | App (tm, tn) ->
       let tyarg = fresh_tyvar () in
@@ -65,32 +71,32 @@ let rec tygen ~emit (cx : tycx) tm ty_expected =
 
 and tyget ?(depth = 0) cx x =
   match cx with
-  | tvar :: _ when x = tvar.var -> (depth, tvar.ty)
+  | tvar :: _ when Ident.equal x tvar.var -> Some (depth, tvar.ty)
   | _ :: cx -> tyget ~depth:(depth + 1) cx x
-  | [] -> raise Not_found
+  | [] -> None
 
 let rec occurs x ty =
   match ty with
-  | Tyvar y -> x == y.id || begin
+  | Ty.Var y -> x = y.id || begin
       match y.subst with
       | None -> false
       | Some ty -> occurs x ty
     end
-  | Basic _ -> false
-  | Arrow (tya, tyb) -> occurs x tya || occurs x tyb
+  | Ty.Basic _ -> false
+  | Ty.Arrow (tya, tyb) -> occurs x tya || occurs x tyb
 
 let solve1 ~emit l r =
   match l, r with
-  | Tyvar ({subst = None ; _} as v), ty
-  | ty, Tyvar ({subst = None ; _} as v) ->
+  | Ty.Var ({subst = None ; _} as v), ty
+  | ty, Ty.Var ({subst = None ; _} as v) ->
       if occurs v.id ty then ty_error "circularity" ;
       v.subst <- Some ty
-  | Tyvar {subst = Some l ; _}, r
-  | l, Tyvar {subst = Some r ; _} ->
+  | Ty.Var {subst = Some l ; _}, r
+  | l, Ty.Var {subst = Some r ; _} ->
       emit (l, r)
-  | Basic a, Basic b when a = b ->
+  | Ty.Basic a, Ty.Basic b when Ident.equal a b ->
       ()
-  | Arrow (la, lb), Arrow (ra, rb) ->
+  | Ty.Arrow (la, lb), Ty.Arrow (ra, rb) ->
       emit (la, ra) ;
       emit (lb, rb)
   | _ ->
@@ -113,9 +119,9 @@ exception Free_tyvar of { id : int }
 
 let rec norm_ty ty =
   match ty with
-  | Basic a -> Basic a
-  | Arrow (tya, tyb) -> Arrow (norm_ty tya, norm_ty tyb)
-  | Tyvar v -> begin
+  | Ty.Basic a -> Ty.Basic a
+  | Ty.Arrow (tya, tyb) -> Ty.Arrow (norm_ty tya, norm_ty tyb)
+  | Ty.Var v -> begin
       match v.subst with
       | None -> raise @@ Free_tyvar { id = v.id }
       | Some ty -> norm_ty ty
@@ -130,7 +136,7 @@ let rec norm_term tm =
       | ty -> T.(App {head = Const (k, ty) ; spine = []})
       | exception Free_tyvar _ ->
           ty_error "inferred non-monomorphic type for %s: %s"
-            (repr k) (ty_to_string ty)
+            (Ident.to_string k) (Ty.to_string ty)
     end
   | App (tm, tn) ->
       Term.(do_app (norm_term tm) [norm_term tn])
@@ -149,7 +155,7 @@ let ty_check cx term =
     | ty -> (norm_term term, ty)
     | exception Free_tyvar _ ->
         ty_error "inferred non-monomorphic type: %s"
-          (ty_to_string ty)
+          (Ty.to_string ty)
 
 exception Parsing of string
 
@@ -169,7 +175,7 @@ let term_of_string ?(cx = empty) str =
 let form_of_string ?(cx = empty) str =
   let t = thing_of_string Proprs.one_form str in
   let f, ty = ty_check cx t in
-  if ty <> K.ty_o then
+  if not @@ Ty.equal ty Ty.o then
     ty_error "form must have type \\o" ;
   f
 
@@ -184,15 +190,15 @@ let rec uterm_to_exp ~cx ut =
   match ut with
   | Idx n -> begin
       match List.nth cx.linear n with
-      | { var ; _ } -> Doc.(Atom (String (repr var)))
-      | exception Failure _ ->
-          Doc.(Atom (Fmt (fun out -> Format.fprintf out "`%d" n)))
+      | Some { var ; _ } -> Doc.(Atom (String (Ident.to_string var)))
+      | None ->
+          Doc.(Atom (Fmt (fun out -> Caml.Format.fprintf out "`%d" n)))
     end
   | Var v
-  | Kon (v, None) -> Doc.(Atom (String (repr v)))
+  | Kon (v, None) -> Doc.(Atom (String (Ident.to_string v)))
   | Kon (v, Some ty) ->
       Doc.(Atom (Fmt (fun out ->
-          Format.fprintf out "@[<hv1>(%s:@,%a)@]" (repr v) pp_ty ty)))
+          Caml.Format.fprintf out "@[<hv1>(%s:@,%a)@]" (Ident.to_string v) Ty.pp ty)))
   | App (t1, t2) ->
       Doc.(Appl (100, Infix (String " ", Left, [
           uterm_to_exp ~cx t1 ;
@@ -202,7 +208,7 @@ let rec uterm_to_exp ~cx ut =
       let ty = Option.value ty ~default:K.ty_any in
       with_var cx { var ; ty } begin fun { var ; ty } cx ->
         let rep = Doc.(Fmt (fun out ->
-            Format.fprintf out "@[<hv1>[%s:@,%a]@]@ " (repr var) pp_ty ty)) in
+            Caml.Format.fprintf out "@[<hv1>[%s:@,%a]@]@ " (Ident.to_string var) Ty.pp ty)) in
         Doc.(Appl (1, Prefix (rep, uterm_to_exp ~cx body)))
       end
 
@@ -213,10 +219,10 @@ let uterm_to_string cx ut =
 
 let rec pp_uterm_ out ut =
   match ut with
-  | Idx n -> Format.fprintf out "Idx(%d)" n
-  | Var v -> Format.fprintf out "Var(%s)" (repr v)
-  | Kon (v, None) -> Format.fprintf out "Kon(%s)" (repr v)
-  | Kon (v, Some ty) -> Format.fprintf out "Kon(%s,%a)" (repr v) pp_ty ty
-  | App (t1, t2) -> Format.fprintf out "App(%a,%a)" pp_uterm_ t1 pp_uterm_ t2
-  | Abs (v, None, b) -> Format.fprintf out "Lam(%s,%a)" (repr v) pp_uterm_ b
-  | Abs (v, Some ty, b) -> Format.fprintf out "Lam(%s:%a,%a)" (repr v) pp_ty ty pp_uterm_ b
+  | Idx n -> Caml.Format.fprintf out "Idx(%d)" n
+  | Var v -> Caml.Format.fprintf out "Var(%s)" (Ident.to_string v)
+  | Kon (v, None) -> Caml.Format.fprintf out "Kon(%s)" (Ident.to_string v)
+  | Kon (v, Some ty) -> Caml.Format.fprintf out "Kon(%s,%a)" (Ident.to_string v) Ty.pp ty
+  | App (t1, t2) -> Caml.Format.fprintf out "App(%a,%a)" pp_uterm_ t1 pp_uterm_ t2
+  | Abs (v, None, b) -> Caml.Format.fprintf out "Lam(%s,%a)" (Ident.to_string v) pp_uterm_ b
+  | Abs (v, Some ty, b) -> Caml.Format.fprintf out "Lam(%s:%a,%a)" (Ident.to_string v) Ty.pp ty pp_uterm_ b

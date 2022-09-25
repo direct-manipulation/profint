@@ -6,6 +6,7 @@
  *)
 
 {
+  open Base
   module P = Proprs
 
   let newline lb =
@@ -17,13 +18,13 @@
     )
 
   let process_ident =
-    let kwds : (string, P.token) Hashtbl.t = Hashtbl.create 19 in
+    let kwds : (string, P.token) Hashtbl.t = Hashtbl.create (module String) in
     (* Hashtbl.replace kwds "forall" P.FORALL ;
      * Hashtbl.replace kwds "exists" P.EXISTS ; *)
     fun str ->
       match Hashtbl.find kwds str with
-      | tok -> tok
-      | exception Not_found -> P.IDENT (Util.ident str)
+      | Some tok -> tok
+      | None -> P.IDENT (Ident.of_string str)
 
 }
 

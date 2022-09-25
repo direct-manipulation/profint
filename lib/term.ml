@@ -5,6 +5,8 @@
  * See LICENSE for licensing details.
  *)
 
+open Base
+
 open! Util
 open Types
 open! T
@@ -25,7 +27,7 @@ and sub_term sub term =
   | Abs f -> Abs {f with body = sub_term (bump sub) f.body}
   | App u ->
       let head = sub_head sub u.head in
-      let spine = List.map (sub_term sub) u.spine in
+      let spine = List.map ~f:(sub_term sub) u.spine in
       do_app head spine
 
 and sub_head sub head =
@@ -66,7 +68,7 @@ let shift n tm =
 exception TypeError of string
 
 let type_error fmt =
-  Format.ksprintf (fun s -> raise (TypeError s)) fmt
+  Caml.Format.ksprintf (fun s -> raise (TypeError s)) fmt
 
 let rec ty_infer cx head =
   match head with
@@ -81,7 +83,7 @@ and ty_lookup cx n =
 
 let rec ty_check cx term ty =
   match term, ty with
-  | Abs f, Arrow (tya, tyb) ->
+  | Abs f, Ty.Arrow (tya, tyb) ->
       with_var cx {var = f.var ; ty = tya} begin fun _ cx ->
         ty_check cx f.body tyb
       end
@@ -90,7 +92,7 @@ let rec ty_check cx term ty =
   | App u, _ ->
       let hty = ty_infer cx u.head in
       let rty = ty_check_spine cx u.spine hty in
-      if ty <> rty then
+      if not @@ Ty.equal ty rty then
         type_error "ty_check: app"
 
 and ty_check_spine cx spine hty =
@@ -114,7 +116,7 @@ let rec eq_term term1 term2 =
 and eq_head head1 head2 =
   match head1, head2 with
   | Const (k1, ty1), Const (k2, ty2) ->
-      k1 = k2 && ty1 = ty2
+      Ident.equal k1 k2 && Ty.equal ty1 ty2
   | Index n1, Index n2 ->
       n1 = n2
   | _ -> false
@@ -133,7 +135,7 @@ let rec is_subterm tin tout =
   | Abs f ->
       is_subterm (shift 1 tin) f.body
   | App ap ->
-      List.exists (is_subterm tin) ap.spine
+      List.exists ~f:(is_subterm tin) ap.spine
 
 let rec rewrite ~tfrom ~tto tm =
   if eq_term tfrom tm then tto else
@@ -143,14 +145,14 @@ let rec rewrite ~tfrom ~tto tm =
                        ~tfrom:(shift 1 tfrom)
                        ~tto:(shift 1 tto) }
   | App ap -> App { ap with
-                    spine = List.map (rewrite ~tfrom ~tto) ap.spine }
+                    spine = List.map ~f:(rewrite ~tfrom ~tto) ap.spine }
 
 let rec term_to_exp ?(cx = empty) term =
   let open Doc in
   match term with
   | Abs {var ; body} ->
       with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
-        let rep = String (Printf.sprintf "[%s] " (repr vty.var)) in
+        let rep = String (Printf.sprintf "[%s] " (Ident.to_string vty.var)) in
         Appl (1, Prefix (rep, term_to_exp ~cx body))
       end
   | App {head ; spine = []} ->
@@ -163,7 +165,7 @@ let rec term_to_exp ?(cx = empty) term =
             Wrap (Opaque,
                   String "[",
                   Appl (0, Infix (String ",", Left,
-                                  List.map (term_to_exp ~cx) spine)),
+                                  List.map ~f:(term_to_exp ~cx) spine)),
                   String "]")
       in
       Appl (2, Infix (String " ", Non, [left ; right]))
@@ -173,11 +175,11 @@ and head_to_exp ?(cx = empty) head =
   match head with
   | Index n -> begin
       try
-        let vstr = repr (List.nth cx.linear n).var in
+        let vstr = Ident.to_string (List.nth_exn cx.linear n).var in
         Atom (String vstr)
-      with _ -> Atom (String ("?" ^ string_of_int n))
+      with _ -> Atom (String ("?" ^ Int.to_string n))
     end
-  | Const (k, _) -> Atom (String (repr k))
+  | Const (k, _) -> Atom (String (Ident.to_string k))
 
 let termx_to_exp tx = term_to_exp ~cx:tx.tycx tx.data
 let headx_to_exp hx = head_to_exp ~cx:hx.tycx hx.data

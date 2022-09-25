@@ -1,6 +1,6 @@
 (executable
  (name profint_jsoo)
  (modes js)
- (libraries js_of_ocaml profint)
- (preprocess (pps js_of_ocaml-ppx))
+ (libraries js_of_ocaml base profint)
+ (preprocess (pps ppx_base js_of_ocaml-ppx))
 )

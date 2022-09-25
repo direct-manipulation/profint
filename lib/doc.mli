@@ -5,6 +5,8 @@
  * See LICENSE for licensing details.
  *)
 
+open Base
+
 type box =
   | NOBOX
   | H | V of int | HV of int | HOV of int
@@ -12,7 +14,7 @@ type box =
 type doc =
   | String of string
   | StringAs of int * string
-  | Fmt of (Format.formatter -> unit)
+  | Fmt of (Caml.Format.formatter -> unit)
   | Break of int * int
   | Group of box * doc list
   | Newline
@@ -22,11 +24,11 @@ val cut : doc
 
 val doc_map_strings : (elen:int -> string -> doc) -> doc -> doc
 
-val pp_doc : Format.formatter -> doc -> unit
+val pp_doc : Caml.Format.formatter -> doc -> unit
 
 val lin_doc_buffer : Buffer.t -> doc -> unit
 val lin_doc : doc -> string
-val pp_lin_doc : Format.formatter -> doc -> unit
+val pp_lin_doc : Caml.Format.formatter -> doc -> unit
 
 type wrapping = Transparent | Opaque
 
