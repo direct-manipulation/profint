@@ -12,7 +12,9 @@ type t = {
   salt : int ;
 }
 [@@deriving equal, compare, sexp_of, hash]
+
 include Comparator.S with type t := t
+
 type set = (t, comparator_witness) Set.t
 type 'a map = (t, 'a, comparator_witness) Map.t
 type 'a tab = (t, 'a) Hashtbl.t
