@@ -100,15 +100,16 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
             OTHER (Mk.mk_all vty Mk.mk_bot)
         | OTHER b -> begin
             if not @@ Side.equal side L then OTHER (Mk.mk_all vty b) else
-            match Option.(ubind 0 b >>= Term.lower ~above:1 ~by:1) with
+            match Option.(ubind 0 b >>= Term.lower ~above:0 ~by:1) with
             | Some t -> begin
                 (* Caml.Format.printf "Found u-subst: %s := %a@.For: %a@." *)
                 (*   (Ident.to_string vty.var) *)
                 (*   (Term.pp_term ~cx:fx.tycx) t *)
                 (*   (pp_form ~cx:tycx) b ; *)
-                let b = emit { name = Inst { side ; term = t |@ fx } ; path }
-                        |> prin in
-                (* Caml.Format.printf "Result of u-subst: %a@." *)
+                let cpr = emit { name = Inst { side ; term = t |@ fx } ; path } in
+                let b = cpr.prin in
+                (* Caml.Format.printf "Result of u-subst: %a@.prin = %a@." *)
+                (*   pp_formx cpr.goal *)
                 (*   pp_formx b ; *)
                 recursive_simplify ~emit b path side
               end
@@ -128,15 +129,16 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
             OTHER (Mk.mk_ex vty Mk.mk_top)
         | OTHER b -> begin
             if not @@ Side.equal side R then OTHER (Mk.mk_ex vty b) else
-            match Option.(ebind 0 b >>= Term.lower ~above:1 ~by:1) with
+            match Option.(ebind 0 b >>= Term.lower ~above:0 ~by:1) with
             | Some t -> begin
-                (* Caml.Format.printf "Found e-subst: %s := %a@.For: %a@." *)
-                (*   (Ident.to_string vty.var) *)
-                (*   (Term.pp_term ~cx:fx.tycx) t *)
-                (*   (pp_form ~cx:tycx) b ; *)
-                let b = emit { name = Inst { side ; term = t |@ fx } ; path }
-                        |> prin in
-                (* Caml.Format.printf "Result of e-subst: %a@." *)
+                Caml.Format.printf "Found e-subst: %s := %a@.For: %a@."
+                  (Ident.to_string vty.var)
+                  (Term.pp_term ~cx:fx.tycx) t
+                  (pp_form ~cx:tycx) b ;
+                let cpr = emit { name = Inst { side ; term = t |@ fx } ; path } in
+                let b = cpr.prin in
+                (* Caml.Format.printf "Result of e-subst: %a@.prin = %a@." *)
+                (*   pp_formx cpr.goal *)
                 (*   pp_formx b ; *)
                 recursive_simplify ~emit b path side
               end
@@ -170,7 +172,7 @@ and ebind n f =
   | Forall (_, f) | Exists (_, f) ->
       Option.(
         ebind (n + 1) f >>= fun t ->
-        Term.lower ~above:1 ~by:1 t)
+        Term.lower ~above:0 ~by:1 t)
   | Top | Bot | Atom _ -> None
   | Mdata (_, _, f) -> ebind n f
 
@@ -189,7 +191,7 @@ and ubind n f =
   | Forall (_, f) | Exists (_, f) ->
       Option.(
         ubind (n + 1) f >>= fun t ->
-        Term.lower ~above:1 ~by:1 t)
+        Term.lower ~above:0 ~by:1 t)
   | Top | Or _ | Bot | Eq _ | Atom _ -> None
   | Mdata (_, _, f) -> ubind n f
 
