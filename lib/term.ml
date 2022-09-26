@@ -65,6 +65,34 @@ let shift n tm =
   | 0 -> tm
   | _ -> sub_term (Shift n) tm
 
+let rec lower ~above ~by tm =
+  match tm with
+  | App { head ; spine } ->
+      Option.(
+        lower_head ~above ~by head >>= fun head ->
+        lower_spine ~above ~by spine >>= fun spine ->
+        return @@ App { head ; spine })
+  | Abs { var ; body } ->
+      Option.(
+        lower ~above:(above + 1) ~by:(by + 1) body >>= fun body ->
+        return @@ Abs { var ; body })
+
+and lower_head ~above ~by head =
+  match head with
+  | Const _ -> Some head
+  | Index n ->
+      let n = if n >= above then n - by else n in
+      if n < 0 then None else Some (Index n)
+
+and lower_spine ~above ~by spine =
+  match spine with
+  | [] -> Some []
+  | t :: spine ->
+      Option.(
+        lower ~above ~by t >>= fun t ->
+        lower_spine ~above ~by spine >>= fun spine ->
+        return (t :: spine))
+
 exception TypeError of string
 
 let type_error fmt =

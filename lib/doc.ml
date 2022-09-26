@@ -126,11 +126,13 @@ let rec bracket ~(ld:doc) ~(rd:doc) = function
       | Prefix (oprep, be) ->
           let opd = bracket ~ld ~rd be in
           let cond = prec >? be && not (is_prefix be) in
-          oprep ++ (delimit opd ~ld ~rd ~cond)
+          Caml.Format.dprintf "@[<hov2>%t@]"
+            (oprep ++ (delimit opd ~ld ~rd ~cond))
       | Postfix (oprep, be) ->
           let opd = bracket ~ld ~rd be in
           let cond = prec >? be && not (is_postfix be) in
-          (delimit opd ~ld ~rd ~cond) ++ oprep
+          Caml.Format.dprintf "@[<hv2>%t@]"
+            ((delimit opd ~ld ~rd ~cond) ++ oprep)
       | Infix (oprep, asc, l :: es) ->
           let ms, r = match List.rev es with
             | r :: rms -> List.rev rms, r
@@ -148,7 +150,7 @@ let rec bracket ~(ld:doc) ~(rd:doc) = function
               end ms in
           let ms = List.concat ms in
           fun out -> begin
-              Caml.Format.pp_open_hovbox out 0 ;
+              Caml.Format.pp_open_box out 0 ;
               l out ;
               List.iter ~f:(fun m -> m out) ms ;
               oprep out ; r out ;

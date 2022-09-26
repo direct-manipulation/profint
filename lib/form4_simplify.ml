@@ -18,7 +18,7 @@ open Form4_cos
 
 let prin (cp : cos_premise) = cp.prin
 
-type simply_result = TOP | BOT | OTHER
+type simply_result = TOP | BOT | OTHER of form
 
 let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : path) (side : Side.t) =
   match expose fx.data with
@@ -30,7 +30,7 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
           when T.equal_head f g ->
             let res = emit { name = Congr ; path } |> prin in
             recursive_simplify ~emit res path side
-      | _ -> OTHER
+      | _ -> OTHER fx.data
     end
   | And (a, b) -> begin
       let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path L) side in
@@ -48,7 +48,8 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
       | BOT, _ ->
           emit { name = Simp_and_bot { cxkind = side ; minor = R } ; path }
           |> ignore ; BOT
-      | OTHER, OTHER -> OTHER
+      | OTHER a, OTHER b ->
+          OTHER (Mk.mk_and a b)
     end
   | Or (a, b) -> begin
       let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path L) side in
@@ -66,7 +67,8 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
       | BOT, _ ->
           emit { name = Simp_or_top { cxkind = side ; minor = R } ; path }
           |> ignore ; b
-      | OTHER, OTHER -> OTHER
+      | OTHER a, OTHER b ->
+          OTHER (Mk.mk_or a b)
     end
   | Imp (a, b) -> begin
       let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path L) (flip side) in
@@ -81,8 +83,10 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
       | BOT, _ ->
           emit { name = Simp_bot_imp { cxkind = side } ; path }
           |> ignore ; TOP
-      | ( _, BOT | OTHER, OTHER ) ->
-          OTHER
+      | OTHER a, BOT ->
+          OTHER (Mk.mk_imp a Mk.mk_bot)
+      | OTHER a, OTHER b ->
+          OTHER (Mk.mk_imp a b)
     end
   | Forall (vty, b) ->
       with_var fx.tycx vty begin fun vty tycx ->
@@ -92,7 +96,25 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
         | TOP ->
             emit { name = Simp_all_top { cxkind = side } ; path }
             |> ignore ; TOP
-        | _ -> OTHER
+        | BOT ->
+            OTHER (Mk.mk_all vty Mk.mk_bot)
+        | OTHER b -> begin
+            if not @@ Side.equal side L then OTHER (Mk.mk_all vty b) else
+            match Option.(ubind 0 b >>= Term.lower ~above:1 ~by:1) with
+            | Some t -> begin
+                (* Caml.Format.printf "Found u-subst: %s := %a@.For: %a@." *)
+                (*   (Ident.to_string vty.var) *)
+                (*   (Term.pp_term ~cx:fx.tycx) t *)
+                (*   (pp_form ~cx:tycx) b ; *)
+                let b = emit { name = Inst { side ; term = t |@ fx } ; path }
+                        |> prin in
+                (* Caml.Format.printf "Result of u-subst: %a@." *)
+                (*   pp_formx b ; *)
+                recursive_simplify ~emit b path side
+              end
+            | None ->
+                OTHER (Mk.mk_all vty b)
+          end
       end
   | Exists (vty, b) ->
       with_var fx.tycx vty begin fun vty tycx ->
@@ -102,11 +124,74 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
         | BOT ->
             emit { name = Simp_ex_bot { cxkind = side } ; path }
             |> ignore ; BOT
-        | _ -> OTHER
+        | TOP ->
+            OTHER (Mk.mk_ex vty Mk.mk_top)
+        | OTHER b -> begin
+            if not @@ Side.equal side R then OTHER (Mk.mk_ex vty b) else
+            match Option.(ebind 0 b >>= Term.lower ~above:1 ~by:1) with
+            | Some t -> begin
+                (* Caml.Format.printf "Found e-subst: %s := %a@.For: %a@." *)
+                (*   (Ident.to_string vty.var) *)
+                (*   (Term.pp_term ~cx:fx.tycx) t *)
+                (*   (pp_form ~cx:tycx) b ; *)
+                let b = emit { name = Inst { side ; term = t |@ fx } ; path }
+                        |> prin in
+                (* Caml.Format.printf "Result of e-subst: %a@." *)
+                (*   pp_formx b ; *)
+                recursive_simplify ~emit b path side
+              end
+            | None ->
+                OTHER (Mk.mk_ex vty b)
+          end
       end
   | Top -> TOP
   | Bot -> BOT
-  | Atom _ | Eq _ -> OTHER
+  | Atom _ | Eq _ -> OTHER fx.data
+
+and ebind n f =
+  match expose f with
+  | Eq (s, t, _) -> begin
+      let u = T.App { head = Index n ; spine = [] } in
+      if Term.eq_term u s then Some t else
+      if Term.eq_term u t then Some s else None
+    end
+  | And (f, g) -> begin
+      match ebind n f with
+      | Some _ as ret -> ret
+      | None -> ebind n g
+    end
+  | Or (f, g) ->
+      Option.(
+        ebind n f >>= fun s ->
+        ebind n g >>= fun t ->
+        if Term.eq_term s t then Some s else None)
+  | Imp (_, g) ->
+      ebind n g
+  | Forall (_, f) | Exists (_, f) ->
+      Option.(
+        ebind (n + 1) f >>= fun t ->
+        Term.lower ~above:1 ~by:1 t)
+  | Top | Bot | Atom _ -> None
+  | Mdata (_, _, f) -> ebind n f
+
+and ubind n f =
+  match expose f with
+  | And (f, g) ->
+      Option.(
+        ubind n f >>= fun s ->
+        ubind n g >>= fun t ->
+        if Term.eq_term s t then Some s else None)
+  | Imp (f, g) -> begin
+      match ebind n f with
+      | Some _ as ret -> ret
+      | None -> ubind n g
+    end
+  | Forall (_, f) | Exists (_, f) ->
+      Option.(
+        ubind (n + 1) f >>= fun t ->
+        Term.lower ~above:1 ~by:1 t)
+  | Top | Or _ | Bot | Eq _ | Atom _ -> None
+  | Mdata (_, _, f) -> ubind n f
 
 let recursive_simplify ~emit fx path side =
   ignore @@ recursive_simplify ~emit fx path side
