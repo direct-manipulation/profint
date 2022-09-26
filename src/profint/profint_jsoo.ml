@@ -48,11 +48,11 @@ let to_trail str : F.path =
   | dirs ->
       Q.of_list dirs |>
       Q.map begin function
-      | "l" -> `l
-      | "r" -> `r
-      | "d" -> `d
+      | "l" -> Form4.Paths.Dir.L
+      | "r" -> R
+      | "d" -> D
       | dir when Char.equal dir.[0] 'i' ->
-          `i (String.sub dir ~pos:2 ~len:(String.length dir - 3)
+          I (String.sub dir ~pos:2 ~len:(String.length dir - 3)
               |> Ident.of_string)
       | dir -> failwith @@ "invalid direction: " ^ dir
       end
@@ -240,8 +240,8 @@ let profint_object =
       try
         let ex, side = F.Paths.formx_at state.goal.fx @@ to_trail src in
         match F.expose ex.data, side with
-        | F.Forall ({ var ; ty }, _), `l
-        | F.Exists ({ var ; ty }, _), `r ->
+        | F.Forall ({ var ; ty }, _), L
+        | F.Exists ({ var ; ty }, _), R ->
             Types.with_var ex.tycx { var ; ty } begin fun { var ; _ } _ ->
               Js.some @@ Js.string (Ident.to_string var)
             end
@@ -260,8 +260,8 @@ let profint_object =
         let (ex, side) = F.Paths.formx_at state.goal.fx path in
         let term = Uterm.thing_of_string Proprs.one_term @@ Js.to_string text in
         match F.expose ex.data, side with
-        | F.Forall _, `l
-        | F.Exists _, `r ->
+        | F.Forall _, L
+        | F.Exists _, R ->
             state.goal <- { state.goal with mstep = F.Inst { path ; term } } ;
             let deriv = compute_derivation state.goal in
             push_goal { fx = deriv.top ; mstep = F.Pristine } ;

@@ -11,7 +11,7 @@
 module Core     = Form4_core
 include Core
 module Paths    = Form4_paths
-type dir = Paths.dir
+type dir = Paths.Dir.t
 type path = Paths.path
 module Cos      = Form4_cos
 (* module Simplify = Form4_simplify *)

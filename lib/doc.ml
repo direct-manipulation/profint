@@ -36,7 +36,8 @@ let to_string (doc : doc) =
 let pp_linear out (doc : doc) =
   Caml.Format.pp_print_as out 0 (to_string doc)
 
-type wrapping = Transparent | Opaque
+type wrapping = Transparent | Opaque [@@deriving equal]
+type assoc = Left | Right | Non [@@deriving equal]
 
 type exp =
   | Atom of doc
@@ -47,8 +48,6 @@ and bappl =
   | Prefix of doc * exp
   | Postfix of doc * exp
   | Infix of doc * assoc * exp list
-
-and assoc = Left | Right | Non
 
 let rec ( >=? ) prec be = match be with
   | Appl (subprec, _) when prec >= subprec -> true
@@ -74,7 +73,7 @@ let rec infix_incompat_for tasc pr asc = function
   | Appl (spr, (Prefix _ | Postfix _))
     when pr >= spr -> true
   | Appl (spr, Infix (_, sasc, _))
-    when pr = spr && not (Poly.(asc = tasc) && Poly.(sasc = tasc)) -> true
+    when pr = spr && not (equal_assoc asc tasc && equal_assoc sasc tasc) -> true
   | Wrap (Transparent, _, be, _) ->
       infix_incompat_for tasc pr asc be
   | _ -> false

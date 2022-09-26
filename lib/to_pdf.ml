@@ -28,27 +28,27 @@ let rec formx_to_exp_ ~cx (path : path) f =
       let t = termx_to_exp_ ~cx t in
       Doc.(Appl (40, Infix (To_katex.rep_eq, Non, [s ; t])))
   | And (a, b) ->
-      let a = formx_to_exp_ ~cx (Q.snoc path `l) a in
-      let b = formx_to_exp_ ~cx (Q.snoc path `r) b in
+      let a = formx_to_exp_ ~cx (Q.snoc path L) a in
+      let b = formx_to_exp_ ~cx (Q.snoc path R) b in
       Doc.(Appl (30, Infix (To_katex.rep_and, Right, [a ; b])))
   | Top -> Doc.(Atom To_katex.rep_top)
   | Or (a, b) ->
-      let a = formx_to_exp_ ~cx (Q.snoc path `l) a in
-      let b = formx_to_exp_ ~cx (Q.snoc path `r) b in
+      let a = formx_to_exp_ ~cx (Q.snoc path L) a in
+      let b = formx_to_exp_ ~cx (Q.snoc path R) b in
       Doc.(Appl (20, Infix (To_katex.rep_or, Right, [a ; b])))
   | Bot -> Doc.(Atom To_katex.rep_bot)
   | Imp (a, b) ->
-      let a = formx_to_exp_ ~cx (Q.snoc path `l) a in
-      let b = formx_to_exp_ ~cx (Q.snoc path `r) b in
+      let a = formx_to_exp_ ~cx (Q.snoc path L) a in
+      let b = formx_to_exp_ ~cx (Q.snoc path R) b in
       Doc.(Appl (10, Infix (To_katex.rep_imp, Right, [a ; b])))
   | Forall (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let b = formx_to_exp_ ~cx (Q.snoc path (`i vty.var)) b in
+        let b = formx_to_exp_ ~cx (Q.snoc path (I vty.var)) b in
         Doc.(Appl (5, Prefix (To_katex.rep_forall vty, b)))
       end
   | Exists (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let b = formx_to_exp_ ~cx (Q.snoc path (`i vty.var)) b in
+        let b = formx_to_exp_ ~cx (Q.snoc path (I vty.var)) b in
         Doc.(Appl (5, Prefix (To_katex.rep_exists vty, b)))
       end
   | Mdata (md, _, f) -> begin
@@ -88,10 +88,10 @@ let pp_path out (path : path) =
   Caml.Format.pp_print_seq
     ~pp_sep:(fun out () -> Caml.Format.pp_print_string out ", ")
     (fun out -> function
-       | `l -> Caml.Format.pp_print_string out "l"
-       | `r -> Caml.Format.pp_print_string out "r"
-       | `d -> Caml.Format.pp_print_string out "d"
-       | `i x ->
+       | Paths.Dir.L -> Caml.Format.pp_print_string out "l"
+       | R -> Caml.Format.pp_print_string out "r"
+       | D -> Caml.Format.pp_print_string out "d"
+       | I x ->
            Caml.Format.pp_print_string out "i " ;
            Caml.Format.pp_print_string out (Ident.to_string x)) out
 

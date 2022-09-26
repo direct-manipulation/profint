@@ -179,18 +179,18 @@ let pp_rule out (prem, rule, goal) =
         | _ -> fail ()
       end
     | Cos.Inst { side ; term = tx } -> begin
-        let f = if Poly.(side = `l) then fp else fc in
+        let f = if Paths.Side.equal side L then fp else fc in
         let fail () =
           Caml.Format.kasprintf unprintable
             "inst_%s: got %a"
-            (match side with `l -> "l" | _ -> "r")
+            (match side with L -> "l" | _ -> "r")
             Form4.pp_formx { tycx = cx ; data = f } in
         match expose f with
         | Forall ({ var ; ty }, b)
         | Exists ({ var ; ty }, b) ->
             with_var cx { var ; ty } begin fun { var ; ty } cx ->
               Caml.Format.fprintf out "@@inst_%s %a (fun (%s : %a), %a) (%a)"
-                (match side with `l -> "l" | _ -> "r")
+                (match side with L -> "l" | _ -> "r")
                 pp_ty ty
                 (Ident.to_string var) pp_ty ty
                 pp_formx { tycx = cx ; data = b }
@@ -211,44 +211,44 @@ let pp_rule out (prem, rule, goal) =
         end
     | Some (dir, path) -> begin
         match expose goal, expose prem, dir with
-        | And (b, c), And (a, _), `l ->
+        | And (b, c), And (a, _), Paths.Dir.L ->
             Caml.Format.fprintf out "@@go_left_and (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
-        | And (c, b), And (_, a), `r ->
+        | And (c, b), And (_, a), R ->
             Caml.Format.fprintf out "@@go_right_and (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
-        | Or (b, c), Or (a, _), `l ->
+        | Or (b, c), Or (a, _), L ->
             Caml.Format.fprintf out "@@go_left_or (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
-        | Or (c, b), Or (_, a), `r ->
+        | Or (c, b), Or (_, a), R ->
             Caml.Format.fprintf out "@@go_right_or (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
-        | Imp (b, c), Imp (a, _), `l ->
+        | Imp (b, c), Imp (a, _), L ->
             Caml.Format.fprintf out "@@go_left_imp (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx a b path
-        | Imp (c, b), Imp (_, a), `r ->
+        | Imp (c, b), Imp (_, a), R ->
             Caml.Format.fprintf out "@@go_right_imp (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
-        | Forall ({ var ; ty }, q), Forall (_, p), `d
-        | Forall ({ ty ; _ }, q), Forall (_, p), `i var ->
+        | Forall ({ var ; ty }, q), Forall (_, p), D
+        | Forall ({ ty ; _ }, q), Forall (_, p), I var ->
             with_var cx { var ; ty } begin fun { var ; _ } cx ->
               let var = Ident.to_string var in
               Caml.Format.fprintf out "@@go_down_all (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "
@@ -258,8 +258,8 @@ let pp_rule out (prem, rule, goal) =
                 var pp_ty ty ;
               pp_path (n + 1) cx q p path
             end
-        | Exists ({ var ; ty }, q), Exists (_, p), `d
-        | Exists ({ ty ; _ }, q), Exists (_, p), `i var ->
+        | Exists ({ var ; ty }, q), Exists (_, p), D
+        | Exists ({ ty ; _ }, q), Exists (_, p), I var ->
             with_var cx { var ; ty } begin fun { var ; _ } cx ->
               let var = Ident.to_string var in
               Caml.Format.fprintf out "@@go_down_ex (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "

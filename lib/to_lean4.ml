@@ -110,20 +110,20 @@ let pp_path out path =
   Q.to_seq path |>
   Caml.Format.pp_print_seq
     ~pp_sep:(fun out () -> Caml.Format.pp_print_string out ",")
-    (fun out -> function
-       | `l -> Caml.Format.pp_print_string out "l"
-       | `r -> Caml.Format.pp_print_string out "r"
-       | `d -> Caml.Format.pp_print_string out "d"
-       | `i x ->
-           Caml.Format.pp_print_string out "i " ;
-           Caml.Format.pp_print_string out (Ident.to_string x))
+    Paths.Dir.(fun out -> function
+        | L -> Caml.Format.pp_print_string out "l"
+        | R -> Caml.Format.pp_print_string out "r"
+        | D -> Caml.Format.pp_print_string out "d"
+        | I x ->
+            Caml.Format.pp_print_string out "i " ;
+            Caml.Format.pp_print_string out (Ident.to_string x))
     out
 
 let pp_rule_name out rn =
   match rn with
   | Cos.Inst { side ; term = tx } ->
       Caml.Format.fprintf out "inst_%s (%a)"
-        (match side with `r -> "r" | _ -> "l")
+        (match side with R -> "r" | _ -> "l")
         pp_termx tx
   | _ -> Cos.pp_rule_name out rn
 

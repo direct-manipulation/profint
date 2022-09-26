@@ -37,10 +37,10 @@ include struct
   let parse_dir dir : Form4.dir =
     with_app dir begin fun k args ->
       match Ident.to_string k, args with
-      | "l", [] -> `l
-      | "r", [] -> `r
-      | "d", [] -> `d
-      | "i", [Var x] -> `i x
+      | "l", [] -> Form4.Paths.Dir.L
+      | "r", [] -> R
+      | "d", [] -> D
+      | "i", [Var x] -> I x
       | _ -> bad_json ()
     end
   let parse_path path : Form4.path =

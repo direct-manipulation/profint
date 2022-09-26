@@ -207,18 +207,18 @@ let rec step_surgery ~emit sss =
           | _ -> fail ()
         end
       | Cos_rule_name (Cos.Inst { side ; term = tx }) -> begin
-          let f = if Poly.(side = `l) then sss.premise else sss.conclusion in
+          let f = if Paths.Side.equal side L then sss.premise else sss.conclusion in
           let fail () =
             Caml.Format.kasprintf unprintable
               "inst_%s: got %a"
-              (match side with `l -> "l" | _ -> "r")
+              (match side with L -> "l" | _ -> "r")
               Form4.pp_formx { tycx = sss.tycx ; data = f } in
           match expose f with
           | Forall ({ var ; ty }, b)
           | Exists ({ var ; ty }, b) ->
               with_var sss.tycx { var ; ty } begin fun { var ; ty } cx ->
                 Caml.Format.fprintf sss.out "inst_%s[of \"\\<lambda> %s :: %a. %a\" \"%a\"]%s"
-                  (match side with `l -> "l" | _ -> "r")
+                  (match side with L -> "l" | _ -> "r")
                   (Ident.to_string var) pp_ty ty
                   pp_formx { tycx = cx ; data = b }
                   pp_termx tx
@@ -233,41 +233,41 @@ let rec step_surgery ~emit sss =
     end
   | Some (dir, path) -> begin
       match dir, expose sss.conclusion, expose sss.premise with
-      | `l, And (b, _), And (a, _)
-      | `r, And (_, b), And (_, a) ->
+      | L, And (b, _), And (a, _)
+      | R, And (_, b), And (_, a) ->
           Caml.Format.fprintf sss.out "impE[OF go_%s_and "
-            (match dir with `l -> "left" | _ -> "right") ;
+            (match dir with L -> "left" | _ -> "right") ;
           step_surgery ~emit
             { sss with
               to_here = Q.snoc sss.to_here dir ;
               from_here = path ;
               premise = a ; conclusion = b ;
               close = ']' :: sss.close }
-      | `l, Or (b, _), Or (a, _)
-      | `r, Or (_, b), Or (_, a) ->
+      | L, Or (b, _), Or (a, _)
+      | R, Or (_, b), Or (_, a) ->
           Caml.Format.fprintf sss.out "impE[OF go_%s_or "
-            (match dir with `l -> "left" | _ -> "right") ;
+            (match dir with L -> "left" | _ -> "right") ;
           step_surgery ~emit
             { sss with
               to_here = Q.snoc sss.to_here dir ;
               from_here = path ;
               premise = a ; conclusion = b ;
               close = ']' :: sss.close }
-      | `l, Imp (b, _), Imp (a, _)
-      | `r, Imp (_, b), Imp (_, a) ->
+      | L, Imp (b, _), Imp (a, _)
+      | R, Imp (_, b), Imp (_, a) ->
           Caml.Format.fprintf sss.out "impE[OF go_%s_imp "
-            (match dir with `l -> "left" | _ -> "right") ;
+            (match dir with L -> "left" | _ -> "right") ;
           step_surgery ~emit
             { sss with
               to_here = Q.snoc sss.to_here dir ;
               from_here = path ;
-              premise = if Caml.(dir = `l) then b else a ;
-              conclusion = if Caml.(dir = `l) then a else b ;
+              premise = if Caml.(dir = L) then b else a ;
+              conclusion = if Caml.(dir = L) then a else b ;
               close = ']' :: sss.close }
-      | `d, Forall ({ var ; ty }, q), Forall (_, p)
-      | `d, Exists ({ var ; ty }, q), Exists (_, p)
-      | `i var, Forall ({ ty ; _ }, q), Forall (_, p)
-      | `i var, Exists ({ ty ; _ }, q), Exists (_, p) ->
+      | D, Forall ({ var ; ty }, q), Forall (_, p)
+      | D, Exists ({ var ; ty }, q), Exists (_, p)
+      | I var, Forall ({ ty ; _ }, q), Forall (_, p)
+      | I var, Exists ({ ty ; _ }, q), Exists (_, p) ->
           with_var sss.tycx { var ; ty } begin fun vty tycx ->
             let lemid = "d" ^ fresh_inner_counter () in
             let transport_rule = match expose sss.conclusion with

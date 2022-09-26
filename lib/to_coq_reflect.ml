@@ -39,7 +39,7 @@ let pp_rule out goal rule =
       end
     | Cos.Inst { side ; term = tx } -> begin
         Caml.Format.fprintf out "RN_inst_%s ("
-          (match side with `l -> "l" | _ -> "r") ;
+          (match side with L -> "l" | _ -> "r") ;
         List.rev tx.tycx.linear |>
         List.iter ~f:begin fun vty ->
           Caml.Format.fprintf out "fun (%s : %a) => " (Ident.to_string vty.var) pp_ty vty.ty
@@ -55,25 +55,25 @@ let pp_rule out goal rule =
     | None -> (List.rev dirs, cx, f0)
     | Some (dir, path) -> begin
         match expose f0, dir with
-        | And (f, _), `l ->
+        | And (f, _), Paths.Dir.L ->
             pp_path (n + 1) cx f (0 :: dirs) path
-        | And (_, f), `r ->
+        | And (_, f), R ->
             pp_path (n + 1) cx f (1 :: dirs) path
-        | Or (f, _), `l ->
+        | Or (f, _), L ->
             pp_path (n + 1) cx f (0 :: dirs) path
-        | Or (_, f), `r ->
+        | Or (_, f), R ->
             pp_path (n + 1) cx f (1 :: dirs) path
-        | Imp (f, _), `l ->
+        | Imp (f, _), L ->
             pp_path (n + 1) cx f (0 :: dirs) path
-        | Imp (_, f), `r ->
+        | Imp (_, f), R ->
             pp_path (n + 1) cx f (1 :: dirs) path
-        | Forall ({ var ; ty }, f), `d
-        | Forall ({ ty ; _ }, f), `i var ->
+        | Forall ({ var ; ty }, f), D
+        | Forall ({ ty ; _ }, f), I var ->
             with_var cx { var ; ty } begin fun _ cx ->
               pp_path (n + 1) cx f (0 :: dirs) path
             end
-        | Exists ({ var ; ty }, f), `d
-        | Exists ({ ty ; _ }, f), `i var ->
+        | Exists ({ var ; ty }, f), D
+        | Exists ({ ty ; _ }, f), I var ->
             with_var cx { var ; ty } begin fun _ cx ->
               pp_path (n + 1) cx f (0 :: dirs) path
             end

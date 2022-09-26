@@ -20,11 +20,11 @@ let prin (cp : cos_premise) = cp.prin
 
 type simply_result = TOP | BOT | OTHER
 
-let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : path) (side : side) =
+let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : path) (side : Side.t) =
   match expose fx.data with
   | Mdata (_, _, f) ->
       recursive_simplify ~emit (f |@ fx) path side
-  | Eq (s, t, _) when Poly.(side = `r) -> begin
+  | Eq (s, t, _) when Side.equal side R -> begin
       match s, t with
       | T.App { head = f ; _ }, T.App { head = g ; _ }
           when T.equal_head f g ->
@@ -33,50 +33,50 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
       | _ -> OTHER
     end
   | And (a, b) -> begin
-      let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path `l) side in
-      let b = recursive_simplify ~emit (b |@ fx) (Q.snoc path `r) side in
+      let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path L) side in
+      let b = recursive_simplify ~emit (b |@ fx) (Q.snoc path R) side in
       match a, b with
       | _, TOP ->
-          emit { name = Simp_and_top { cxkind = side ; minor = `l } ; path }
+          emit { name = Simp_and_top { cxkind = side ; minor = L } ; path }
           |> ignore ; a
       | _, BOT ->
-          emit { name = Simp_and_bot { cxkind = side ; minor = `l } ; path }
+          emit { name = Simp_and_bot { cxkind = side ; minor = L } ; path }
           |> ignore ; BOT
       | TOP, _ ->
-          emit { name = Simp_and_top { cxkind = side ; minor = `r } ; path }
+          emit { name = Simp_and_top { cxkind = side ; minor = R } ; path }
           |> ignore ; b
       | BOT, _ ->
-          emit { name = Simp_and_bot { cxkind = side ; minor = `r } ; path }
+          emit { name = Simp_and_bot { cxkind = side ; minor = R } ; path }
           |> ignore ; BOT
       | OTHER, OTHER -> OTHER
     end
   | Or (a, b) -> begin
-      let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path `l) side in
-      let b = recursive_simplify ~emit (b |@ fx) (Q.snoc path `r) side in
+      let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path L) side in
+      let b = recursive_simplify ~emit (b |@ fx) (Q.snoc path R) side in
       match a, b with
       | _, TOP ->
-          emit { name = Simp_or_top { cxkind = side ; minor = `l } ; path }
+          emit { name = Simp_or_top { cxkind = side ; minor = L } ; path }
           |> ignore ; TOP
       | _, BOT ->
-          emit { name = Simp_or_bot { cxkind = side ; minor = `l } ; path }
+          emit { name = Simp_or_bot { cxkind = side ; minor = L } ; path }
           |> ignore ; a
       | TOP, _ ->
-          emit { name = Simp_or_top { cxkind = side ; minor = `r } ; path }
+          emit { name = Simp_or_top { cxkind = side ; minor = R } ; path }
           |> ignore ; TOP
       | BOT, _ ->
-          emit { name = Simp_or_top { cxkind = side ; minor = `r } ; path }
+          emit { name = Simp_or_top { cxkind = side ; minor = R } ; path }
           |> ignore ; b
       | OTHER, OTHER -> OTHER
     end
   | Imp (a, b) -> begin
-      let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path `l) (flip side) in
-      let b = recursive_simplify ~emit (b |@ fx) (Q.snoc path `r) side in
+      let a = recursive_simplify ~emit (a |@ fx) (Q.snoc path L) (flip side) in
+      let b = recursive_simplify ~emit (b |@ fx) (Q.snoc path R) side in
       match a, b with
       | TOP, _ ->
-          emit { name = Simp_imp_top { cxkind = side ; minor = `r } ; path }
+          emit { name = Simp_imp_top { cxkind = side ; minor = R } ; path }
           |> ignore ; b
       | _, TOP ->
-          emit { name = Simp_imp_top { cxkind = side ; minor = `l } ; path }
+          emit { name = Simp_imp_top { cxkind = side ; minor = L } ; path }
           |> ignore ; TOP
       | BOT, _ ->
           emit { name = Simp_bot_imp { cxkind = side } ; path }
@@ -87,7 +87,7 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
   | Forall (vty, b) ->
       with_var fx.tycx vty begin fun vty tycx ->
         let b = { tycx ; data = b } in
-        let b = recursive_simplify ~emit b (Q.snoc path (`i vty.var)) side in
+        let b = recursive_simplify ~emit b (Q.snoc path (I vty.var)) side in
         match b with
         | TOP ->
             emit { name = Simp_all_top { cxkind = side } ; path }
@@ -97,7 +97,7 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
   | Exists (vty, b) ->
       with_var fx.tycx vty begin fun vty tycx ->
         let b = { tycx ; data = b } in
-        let b = recursive_simplify ~emit b (Q.snoc path (`i vty.var)) side in
+        let b = recursive_simplify ~emit b (Q.snoc path (I vty.var)) side in
         match b with
         | BOT ->
             emit { name = Simp_ex_bot { cxkind = side } ; path }

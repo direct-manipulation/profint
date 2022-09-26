@@ -94,10 +94,10 @@ let rep_exists vty : Doc.doc  =
 
 let dir_to_string (d : dir) =
   match d with
-  | `l -> "l"
-  | `r -> "r"
-  | `d -> "d"
-  | `i x -> "i(" ^ (Ident.to_string x) ^ ")"
+  | L -> "l"
+  | R -> "r"
+  | D -> "d"
+  | I x -> "i(" ^ (Ident.to_string x) ^ ")"
 let path_to_string path =
   path
   |> Q.to_list
@@ -120,27 +120,27 @@ let rec formx_to_exp_ ~cx (path : path) f =
       let t = termx_to_exp_ ~cx t in
       Doc.(Appl (40, Infix (rep_eq, Non, [s ; t]))) |> wrap path
   | And (a, b) ->
-      let a = formx_to_exp_ ~cx (Q.snoc path `l) a in
-      let b = formx_to_exp_ ~cx (Q.snoc path `r) b in
+      let a = formx_to_exp_ ~cx (Q.snoc path L) a in
+      let b = formx_to_exp_ ~cx (Q.snoc path R) b in
       Doc.(Appl (30, Infix (rep_and, Right, [a ; b]))) |> wrap path
   | Top -> Doc.(Atom rep_top) |> wrap path
   | Or (a, b) ->
-      let a = formx_to_exp_ ~cx (Q.snoc path `l) a in
-      let b = formx_to_exp_ ~cx (Q.snoc path `r) b in
+      let a = formx_to_exp_ ~cx (Q.snoc path L) a in
+      let b = formx_to_exp_ ~cx (Q.snoc path R) b in
       Doc.(Appl (20, Infix (rep_or, Right, [a ; b]))) |> wrap path
   | Bot -> Doc.(Atom rep_bot) |> wrap path
   | Imp (a, b) ->
-      let a = formx_to_exp_ ~cx (Q.snoc path `l) a in
-      let b = formx_to_exp_ ~cx (Q.snoc path `r) b in
+      let a = formx_to_exp_ ~cx (Q.snoc path L) a in
+      let b = formx_to_exp_ ~cx (Q.snoc path R) b in
       Doc.(Appl (10, Infix (rep_imp, Right, [a ; b]))) |> wrap path
   | Forall (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let b = formx_to_exp_ ~cx (Q.snoc path (`i vty.var)) b in
+        let b = formx_to_exp_ ~cx (Q.snoc path (I vty.var)) b in
         Doc.(Appl (5, Prefix (rep_forall vty, b))) |> wrap path
       end
   | Exists (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let b = formx_to_exp_ ~cx (Q.snoc path (`i vty.var)) b in
+        let b = formx_to_exp_ ~cx (Q.snoc path (I vty.var)) b in
         Doc.(Appl (5, Prefix (rep_exists vty, b))) |> wrap path
       end
   | Mdata (md, _, f) -> begin
@@ -176,13 +176,13 @@ let pp_path out (path : path) =
   Q.to_seq path |>
   Caml.Format.pp_print_seq
     ~pp_sep:(fun out () -> Caml.Format.pp_print_string out ", ")
-    (fun out -> function
-       | `l -> Caml.Format.pp_print_string out "l"
-       | `r -> Caml.Format.pp_print_string out "r"
-       | `d -> Caml.Format.pp_print_string out "d"
-       | `i x ->
-           Caml.Format.pp_print_string out "i " ;
-           Caml.Format.pp_print_string out (Ident.to_string x)) out
+    Paths.Dir.(fun out -> function
+        | L -> Caml.Format.pp_print_string out "l"
+        | R -> Caml.Format.pp_print_string out "r"
+        | D -> Caml.Format.pp_print_string out "d"
+        | I x ->
+            Caml.Format.pp_print_string out "i " ;
+            Caml.Format.pp_print_string out (Ident.to_string x)) out
 
 let pp_deriv out (sg, deriv) =
   pp_sigma out sg ;

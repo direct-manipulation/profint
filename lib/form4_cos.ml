@@ -18,11 +18,11 @@ open Mk
 (* CoS rules *)
 
 type rule_name =
-  | Goal_ts_imp of { pick : side }
+  | Goal_ts_imp of { pick : Side.t }
   | Goal_imp_ts
-  | Goal_ts_and of { pick : side }
-  | Goal_and_ts of { pick : side }
-  | Goal_ts_or  of { pick : side }
+  | Goal_ts_and of { pick : Side.t }
+  | Goal_and_ts of { pick : Side.t }
+  | Goal_ts_or  of { pick : Side.t }
   | Goal_or_ts
   | Goal_ts_all
   | Goal_all_ts
@@ -30,38 +30,38 @@ type rule_name =
   | Goal_ex_ts
 
   | Init
-  | Rewrite of { from : side }
+  | Rewrite of { from : Side.t }
 
-  | Asms_and of { minor : side ; pick : side }
-  | Asms_or  of { minor : side ; pick : side }
-  | Asms_imp of { minor : side ; pick : side }
-  | Asms_all of { minor : side }
-  | Asms_ex  of { minor : side }
+  | Asms_and of { minor : Side.t ; pick : Side.t }
+  | Asms_or  of { minor : Side.t ; pick : Side.t }
+  | Asms_imp of { minor : Side.t ; pick : Side.t }
+  | Asms_all of { minor : Side.t }
+  | Asms_ex  of { minor : Side.t }
 
-  | Simp_and_top of { cxkind : side ; minor : side }
-  | Simp_or_top  of { cxkind : side ; minor : side }
-  | Simp_imp_top of { cxkind : side ; minor : side }
-  | Simp_all_top of { cxkind : side }
+  | Simp_and_top of { cxkind : Side.t ; minor : Side.t }
+  | Simp_or_top  of { cxkind : Side.t ; minor : Side.t }
+  | Simp_imp_top of { cxkind : Side.t ; minor : Side.t }
+  | Simp_all_top of { cxkind : Side.t }
 
-  | Simp_and_bot of { cxkind : side ; minor : side }
-  | Simp_or_bot  of { cxkind : side ; minor : side }
-  | Simp_bot_imp of { cxkind : side }
-  | Simp_ex_bot  of { cxkind : side }
+  | Simp_and_bot of { cxkind : Side.t ; minor : Side.t }
+  | Simp_or_bot  of { cxkind : Side.t ; minor : Side.t }
+  | Simp_bot_imp of { cxkind : Side.t }
+  | Simp_ex_bot  of { cxkind : Side.t }
 
   | Congr
   | Contract
   | Weaken
-  | Inst of { side : side ; term : term incx }
+  | Inst of { side : Side.t ; term : term incx }
 
 and rule = {
   name : rule_name ;
   path : path ;
 }
 
-let side_to_string (side : side) =
+let side_to_string (side : Side.t) =
   match side with
-  | `l -> "l"
-  | `r -> "r"
+  | L -> "l"
+  | R -> "r"
 
 let pp_rule_name out rn =
   match rn with
@@ -102,43 +102,43 @@ let pp_rule_name out rn =
         (side_to_string minor)
   | Simp_and_top { cxkind ; minor } ->
       Caml.Format.fprintf out "simp_%s_%s_%s"
-        (match cxkind with `r -> "goal" | _ -> "asms")
-        (match minor with `l -> "and" | _ -> "top")
-        (match minor with `l -> "top" | _ -> "and")
+        (match cxkind with R -> "goal" | _ -> "asms")
+        (match minor with L -> "and" | _ -> "top")
+        (match minor with L -> "top" | _ -> "and")
   | Simp_or_top { cxkind ; minor } ->
       Caml.Format.fprintf out "simp_%s_%s_%s"
-        (match cxkind with `r -> "goal" | _ -> "asms")
-        (match minor with `l -> "or" | _ -> "top")
-        (match minor with `l -> "top" | _ -> "or")
+        (match cxkind with R -> "goal" | _ -> "asms")
+        (match minor with L -> "or" | _ -> "top")
+        (match minor with L -> "top" | _ -> "or")
   | Simp_imp_top { cxkind ; minor } ->
       Caml.Format.fprintf out "simp_%s_%s_%s"
-        (match cxkind with `r -> "goal" | _ -> "asms")
-        (match minor with `l -> "imp" | _ -> "top")
-        (match minor with `l -> "top" | _ -> "imp")
+        (match cxkind with R -> "goal" | _ -> "asms")
+        (match minor with L -> "imp" | _ -> "top")
+        (match minor with L -> "top" | _ -> "imp")
   | Simp_all_top { cxkind } ->
       Caml.Format.fprintf out "simp_%s_all_top"
-        (match cxkind with `r -> "goal" | _ -> "asms")
+        (match cxkind with R -> "goal" | _ -> "asms")
   | Simp_and_bot { cxkind ; minor } ->
       Caml.Format.fprintf out "simp_%s_%s_%s"
-        (match cxkind with `r -> "goal" | _ -> "asms")
-        (match minor with `l -> "and" | _ -> "bot")
-        (match minor with `l -> "bot" | _ -> "and")
+        (match cxkind with R -> "goal" | _ -> "asms")
+        (match minor with L -> "and" | _ -> "bot")
+        (match minor with L -> "bot" | _ -> "and")
   | Simp_or_bot { cxkind ; minor } ->
       Caml.Format.fprintf out "simp_%s_%s_%s"
-        (match cxkind with `r -> "goal" | _ -> "asms")
-        (match minor with `l -> "or" | _ -> "bot")
-        (match minor with `l -> "bot" | _ -> "or")
+        (match cxkind with R -> "goal" | _ -> "asms")
+        (match minor with L -> "or" | _ -> "bot")
+        (match minor with L -> "bot" | _ -> "or")
   | Simp_bot_imp { cxkind } ->
       Caml.Format.fprintf out "simp_%s_bot_imp"
-        (match cxkind with `r -> "goal" | _ -> "asms")
+        (match cxkind with R -> "goal" | _ -> "asms")
   | Simp_ex_bot { cxkind } ->
       Caml.Format.fprintf out "simp_%s_ex_bot"
-        (match cxkind with `r -> "goal" | _ -> "asms")
+        (match cxkind with R -> "goal" | _ -> "asms")
   | Init ->
       Caml.Format.fprintf out "init"
   | Rewrite { from } ->
       Caml.Format.fprintf out "rewrite_%s"
-        (match from with `l -> "ltr" | _ -> "rtl")
+        (match from with L -> "ltr" | _ -> "rtl")
   | Congr ->
       Caml.Format.fprintf out "congr"
   | Contract ->
@@ -150,13 +150,13 @@ let pp_rule_name out rn =
         (side_to_string side)
         (Term.pp_term ~cx:tx.tycx) tx.data
 
-let rec pp_path_list out (path : dir list) =
+let rec pp_path_list out (path : Dir.t list) =
   match path with
   | [] -> ()
-  | [`l] -> Caml.Format.fprintf out "l"
-  | [`r] -> Caml.Format.fprintf out "r"
-  | [`i x] -> Caml.Format.fprintf out "i %s" (Ident.to_string x)
-  | [`d] -> Caml.Format.fprintf out "d"
+  | [L] -> Caml.Format.fprintf out "l"
+  | [R] -> Caml.Format.fprintf out "r"
+  | [I x] -> Caml.Format.fprintf out "i %s" (Ident.to_string x)
+  | [D] -> Caml.Format.fprintf out "d"
   | dir :: (_ :: _ as path) ->
       Caml.Format.fprintf out "%a, %a" pp_path_list [dir] pp_path_list path
 
@@ -214,235 +214,235 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
   let prin = {
     prin with data = match side, expose prin.data, rule.name with
       (* goal *)
-      | `r, Imp (a, f), Goal_ts_imp { pick } -> begin
+      | R, Imp (a, f), Goal_ts_imp { pick } -> begin
           match expose f, pick with
-          | Imp (b, f), `l ->
+          | Imp (b, f), L ->
               mk_imp (mk_and a b) f
-          | Imp (f, b), `r ->
+          | Imp (f, b), R ->
               mk_imp f (mk_imp a b)
           | _ -> bad_match "0"
         end
-      | `r, Imp (f, b), Goal_imp_ts -> begin
+      | R, Imp (f, b), Goal_imp_ts -> begin
           match expose f with
           | Imp (f, a) ->
               mk_and f (mk_imp a b)
           | _ -> bad_match "1"
         end
-      | `r, Imp (a, f), Goal_ts_and { pick } -> begin
+      | R, Imp (a, f), Goal_ts_and { pick } -> begin
           match expose f, pick with
-          | And (b, f), `l ->
+          | And (b, f), L ->
               mk_and (mk_imp a b) f
-          | And (f, b), `r ->
+          | And (f, b), R ->
               mk_and f (mk_imp a b)
           | _ -> bad_match "2"
         end
-      | `r, Imp (f, b), Goal_and_ts { pick } -> begin
+      | R, Imp (f, b), Goal_and_ts { pick } -> begin
           match expose f, pick with
-          | And (a, _), `l
-          | And (_, a), `r ->
+          | And (a, _), L
+          | And (_, a), R ->
               mk_imp a b
           | _ -> bad_match "3"
         end
-      | `r, Imp (a, f), Goal_ts_or { pick } -> begin
+      | R, Imp (a, f), Goal_ts_or { pick } -> begin
           match expose f, pick  with
-          | Or (b, _), `l
-          | Or (_, b), `r ->
+          | Or (b, _), L
+          | Or (_, b), R ->
               mk_imp a b
           | _ -> bad_match "4"
         end
-      | `r, Imp (f, b), Goal_or_ts -> begin
+      | R, Imp (f, b), Goal_or_ts -> begin
           match expose f with
           | Or (a1, a2) ->
               mk_and (mk_imp a1 b) (mk_imp a2 b)
           | _ -> bad_match "5"
         end
-      | `r, Imp (a, f), Goal_ts_all -> begin
+      | R, Imp (a, f), Goal_ts_all -> begin
           match expose f with
           | Forall (vty, b) ->
               mk_all vty (mk_imp (shift 1 a) b)
           | _ -> bad_match "6"
         end
-      | `r, Imp (f, b), Goal_all_ts -> begin
+      | R, Imp (f, b), Goal_all_ts -> begin
           match expose f with
           | Forall (vty, a) ->
               mk_ex vty (mk_imp a (shift 1 b))
           | _ -> bad_match "7"
         end
-      | `r, Imp (a, f), Goal_ts_ex -> begin
+      | R, Imp (a, f), Goal_ts_ex -> begin
           match expose f with
           | Exists (vty, b) ->
               mk_ex vty (mk_imp (shift 1 a) b)
           | _ -> bad_match "8"
         end
-      | `r, Imp (f, b), Goal_ex_ts -> begin
+      | R, Imp (f, b), Goal_ex_ts -> begin
           match expose f with
           | Exists (vty, a) ->
               mk_all vty (mk_imp a (shift 1 b))
           | _ -> bad_match "9"
         end
       (* assumptions *)
-      | `l, And (a, f), Asms_and { minor = `l ; pick = sel } -> begin
+      | L, And (a, f), Asms_and { minor = L ; pick = sel } -> begin
           match expose f, sel with
-          | And (b, _), `l
-          | And (_, b), `r ->
+          | And (b, _), L
+          | And (_, b), R ->
               mk_and a b
           | _ -> bad_match "10"
         end
-      | `l, And (f, b), Asms_and { minor = `r ; pick = sel } -> begin
+      | L, And (f, b), Asms_and { minor = R ; pick = sel } -> begin
           match expose f, sel with
-          | And (a, _), `l
-          | And (_, a), `r ->
+          | And (a, _), L
+          | And (_, a), R ->
               mk_and a b
           | _ -> bad_match "11"
         end
-      | `l, And (a, f), Asms_or { minor = `l ; pick = sel } -> begin
+      | L, And (a, f), Asms_or { minor = L ; pick = sel } -> begin
           match expose f, sel with
-          | Or (b, f), `l ->
+          | Or (b, f), L ->
               mk_or (mk_and a b) f
-          | Or (f, b), `r ->
+          | Or (f, b), R ->
               mk_or f (mk_and a b)
           | _ -> bad_match "12"
         end
-      | `l, And (f, b), Asms_or { minor = `r ; pick = sel } -> begin
+      | L, And (f, b), Asms_or { minor = R ; pick = sel } -> begin
           match expose f, sel with
-          | Or (a, f), `l ->
+          | Or (a, f), L ->
               mk_or (mk_and a b) f
-          | Or (f, a), `r ->
+          | Or (f, a), R ->
               mk_or f (mk_and a b)
           | _ -> bad_match "13"
         end
-      | `l, And (a, f), Asms_imp { minor = `l ; pick = sel } -> begin
+      | L, And (a, f), Asms_imp { minor = L ; pick = sel } -> begin
           match expose f, sel with
-          | Imp (b, f), `l ->
+          | Imp (b, f), L ->
               mk_imp (mk_imp a b) f
-          | Imp (f, b), `r ->
+          | Imp (f, b), R ->
               mk_imp f (mk_and a b)
           | _ -> bad_match "14"
         end
-      | `l, And (f, b), Asms_imp { minor = `r ; pick = sel } -> begin
+      | L, And (f, b), Asms_imp { minor = R ; pick = sel } -> begin
           match expose f, sel with
-          | Imp (a, f), `l ->
+          | Imp (a, f), L ->
               mk_imp (mk_imp b a) f
-          | Imp (f, a), `r ->
+          | Imp (f, a), R ->
               mk_imp f (mk_and a b)
           | _ -> bad_match "15"
         end
-      | `l, And (a, f), Asms_all { minor = `l } -> begin
+      | L, And (a, f), Asms_all { minor = L } -> begin
           match expose f with
           | Forall (vty, b) ->
               mk_all vty (mk_and (shift 1 a) b)
           | _ -> bad_match "16"
         end
-      | `l, And (f, b), Asms_all { minor = `r } -> begin
+      | L, And (f, b), Asms_all { minor = R } -> begin
           match expose f with
           | Forall (vty, a) ->
               mk_all vty (mk_and a (shift 1 b))
           | _ -> bad_match "17"
         end
-      | `l, And (a, f), Asms_ex { minor = `l } -> begin
+      | L, And (a, f), Asms_ex { minor = L } -> begin
           match expose f with
           | Exists (vty, b) ->
               mk_ex vty (mk_and (shift 1 a) b)
           | _ -> bad_match "18"
         end
-      | `l, And (f, b), Asms_ex { minor = `r } -> begin
+      | L, And (f, b), Asms_ex { minor = R } -> begin
           match expose f with
           | Exists (vty, a) ->
               mk_ex vty (mk_and a (shift 1 b))
           | _ -> bad_match "19"
         end
       (* simplification: top *)
-      | ( _, And (a, f), Simp_and_top { cxkind ; minor = `l }
-        | _, And (f, a), Simp_and_top { cxkind ; minor = `r } )
-        when Poly.(cxkind = side) -> begin
+      | ( _, And (a, f), Simp_and_top { cxkind ; minor = L }
+        | _, And (f, a), Simp_and_top { cxkind ; minor = R } )
+        when Side.equal cxkind side -> begin
           match expose f with
           | Top -> a
           | _ -> bad_match "20"
         end
-      | ( _, Or (_, f), Simp_or_top { cxkind ; minor = `l }
-        | _, Or (f, _), Simp_or_top { cxkind ; minor = `r } )
-        when Poly.(cxkind = side) -> begin
+      | ( _, Or (_, f), Simp_or_top { cxkind ; minor = L }
+        | _, Or (f, _), Simp_or_top { cxkind ; minor = R } )
+        when Side.equal cxkind side -> begin
           match expose f with
           | Top -> f
           | _ -> bad_match "21"
         end
-      | _, Imp (_, f), Simp_imp_top { cxkind ; minor = `l }
-        when Poly.(cxkind = side) -> begin
+      | _, Imp (_, f), Simp_imp_top { cxkind ; minor = L }
+        when Side.equal cxkind side -> begin
           match expose f with
           | Top -> f
           | _ -> bad_match "22"
         end
-      | _, Imp (f, a), Simp_imp_top { cxkind ; minor = `r }
-        when Poly.(cxkind = side) -> begin
+      | _, Imp (f, a), Simp_imp_top { cxkind ; minor = R }
+        when Side.equal cxkind side -> begin
           match expose f with
           | Top -> a
           | _ -> bad_match "23"
         end
       | _, Forall (_, f), Simp_all_top { cxkind }
-        when Poly.(cxkind = side) -> begin
+        when Side.equal cxkind side -> begin
           match expose f with
           | Top -> f
           | _ -> bad_match "24"
         end
       (* simplification: bot *)
-      | ( _, And (_, f), Simp_and_bot { cxkind ; minor = `l }
-        | _, And (f, _), Simp_and_bot { cxkind ; minor = `r } )
-        when Poly.(cxkind = side) -> begin
+      | ( _, And (_, f), Simp_and_bot { cxkind ; minor = L }
+        | _, And (f, _), Simp_and_bot { cxkind ; minor = R } )
+        when Side.equal cxkind side -> begin
           match expose f with
           | Bot -> f
           | _ -> bad_match "25"
         end
-      | ( _, Or (a, f), Simp_or_bot { cxkind ; minor = `l }
-        | _, Or (f, a), Simp_or_bot { cxkind ; minor = `r } )
-        when Poly.(cxkind = side) -> begin
+      | ( _, Or (a, f), Simp_or_bot { cxkind ; minor = L }
+        | _, Or (f, a), Simp_or_bot { cxkind ; minor = R } )
+        when Side.equal cxkind side -> begin
           match expose f with
           | Bot -> a
           | _ -> bad_match "26"
         end
       | _, Imp (f, _), Simp_bot_imp { cxkind }
-        when Poly.(cxkind = side) -> begin
+        when Side.equal cxkind side -> begin
           match expose f with
           | Bot -> mk_top
           | _ -> bad_match "27"
         end
       | _, Exists (_, f), Simp_ex_bot { cxkind }
-        when Poly.(cxkind = side) -> begin
+        when Side.equal cxkind side -> begin
           match expose f with
           | Bot -> f
           | _ -> bad_match "28"
         end
       (* structural *)
-      | `r, Imp (a, b), Init -> begin
+      | R, Imp (a, b), Init -> begin
           match expose a, expose b with
           | Atom (App { head = f ; spine = ss }),
             Atom (App { head = g ; spine = ts }) when Term.eq_head f g ->
               compute_spine_congruence (Term.ty_infer prin.tycx f) ss ts
           | _ -> bad_match "29"
         end
-      | `r, Imp (a, b), Rewrite { from } -> begin
+      | R, Imp (a, b), Rewrite { from } -> begin
           match expose a with
           | Eq (s, t, _) -> begin
               let (tfrom, tto) = match from with
-                | `l -> s, t
+                | L -> s, t
                 | _ -> t, s
               in
               Term.rewrite ~tfrom ~tto b
             end
           | _ -> bad_match "30"
         end
-      | `r, Eq (s, t, _), Congr -> begin
+      | R, Eq (s, t, _), Congr -> begin
           match s, t with
           | App { head = f ; spine = ss },
             App { head = g ; spine = ts } when Term.eq_head f g ->
               compute_spine_congruence (Term.ty_infer prin.tycx f) ss ts
           | _ -> bad_match "31"
         end
-      | `r, Imp (a, b), Contract ->
+      | R, Imp (a, b), Contract ->
           mk_imp a (mk_imp a b)
-      | `r, Imp (_, b), Weaken ->
+      | R, Imp (_, b), Weaken ->
           b
-      | `l, Forall (vty, b), Inst { side = `l ; term = wtx }
-      | `r, Exists (vty, b), Inst { side = `r ; term = wtx } ->
+      | L, Forall (vty, b), Inst { side = L ; term = wtx }
+      | R, Exists (vty, b), Inst { side = R ; term = wtx } ->
           Term.ty_check prin.tycx wtx.data vty.ty ;
           Term.do_app (Abs {var = vty.var ; body = b}) [wtx.data]
       | _ -> bad_match "32"

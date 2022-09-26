@@ -182,11 +182,11 @@ let pp_rule out goal rule =
           unprintable @@ "inst: got " ^
                          pp_to_string Form4.pp_formx { tycx = cx ; data = f } in
         match side, expose f with
-        | `l, Forall ({ var ; ty }, b)
-        | `r, Exists ({ var ; ty }, b) ->
+        | L, Forall ({ var ; ty }, b)
+        | R, Exists ({ var ; ty }, b) ->
             with_var cx { var ; ty } begin fun { var ; ty } cx ->
               Caml.Format.fprintf out "inst_%s (p := fun (%s : %a) => %a) (%a)"
-                (match side with  `l -> "l" | _ -> "r")
+                (match side with  L -> "l" | _ -> "r")
                 (Ident.to_string var) pp_ty ty
                 pp_formx { tycx = cx ; data = b }
                 pp_termx tx
@@ -206,33 +206,33 @@ let pp_rule out goal rule =
         end
     | Some (dir, path) -> begin
         match expose f0, dir with
-        | And (f, _), `l ->
+        | And (f, _), Paths.Dir.L ->
             Caml.Format.pp_print_string out "go_left_and (" ;
             pp_path (n + 1) cx f path
-        | And (_, f), `r ->
+        | And (_, f), R ->
             Caml.Format.pp_print_string out "go_right_and (" ;
             pp_path (n + 1) cx f path
-        | Or (f, _), `l ->
+        | Or (f, _), L ->
             Caml.Format.pp_print_string out "go_left_or (" ;
             pp_path (n + 1) cx f path
-        | Or (_, f), `r ->
+        | Or (_, f), R ->
             Caml.Format.pp_print_string out "go_right_or (" ;
             pp_path (n + 1) cx f path
-        | Imp (f, _), `l ->
+        | Imp (f, _), L ->
             Caml.Format.pp_print_string out "go_left_imp (" ;
             pp_path (n + 1) cx f path
-        | Imp (_, f), `r ->
+        | Imp (_, f), R ->
             Caml.Format.pp_print_string out "go_right_imp (" ;
             pp_path (n + 1) cx f path
-        | Forall ({ var ; ty }, f), `d
-        | Forall ({ ty ; _ }, f), `i var ->
+        | Forall ({ var ; ty }, f), D
+        | Forall ({ ty ; _ }, f), I var ->
             with_var cx { var ; ty } begin fun { var ; _ } cx ->
               Caml.Format.fprintf out "go_down_all (fun (%s : %a) => "
                 (Ident.to_string var) pp_ty ty ;
               pp_path (n + 1) cx f path
             end
-        | Exists ({ var ; ty }, f), `d
-        | Exists ({ ty ; _ }, f), `i var ->
+        | Exists ({ var ; ty }, f), D
+        | Exists ({ ty ; _ }, f), I var ->
             with_var cx { var ; ty } begin fun { var ; _ } cx ->
               Caml.Format.fprintf out "go_down_ex (fun (%s : %a) => "
                 (Ident.to_string var) pp_ty ty ;

@@ -15,50 +15,58 @@ open Mk
 (******************************************************************************)
 (* Formula Paths *)
 
-type dir = [`l | `r | `i of Ident.t | `d]
-type path = dir q
+module Dir = struct
+  type t = L | R | I of Ident.t | D
+  [@@deriving equal, sexp_of]
+end
 
-type side = [`l | `r]
+type path = Dir.t q
+let equal_path (p1 : path) (p2 : path) = Q.equal Dir.equal p1 p2
 
-let flip (p : side) : side =
-  match p with `l -> `r | `r -> `l
+module Side = struct
+  type t = L | R
+  [@@deriving equal, sexp_of]
+end
 
-exception Bad_direction of { tycx : tycx option ; form : form ; dir : dir }
+let flip (p : Side.t) : Side.t =
+  match p with L -> R | R -> L
 
-let rec go (fx : formx) (dir : dir) =
+exception Bad_direction of { tycx : tycx option ; form : form ; dir : Dir.t }
+
+let rec go (fx : formx) (dir : Dir.t) =
   match expose fx.data, dir with
-  | ( And (a, b) | Or (a, b) | Imp (a, b) ), (`l | `r) ->
-      ({ fx with data = if Poly.(dir = `l) then a else b }, dir)
-  | Forall ({ var ; ty }, b), `d
-  | Forall ({ ty ; _ }, b), `i var
-  | Exists ({ var ; ty }, b), `d
-  | Exists ({ ty ; _ }, b), `i var ->
+  | ( And (a, b) | Or (a, b) | Imp (a, b) ), (L | R) ->
+      ({ fx with data = if Dir.equal dir L then a else b }, dir)
+  | Forall ({ var ; ty }, b), D
+  | Forall ({ ty ; _ }, b), I var
+  | Exists ({ var ; ty }, b), D
+  | Exists ({ ty ; _ }, b), I var ->
       with_var fx.tycx { var ; ty } begin fun {var ; _} tycx ->
-        ({ tycx ; data = b }, `i var)
+        ({ tycx ; data = b }, Dir.I var)
       end
   | Mdata (_, _, f), _ ->
       go { fx with data = f } dir
   | _ -> raise @@ Bad_direction { tycx = Some fx.tycx ;
                                   form = fx.data ; dir }
 
-let rec get_at ?(side = `r) tycx form (path : path) k =
+let rec get_at ?(side = Side.R) tycx form (path : path) k =
   match Q.take_front_exn path with
   | exception Q.Empty -> k tycx form side
   | dir, path -> begin
       match expose form, dir with
-      | And (form, _), `l
-      | Or (form, _), `l ->
+      | And (form, _), L
+      | Or (form, _), L ->
           get_at ~side tycx form path k
-      | Imp (form, _), `l ->
+      | Imp (form, _), L ->
           get_at ~side:(flip side) tycx form path k
-      | And (_, form), `r
-      | Or (_, form), `r
-      | Imp (_, form), `r ->
+      | And (_, form), R
+      | Or (_, form), R
+      | Imp (_, form), R ->
           get_at ~side tycx form path k
-      | Forall ({ ty ; _ }, form), `i x
-      | Forall ({ var = x ; ty }, form), `d
-      | Exists ({ ty ; _ }, form), `i x
-      | Exists ({ var = x ; ty }, form), `d ->
+      | Forall ({ ty ; _ }, form), I x
+      | Forall ({ var = x ; ty }, form), D
+      | Exists ({ ty ; _ }, form), I x
+      | Exists ({ var = x ; ty }, form), D ->
           with_var tycx {var = x ; ty} begin fun _ tycx ->
             get_at ~side tycx form path k
           end
@@ -68,7 +76,7 @@ let rec get_at ?(side = `r) tycx form (path : path) k =
           raise @@ Bad_direction { tycx = Some tycx ; form ; dir }
     end
 
-let formx_at ?side (formx : formx) path : formx * side =
+let formx_at ?side (formx : formx) path : formx * Side.t =
   get_at ?side formx.tycx formx.data path (fun tycx form side -> ({ tycx ; data = form }, side))
 
 let side_at ?side tycx form path =
@@ -79,17 +87,17 @@ let rec replace_at (src : form) (path : path) (repl : form) : form =
   | exception Q.Empty -> repl
   | dir, path -> begin
       match expose src, dir with
-      | And (a, b), `l -> mk_and (replace_at a path repl) b
-      | And (a, b), `r -> mk_and a (replace_at b path repl)
-      | Or (a, b), `l -> mk_or (replace_at a path repl) b
-      | Or (a, b), `r -> mk_or a (replace_at b path repl)
-      | Imp (a, b), `l -> mk_imp (replace_at a path repl) b
-      | Imp (a, b), `r -> mk_imp a (replace_at b path repl)
-      | Forall ({ ty ; _ }, a), `i x
-      | Forall ({ ty ; var = x }, a), `d ->
+      | And (a, b), L -> mk_and (replace_at a path repl) b
+      | And (a, b), R -> mk_and a (replace_at b path repl)
+      | Or (a, b), L -> mk_or (replace_at a path repl) b
+      | Or (a, b), R -> mk_or a (replace_at b path repl)
+      | Imp (a, b), L -> mk_imp (replace_at a path repl) b
+      | Imp (a, b), R -> mk_imp a (replace_at b path repl)
+      | Forall ({ ty ; _ }, a), I x
+      | Forall ({ ty ; var = x }, a), D ->
           mk_all { var = x ; ty } (replace_at a path repl)
-      | Exists ({ ty ; _ }, a), `i x
-      | Exists ({ ty ; var = x }, a), `d ->
+      | Exists ({ ty ; _ }, a), I x
+      | Exists ({ ty ; var = x }, a), D ->
           mk_ex { var = x ; ty } (replace_at a path repl)
       | Mdata (md, ty, a), _ ->
           mk_mdata md ty @@ replace_at a path repl
@@ -102,17 +110,17 @@ let rec transform_at (src : form) (path : path) (fn : form -> form) : form =
   | exception Q.Empty -> fn src
   | dir, path -> begin
       match expose src, dir with
-      | And (a, b), `l -> mk_and (transform_at a path fn) b
-      | And (a, b), `r -> mk_and a (transform_at b path fn)
-      | Or (a, b), `l -> mk_or (transform_at a path fn) b
-      | Or (a, b), `r -> mk_or a (transform_at b path fn)
-      | Imp (a, b), `l -> mk_imp (transform_at a path fn) b
-      | Imp (a, b), `r -> mk_imp a (transform_at b path fn)
-      | Forall ({ ty ; _ }, a), `i x
-      | Forall ({ ty ; var = x }, a), `d ->
+      | And (a, b), L -> mk_and (transform_at a path fn) b
+      | And (a, b), R -> mk_and a (transform_at b path fn)
+      | Or (a, b), L -> mk_or (transform_at a path fn) b
+      | Or (a, b), R -> mk_or a (transform_at b path fn)
+      | Imp (a, b), L -> mk_imp (transform_at a path fn) b
+      | Imp (a, b), R -> mk_imp a (transform_at b path fn)
+      | Forall ({ ty ; _ }, a), I x
+      | Forall ({ ty ; var = x }, a), D ->
           mk_all { var = x ; ty } (transform_at a path fn)
-      | Exists ({ ty ; _ }, a), `i x
-      | Exists ({ ty ; var = x }, a), `d ->
+      | Exists ({ ty ; _ }, a), I x
+      | Exists ({ ty ; var = x }, a), D ->
           mk_ex { var = x ; ty } (transform_at a path fn)
       | Mdata (md, ty, a), _ ->
           mk_mdata md ty @@ transform_at a path fn

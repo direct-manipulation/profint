@@ -20,11 +20,11 @@ open Form4_simplify
 
 type concl = {
   cpath : path ;                (* path to fx *)
-  side : side ;                 (* which side is fx *)
+  side : Side.t ;               (* which side is fx *)
   fx : formx ;                  (* scrutinee *)
   lpath : path ;                (* where to go in left subformula *)
   rpath : path ;                (* where to go in right subformula *)
-  dest_in : side ;              (* `r : l->r, `l : r->l *)
+  dest_in : Side.t ;            (* R : l->r, L : r->l *)
 }
 
 type rule_result =
@@ -46,9 +46,9 @@ let go_path fx cpath dir =
   (fx, cpath)
 
 let try_goal_init : dmanip = fun ~emit concl ->
-  abort_unless Poly.(concl.side = `r) ;
-  abort_unless Poly.(concl.lpath = Q.of_list [`l]) ;
-  abort_unless Poly.(concl.rpath = Q.of_list [`r]) ;
+  abort_unless (Side.equal concl.side R) ;
+  abort_unless (equal_path concl.lpath @@ Q.of_list [Dir.L]) ;
+  abort_unless (equal_path concl.rpath @@ Q.of_list [Dir.R]) ;
   match expose concl.fx.data with
   | Imp (a, b) -> begin
       match expose a, expose b with
@@ -57,9 +57,9 @@ let try_goal_init : dmanip = fun ~emit concl ->
           Done
       | Eq (s, t, _), _ ->
           if Term.is_subterm s b then
-            ignore @@ emit { name = Rewrite { from = `l } ; path = concl.cpath }
+            ignore @@ emit { name = Rewrite { from = L } ; path = concl.cpath }
           else if Term.is_subterm t b then
-            ignore @@ emit { name = Rewrite { from = `r } ; path = concl.cpath }
+            ignore @@ emit { name = Rewrite { from = R } ; path = concl.cpath }
           else abort () ;
           Done
       | _ -> abort ()
@@ -67,9 +67,9 @@ let try_goal_init : dmanip = fun ~emit concl ->
   | _ -> abort ()
 
 let try_goal_release : dmanip = fun ~emit:_ concl ->
-  abort_unless Poly.(concl.side = `r) ;
-  abort_unless Poly.(concl.lpath = Q.of_list [`l]) ;
-  abort_unless Poly.(concl.rpath = Q.of_list [`r]) ;
+  abort_unless (Side.equal concl.side R) ;
+  abort_unless (equal_path concl.lpath @@ Q.of_list [Dir.L]) ;
+  abort_unless (equal_path concl.rpath @@ Q.of_list [Dir.R]) ;
   match expose concl.fx.data with
   | Imp _ ->
       (* nothing to emit *)
@@ -77,88 +77,91 @@ let try_goal_release : dmanip = fun ~emit:_ concl ->
   | _ -> abort ()
 
 let try_goal_ts_and : dmanip = fun ~emit concl ->
-  abort_unless Poly.(concl.side = `r) ;
+  abort_unless (Side.equal concl.side R) ;
   match expose concl.fx.data, Q.take_front concl.rpath with
-  | Imp (_, f), Some (`r, rpath) -> begin
+  | Imp (_, f), Some (R, rpath) -> begin
       match expose f, Q.take_front rpath with
-      | And _, Some ((`l | `r) as dir, rpath) ->
-          let fx = prin @@ emit { name = Goal_ts_and { pick = dir } ; path = concl.cpath } in
+      | And _, Some ((L | R) as dir, rpath) ->
+          let pick = match dir with Dir.L -> Side.L | _ -> Side.R in
+          let fx = prin @@ emit { name = Goal_ts_and { pick } ; path = concl.cpath } in
           let fx, cpath = go_path fx concl.cpath dir in
-          let rpath = Q.cons `r rpath in
+          let rpath = Q.cons Dir.R rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
     end
   | _ -> abort ()
 
 let try_goal_and_ts : dmanip = fun ~emit concl ->
-  abort_unless Poly.(concl.side = `r) ;
+  abort_unless (Side.equal concl.side R) ;
   match expose concl.fx.data, Q.take_front concl.lpath with
-  | Imp (f, _), Some (`l, lpath) -> begin
+  | Imp (f, _), Some (L, lpath) -> begin
       match expose f, Q.take_front lpath with
-      | And _, Some ((`l | `r) as dir, lpath) ->
-          let fx = prin @@ emit { name = Goal_and_ts { pick = dir } ; path = concl.cpath } in
-          let lpath = Q.cons `l lpath in
+      | And _, Some ((L | R) as dir, lpath) ->
+          let pick = match dir with Dir.L -> Side.L | _ -> Side.R in
+          let fx = prin @@ emit { name = Goal_and_ts { pick } ; path = concl.cpath } in
+          let lpath = Q.cons Dir.L lpath in
           Continue { concl with fx ; lpath }
       | _ -> abort ()
     end
   | _ -> abort ()
 
 let try_goal_ts_or : dmanip = fun ~emit concl ->
-  abort_unless Poly.(concl.side = `r) ;
+  abort_unless (Side.equal concl.side R) ;
   match expose concl.fx.data, Q.take_front concl.rpath with
-  | Imp (_, f), Some (`r, rpath) -> begin
+  | Imp (_, f), Some (R, rpath) -> begin
       match expose f, Q.take_front rpath with
-      | Or _, Some ((`l | `r) as dir, rpath) ->
-          let fx = prin @@ emit { name = Goal_ts_or { pick = dir } ; path = concl.cpath } in
-          let rpath = Q.cons `r rpath in
+      | Or _, Some ((L | R) as dir, rpath) ->
+          let pick = match dir with Dir.L -> Side.L | _ -> Side.R in
+          let fx = prin @@ emit { name = Goal_ts_or { pick } ; path = concl.cpath } in
+          let rpath = Q.cons Dir.R rpath in
           Continue { concl with fx ; rpath }
       | _ -> abort ()
     end
   | _ -> abort ()
 
 let try_goal_or_ts : dmanip = fun ~emit concl ->
-  abort_unless Poly.(concl.side = `r) ;
+  abort_unless (Side.equal concl.side R) ;
   match expose concl.fx.data, Q.take_front concl.lpath with
-  | Imp (f, _), Some (`l, lpath) -> begin
+  | Imp (f, _), Some (L, lpath) -> begin
       match expose f, Q.take_front lpath with
-      | Or _, Some ((`l | `r) as dir, lpath) ->
+      | Or _, Some ((L | R) as dir, lpath) ->
           let fx = prin @@ emit { name = Goal_or_ts ; path = concl.cpath } in
           let fx, cpath = go_path fx concl.cpath dir in
-          let lpath = Q.cons `l lpath in
+          let lpath = Q.cons Dir.L lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
     end
   | _ -> abort ()
 
 let try_goal_ts_imp : dmanip = fun ~emit concl ->
-  abort_unless Poly.(concl.side = `r) ;
+  abort_unless (Side.equal concl.side R) ;
   match expose concl.fx.data, Q.take_front concl.rpath with
-  | Imp (_, f), Some (`r, rpath) -> begin
+  | Imp (_, f), Some (R, rpath) -> begin
       match expose f, Q.take_front rpath with
-      | Imp _, Some (`l, rpath) ->
-          let fx = prin @@ emit { name = Goal_ts_imp { pick = `l } ; path = concl.cpath } in
+      | Imp _, Some (L, rpath) ->
+          let fx = prin @@ emit { name = Goal_ts_imp { pick = L } ; path = concl.cpath } in
           let side = flip concl.side in
-          let fx, cpath = go_path fx concl.cpath `l in
-          let rpath = Q.cons `r rpath in
+          let fx, cpath = go_path fx concl.cpath L in
+          let rpath = Q.cons Dir.R rpath in
           Continue { concl with fx ; side ; cpath ; rpath }
-      | Imp _, Some (`r, rpath) ->
-          let fx = prin @@ emit { name = Goal_ts_imp { pick = `r } ; path = concl.cpath } in
-          let fx, cpath = go_path fx concl.cpath `r in
-          let rpath = Q.cons `r rpath in
+      | Imp _, Some (R, rpath) ->
+          let fx = prin @@ emit { name = Goal_ts_imp { pick = R } ; path = concl.cpath } in
+          let fx, cpath = go_path fx concl.cpath R in
+          let rpath = Q.cons Dir.R rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
     end
   | _ -> abort ()
 
 let try_goal_imp_ts : dmanip = fun ~emit concl ->
-  abort_unless Poly.(concl.side = `r) ;
+  abort_unless (Side.equal concl.side R) ;
   match expose concl.fx.data, Q.take_front concl.lpath with
-  | Imp (f, _), Some (`l, lpath) -> begin
+  | Imp (f, _), Some (L, lpath) -> begin
       match expose f, Q.take_front lpath with
-      | Imp _, Some (`r, lpath) ->
+      | Imp _, Some (R, lpath) ->
           let fx = prin @@ emit { name = Goal_imp_ts ; path = concl.cpath } in
-          let fx, cpath = go_path fx concl.cpath `r in
-          let lpath = Q.cons `l lpath in
+          let fx, cpath = go_path fx concl.cpath R in
+          let lpath = Q.cons Dir.L lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
     end
@@ -173,67 +176,67 @@ let is_exists = function
   | _ -> false
 
 let try_goal_ts_allex ~qsel : dmanip = fun ~emit concl ->
-  abort_unless Poly.(concl.side = `r) ;
+  abort_unless (Side.equal concl.side R) ;
   match expose concl.fx.data, Q.take_front concl.rpath with
-  | Imp (_, f), Some (`r, rpath) -> begin
+  | Imp (_, f), Some (R, rpath) -> begin
       match expose f, Q.take_front rpath with
-      | (Forall ({ var ; _ }, _) as fexp), Some (`d, rpath)
-      | (Forall _ as fexp), Some (`i var, rpath)
-      | (Exists ({ var ; _ }, _) as fexp), Some (`d, rpath)
-      | (Exists _ as fexp), Some (`i var, rpath)
+      | (Forall ({ var ; _ }, _) as fexp), Some (D, rpath)
+      | (Forall _ as fexp), Some (I var, rpath)
+      | (Exists ({ var ; _ }, _) as fexp), Some (D, rpath)
+      | (Exists _ as fexp), Some (I var, rpath)
         when qsel fexp ->
           let name = if is_forall fexp then Goal_ts_all else Goal_ts_ex in
           let fx = prin @@ emit { name ; path = concl.cpath } in
           (* Caml.Format.printf "goal_ts_allex[%s]: %a => %a@." var *)
-          (*   pp_formx fx pp_formx (go fx (`i var)) ; *)
-          let fx, cpath = go_path fx concl.cpath (`i var) in
-          let rpath = Q.cons `r rpath in
+          (*   pp_formx fx pp_formx (go fx (I var)) ; *)
+          let fx, cpath = go_path fx concl.cpath (I var) in
+          let rpath = Q.cons Dir.R rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
     end
   | _ -> abort ()
 
 let try_goal_allex_ts ~qsel : dmanip = fun ~emit concl ->
-  abort_unless Poly.(concl.side = `r) ;
+  abort_unless (Side.equal concl.side R) ;
   match expose concl.fx.data, Q.take_front concl.lpath with
-  | Imp (f, _), Some (`l, lpath) -> begin
+  | Imp (f, _), Some (L, lpath) -> begin
       match expose f, Q.take_front lpath with
-      | (Forall ({ var ; _ }, _) as fexp), Some (`d, lpath)
-      | (Forall _ as fexp), Some (`i var, lpath)
-      | (Exists ({ var ; _ }, _) as fexp), Some (`d, lpath)
-      | (Exists _ as fexp), Some (`i var, lpath)
+      | (Forall ({ var ; _ }, _) as fexp), Some (D, lpath)
+      | (Forall _ as fexp), Some (I var, lpath)
+      | (Exists ({ var ; _ }, _) as fexp), Some (D, lpath)
+      | (Exists _ as fexp), Some (I var, lpath)
         when qsel fexp ->
           let name = if is_forall fexp then Goal_all_ts else Goal_ex_ts in
           let fx = prin @@ emit { name ; path = concl.cpath } in
           (* Caml.Format.printf "goal_allex_ts[%s]: %a => %a@." var *)
-          (*   pp_formx fx pp_formx (go fx (`i var)) ; *)
-          let fx, cpath = go_path fx concl.cpath (`i var) in
-          let lpath = Q.cons `l lpath in
+          (*   pp_formx fx pp_formx (go fx (I var)) ; *)
+          let fx, cpath = go_path fx concl.cpath (I var) in
+          let lpath = Q.cons Dir.L lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
     end
   | _ -> abort ()
 
-let single_l : path = Q.singleton `l
-let single_r : path = Q.singleton `r
+let single_l : path = Q.singleton Dir.L
+let single_r : path = Q.singleton Dir.R
 
-let can_descend (dir : side) concl =
+let can_descend (dir : Side.t) concl =
   match dir, concl.dest_in with
-  | `l, `l ->
+  | L, L ->
       (* descend left on r2l links unless already at dest *)
-      Poly.(concl.lpath <> single_l)
-  | `l, `r ->
+      (not @@ equal_path concl.lpath single_l)
+  | L, R ->
       (* descend left on l2r links only if already at dest *)
-      Poly.(concl.rpath = single_r)
-  | `r, `l ->
+      (not @@ equal_path concl.rpath single_r)
+  | R, L ->
       (* descend right on r2l links only if already at dest *)
-      Poly.(concl.lpath = single_l)
-  | `r, `r ->
+      (not @@ equal_path concl.lpath single_l)
+  | R, R ->
       (* descend right on l2r links unless already at dest *)
-      Poly.(concl.rpath <> single_r)
+      (not @@ equal_path concl.rpath single_r)
 
 let try_asms_release ~emit:_ concl =
-  abort_unless Poly.(concl.side = `l) ;
+  abort_unless (Side.equal concl.side L) ;
   match expose concl.fx.data with
   | And _ ->
       (* nothing to emit *)
@@ -241,145 +244,149 @@ let try_asms_release ~emit:_ concl =
   | _ -> abort ()
 
 let try_asms_and : dmanip = fun ~emit concl ->
-  abort_unless Poly.(concl.side = `l) ;
+  abort_unless (Side.equal concl.side L) ;
   match expose concl.fx.data,
         Q.take_front concl.lpath,
         Q.take_front concl.rpath with
-  | And (f, _), Some (`l, lpath), _
-    when can_descend `l concl -> begin
+  | And (f, _), Some (L, lpath), _
+    when can_descend L concl -> begin
       match expose f, Q.take_front lpath with
-      | And _, Some ((`l | `r) as dir, lpath) ->
-          let fx = prin @@ emit { name = Asms_and { minor = `r ; pick = dir } ;
+      | And _, Some ((L | R) as dir, lpath) ->
+          let pick = match dir with L -> Side.L | _ -> Side.R in
+          let fx = prin @@ emit { name = Asms_and { minor = R ; pick } ;
                                   path = concl.cpath } in
           (* cpath unchanged *)
-          let lpath = Q.cons `l lpath in
+          let lpath = Q.cons Dir.L lpath in
           Continue { concl with fx ; lpath }
       | _ -> abort ()
     end
-  | And (_, f), _, Some (`r, rpath)
-    when can_descend `r concl -> begin
+  | And (_, f), _, Some (R, rpath)
+    when can_descend R concl -> begin
       match expose f, Q.take_front rpath with
-      | And _, Some ((`l | `r) as dir, rpath) ->
-          let fx = prin @@ emit { name = Asms_and { minor = `l ; pick = dir } ;
+      | And _, Some ((L | R) as dir, rpath) ->
+          let pick = match dir with L -> Side.L | _ -> Side.R in
+          let fx = prin @@ emit { name = Asms_and { minor = L ; pick } ;
                                   path = concl.cpath } in
           (* cpath unchanged *)
-          let rpath = Q.cons `r rpath in
+          let rpath = Q.cons Dir.R rpath in
           Continue { concl with fx ; rpath }
       | _ -> abort ()
     end
   | _ -> abort ()
 
 let try_asms_or : dmanip = fun ~emit concl ->
-  abort_unless Poly.(concl.side = `l) ;
+  abort_unless (Side.equal concl.side L) ;
   match expose concl.fx.data,
         Q.take_front concl.lpath,
         Q.take_front concl.rpath with
-  | And (f, _), Some (`l, lpath), _
-    when can_descend `l concl -> begin
+  | And (f, _), Some (L, lpath), _
+    when can_descend L concl -> begin
       match expose f, Q.take_front lpath with
-      | Or _, Some ((`l | `r) as dir, lpath) ->
-          let fx = prin @@ emit { name = Asms_or { minor = `r ; pick = dir } ;
+      | Or _, Some ((L | R) as dir, lpath) ->
+          let pick = match dir with L -> Side.L | _ -> Side.R in
+          let fx = prin @@ emit { name = Asms_or { minor = R ; pick } ;
                                   path = concl.cpath } in
           let fx, cpath = go_path fx concl.cpath dir in
-          let lpath = Q.cons `l lpath in
+          let lpath = Q.cons Dir.L lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
     end
-  | And (_, f), _, Some (`r, rpath)
-    when can_descend `r concl -> begin
+  | And (_, f), _, Some (R, rpath)
+    when can_descend R concl -> begin
       match expose f, Q.take_front rpath with
-      | Or _, Some ((`l | `r) as dir, rpath) ->
-          let fx = prin @@ emit { name = Asms_or { minor = `l ; pick = dir } ;
+      | Or _, Some ((L | R) as dir, rpath) ->
+          let pick = match dir with L -> Side.L | _ -> Side.R in
+          let fx = prin @@ emit { name = Asms_or { minor = L ; pick } ;
                                   path = concl.cpath } in
           let fx, cpath = go_path fx concl.cpath dir in
-          let rpath = Q.cons `r rpath in
+          let rpath = Q.cons Dir.R rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
     end
   | _ -> abort ()
 
 let try_asms_imp : dmanip = fun ~emit concl ->
-  abort_unless Poly.(concl.side = `l) ;
+  abort_unless (Side.equal concl.side L) ;
   match expose concl.fx.data,
         Q.take_front concl.lpath,
         Q.take_front concl.rpath with
-  | And (f, _), Some (`l, lpath), _
-    when can_descend `l concl -> begin
+  | And (f, _), Some (L, lpath), _
+    when can_descend L concl -> begin
       match expose f, Q.take_front lpath with
-      | Imp _, Some (`l, lpath) ->
-          let fx = prin @@ emit { name = Asms_imp { minor = `r ; pick = `l } ;
+      | Imp _, Some (L, lpath) ->
+          let fx = prin @@ emit { name = Asms_imp { minor = R ; pick = L } ;
                                   path = concl.cpath } in
           let side = flip concl.side in
-          let fx, cpath = go_path fx concl.cpath `l in
-          let rpath = Q.cons `r lpath in
-          let lpath = Q.cons `l (Q.take_front_exn concl.rpath |> snd) in
+          let fx, cpath = go_path fx concl.cpath L in
+          let rpath = Q.cons Dir.R lpath in
+          let lpath = Q.cons Dir.L (Q.take_front_exn concl.rpath |> snd) in
           Continue { concl with fx ; side ; cpath ; lpath ; rpath }
-      | Imp _, Some (`r, lpath) ->
-          let fx = prin @@ emit { name = Asms_imp { minor = `r ; pick = `r } ;
+      | Imp _, Some (R, lpath) ->
+          let fx = prin @@ emit { name = Asms_imp { minor = R ; pick = R } ;
                                   path = concl.cpath } in
-          let fx, cpath = go_path fx concl.cpath `r in
-          let lpath = Q.cons `l lpath in
+          let fx, cpath = go_path fx concl.cpath R in
+          let lpath = Q.cons Dir.L lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
     end
-  | And (_, f), _, Some (`r, rpath)
-    when can_descend `r concl -> begin
+  | And (_, f), _, Some (R, rpath)
+    when can_descend R concl -> begin
       match expose f, Q.take_front rpath with
-      | Imp _, Some (`l, rpath) ->
-          let fx = prin @@ emit { name = Asms_imp { minor = `l ; pick = `l } ;
+      | Imp _, Some (L, rpath) ->
+          let fx = prin @@ emit { name = Asms_imp { minor = L ; pick = L } ;
                                   path = concl.cpath } in
           let side = flip concl.side in
-          let fx, cpath = go_path fx concl.cpath `l in
-          let rpath = Q.cons `r rpath in
+          let fx, cpath = go_path fx concl.cpath L in
+          let rpath = Q.cons Dir.R rpath in
           Continue { concl with fx ; side ; cpath ; rpath }
-      | Imp _, Some (`r, rpath) ->
-          let fx = prin @@ emit { name = Asms_imp { minor = `l ; pick = `r } ;
+      | Imp _, Some (R, rpath) ->
+          let fx = prin @@ emit { name = Asms_imp { minor = L ; pick = R } ;
                                   path = concl.cpath } in
-          let fx, cpath = go_path fx concl.cpath `r in
-          let rpath = Q.cons `r rpath in
+          let fx, cpath = go_path fx concl.cpath R in
+          let rpath = Q.cons Dir.R rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
     end
   | _ -> abort ()
 
 let try_asms_allex : dmanip = fun ~emit concl ->
-  abort_unless Poly.(concl.side = `l) ;
+  abort_unless (Side.equal concl.side L) ;
   match expose concl.fx.data,
         Q.take_front concl.lpath,
         Q.take_front concl.rpath with
-  | And (f, _), Some (`l, lpath), _
-    when can_descend `l concl -> begin
+  | And (f, _), Some (L, lpath), _
+    when can_descend L concl -> begin
       match expose f, Q.take_front lpath with
-      | (Forall ({ var ; _ }, _) as fexp), Some (`d, lpath)
-      | (Forall _ as fexp),                Some (`i var, lpath)
-      | (Exists ({ var ; _ }, _) as fexp), Some (`d, lpath)
-      | (Exists _ as fexp),                Some (`i var, lpath) ->
+      | (Forall ({ var ; _ }, _) as fexp), Some (D, lpath)
+      | (Forall _ as fexp),                Some (I var, lpath)
+      | (Exists ({ var ; _ }, _) as fexp), Some (D, lpath)
+      | (Exists _ as fexp),                Some (I var, lpath) ->
           let name = match fexp with
-            | Forall _ -> Asms_all { minor = `r }
-            | _ -> Asms_ex { minor = `r }
+            | Forall _ -> Asms_all { minor = R }
+            | _ -> Asms_ex { minor = R }
           in
           let fx = prin @@ emit { name ; path = concl.cpath } in
           (* Caml.Format.printf "goal_asms_allex[%s]: %a => %a@." var *)
-          (*   pp_formx fx pp_formx (go fx (`i var)) ; *)
-          let fx, cpath = go_path fx concl.cpath (`i var) in
-          let lpath = Q.cons `l lpath in
+          (*   pp_formx fx pp_formx (go fx (I var)) ; *)
+          let fx, cpath = go_path fx concl.cpath (I var) in
+          let lpath = Q.cons Dir.L lpath in
           Continue { concl with fx ; cpath ; lpath }
       | _ -> abort ()
     end
-  | And (_, f), _, Some (`r, rpath)
-    when can_descend `r concl -> begin
+  | And (_, f), _, Some (R, rpath)
+    when can_descend R concl -> begin
       match expose f, Q.take_front rpath with
-      | (Forall ({ var ; _ }, _) as fexp), Some (`d, rpath)
-      | (Forall _ as fexp),                Some (`i var, rpath)
-      | (Exists ({ var ; _ }, _) as fexp), Some (`d, rpath)
-      | (Exists _ as fexp),                Some (`i var, rpath) ->
+      | (Forall ({ var ; _ }, _) as fexp), Some (D, rpath)
+      | (Forall _ as fexp),                Some (I var, rpath)
+      | (Exists ({ var ; _ }, _) as fexp), Some (D, rpath)
+      | (Exists _ as fexp),                Some (I var, rpath) ->
           let name = match fexp with
-            | Forall _ -> Asms_all { minor = `l }
-            | _ -> Asms_ex { minor = `l }
+            | Forall _ -> Asms_all { minor = L }
+            | _ -> Asms_ex { minor = L }
           in
           let fx = prin @@ emit { name ; path = concl.cpath } in
-          let fx, cpath = go_path fx concl.cpath (`i var) in
-          let rpath = Q.cons `r rpath in
+          let fx, cpath = go_path fx concl.cpath (I var) in
+          let rpath = Q.cons Dir.R rpath in
           Continue { concl with fx ; cpath ; rpath }
       | _ -> abort ()
     end
@@ -458,13 +465,13 @@ let compute_derivation goal msteps =
     let goal = !top in
     let rec analyze_link cpath src dest =
       match Q.take_front src, Q.take_front dest with
-      | Some (ds, src), Some (dd, dest) when Poly.(ds = dd) ->
+      | Some (ds, src), Some (dd, dest) when Dir.equal ds dd ->
           analyze_link (Q.snoc cpath ds) src dest
       | Some (ds, _), Some (dd, _) ->
-          if Poly.(ds = `l) && Poly.(dd = `r) then
-            (cpath, src, dest, `r)
-          else if Poly.(ds = `r) && Poly.(dd = `l) then
-            (cpath, dest, src, `l)
+          if Dir.equal ds Dir.L && Dir.equal dd R then
+            (cpath, src, dest, Side.R)
+          else if Dir.equal ds R && Dir.equal dd L then
+            (cpath, dest, src, Side.L)
           else fail ()
       | _ -> fail ()
     in begin
@@ -479,14 +486,14 @@ let compute_derivation goal msteps =
           let (term, _) = Uterm.ty_check fx.tycx term in
           let term = term |@ fx in
           let goal = (emit { name = Inst { side ; term } ; path }).goal in
-          recursive_simplify ~emit goal Q.empty `r
+          recursive_simplify ~emit goal Q.empty R
       | Link { src ; dest ; copy } -> begin
           let (cpath, lpath, rpath, dest_in) = analyze_link Q.empty src dest in
           let (goal, cpath) =
             if not copy then (goal, cpath) else
-            if Poly.(dest_in = `l) then begin
+            if Side.equal dest_in L then begin
               match Q.take_back rpath with
-              | Some (path, `l) ->
+              | Some (path, L) ->
                   let rule = { name = Contract ;
                                path = Q.append cpath path } in
                   let goal = (emit rule).goal in
@@ -495,14 +502,14 @@ let compute_derivation goal msteps =
             end else begin
               let rule = { name = Contract ; path = cpath } in
               let goal = (emit rule).goal in
-              let cpath = Q.snoc cpath `r in
+              let cpath = Q.snoc cpath R in
               (goal, cpath)
             end
           in
           let (fx, side) = formx_at goal cpath in
           let concl = { cpath ; fx ; side ; lpath ; rpath ; dest_in } in
           spin_rules ~emit concl ;
-          recursive_simplify ~emit !top Q.empty `r
+          recursive_simplify ~emit !top Q.empty R
         end
     end in
   List.iter ~f:compute_one msteps ;
