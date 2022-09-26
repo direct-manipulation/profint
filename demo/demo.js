@@ -14,6 +14,7 @@ const katex_options = {
   trust: true,
   output: "html",
   strict: false,
+  displayMode: true,
   fleqn: true,
   maxExpand: Infinity,
   macros
@@ -277,6 +278,17 @@ function renderFormula() {
     return katex.renderToString(expr, katex_options);
   });
   $("#doRedo").prop("disabled", profint.countFuture() <= 0);
+  $("#output .brk").html("<br>");
+  $("#output span[data-spc]").html(function(){
+    // console.log('data: ', $(this).data("spc"));
+    const spaces = $(this).data("spc");
+    const html = '<span style="white-space:pre">' +
+          ''.padEnd(spaces) + '</span>';
+    // console.log(html);
+    $(this).replaceWith(html);
+    // $(this).css({ "white-space": "pre" })
+    //   .html(''.padEnd($(this).data("spc")));
+  });
 }
 
 function setFormula(text) {

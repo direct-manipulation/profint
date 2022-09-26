@@ -42,15 +42,24 @@
       }
       #interface { visibility: hidden; }
       .icon { font-family:'Material Icons'; font-size: inherit; vertical-align: middle; }
-      #output {
+      #output-container {
           margin-top: 10px;
-          font-size: 300%;
           overflow-x: auto;
-          white-space: nowrap;
           width: 100%;
+          text-align: center;
+      }
+      #output {
+          display: inline-block;
+          font-size: 250%;
+          /* margin-top: 10px; */
+          /* font-size: 200%; */
+          /* overflow-x: auto; */
+          /* white-space: nowrap; */
+          /* width: 100%; */
       }
       #output .enclosing {border-bottom: 0;}
       #output .hl-range {border-bottom: 3px solid red;}
+      #output > .katex-display { margin: 0 0; }
       .f-src {background-color: #f2cf98;}
       .f-dest {background-color: #9cb3e0;}
       .link-droppable {background-color: #9cc8f8;}
@@ -97,8 +106,10 @@
         ...
       </div>
 
-      <div id="output">
-        ...
+      <div id="output-container">
+        <div id="output">
+          ...
+        </div>
       </div>
 
       <div id="history">
