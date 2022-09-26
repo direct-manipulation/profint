@@ -125,16 +125,23 @@ r : i -> i -> \o.
         <h2>State your conjecture...</h2>
 
         <div class="embed-editor" title="Signature">
+<!--           <pre id="signature">i : \type. -->
+<!-- j : i. -->
+<!-- f : i -&gt; i. -->
+<!-- p : i -&gt; \o. -->
+<!-- a, t : i -&gt; i -&gt; \o.</pre> -->
           <pre id="signature">i : \type.
-j : i.
-f : i -&gt; i.
-p : i -&gt; \o.</pre>
+a, t : i -&gt; i -&gt; \o.</pre>
         </div>
 
         <hr>
 
         <div class="embed-editor" title="Formula">
-          <pre id="formula">(\A [x] p x =&gt; p (f x)) =&gt; p j =&gt; p (f (f j))</pre>
+          <!-- <pre id="formula">(\A [x] p x =&gt; p (f x)) =&gt; p j =&gt; p (f (f j))</pre> -->
+          <pre id="formula">(\A [x, y] t x y \or t y x) \to
+(\A [x, y] a x y \to a y x \to \eq x y) \to
+(\A [x, y] t x y \to a x y) \to
+\A [x, y] a x y \to t x y</pre>
         </div>
         <div style="margin-left:1em;">
           <em>i.e.,</em> <span id="conjecture-output"></span>

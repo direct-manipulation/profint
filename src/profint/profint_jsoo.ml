@@ -13,8 +13,11 @@ open Js_of_ocaml
 module F = Form4
 
 type stage = { fx : F.formx ; mstep : F.mstep }
-let pp_stage ?(ppfx = F.pp_formx) out stage =
-  ppfx out @@ F.mark_locations stage.fx stage.mstep
+
+let stage_to_string stage =
+  To_katex.formx_to_string @@
+  F.mark_locations stage.fx stage.mstep
+
 let compute_derivation stage =
   F.compute_derivation stage.fx [stage.mstep]
 
@@ -134,7 +137,7 @@ let profint_object =
       change_formula @@ Js.to_string text
 
     method getStateHTML =
-      pp_to_string (pp_stage ~ppfx:To.Katex.pp_formx) state.goal |> Js.string
+      stage_to_string state.goal |> Js.string
 
     method termToHTML text =
       try
@@ -155,7 +158,7 @@ let profint_object =
     method historyHTML =
       let contents =
         state.history
-        |> List.map ~f:(pp_to_string (pp_stage ~ppfx:To.Katex.pp_formx))
+        |> List.map ~f:stage_to_string
         |> String.concat ~sep:{| \mathstrut \\ \hline |}
       in
       {| \begin{array}{c} \hline |} ^ contents ^ {| \end{array} |}
@@ -170,7 +173,7 @@ let profint_object =
         | _ ->
             let contents =
               state.future
-              |> List.rev_map ~f:(pp_to_string (pp_stage ~ppfx:To.Katex.pp_formx))
+              |> List.rev_map ~f:stage_to_string
               |> String.concat ~sep:{| \mathstrut \\ \hline |}
             in
             {| \begin{array}{c} |} ^ contents ^ {| \\ \hline \end{array} |}

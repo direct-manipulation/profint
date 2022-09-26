@@ -125,16 +125,12 @@ let rec bracket ~(ld:doc) ~(rd:doc) = function
       match appl with
       | Prefix (oprep, be) ->
           let opd = bracket ~ld ~rd be in
-          Caml.Format.dprintf "@[<hov2>%t%t@]"
-            oprep
-            (delimit opd ~ld ~rd
-               ~cond:(prec >? be && not (is_prefix be)))
+          let cond = prec >? be && not (is_prefix be) in
+          oprep ++ (delimit opd ~ld ~rd ~cond)
       | Postfix (oprep, be) ->
           let opd = bracket ~ld ~rd be in
-          Caml.Format.dprintf "@[<h>%t%t@]"
-            (delimit opd ~ld ~rd
-               ~cond:(prec >? be && not (is_postfix be)))
-            oprep
+          let cond = prec >? be && not (is_postfix be) in
+          (delimit opd ~ld ~rd ~cond) ++ oprep
       | Infix (oprep, asc, l :: es) ->
           let ms, r = match List.rev es with
             | r :: rms -> List.rev rms, r

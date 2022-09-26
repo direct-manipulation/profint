@@ -158,21 +158,32 @@ let rec formx_to_exp_ ~cx (path : path) f =
     end
 
 let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx Q.empty fx.data
-let pp_formx out fx =
+
+let formx_to_sout fx =
   let sob = Caml.Format.make_symbolic_output_buffer () in
   let sout = Caml.Format.formatter_of_symbolic_output_buffer sob in
+  Caml.Format.pp_set_geometry sout ~margin:120 ~max_indent:119 ;
   formx_to_exp fx |> Doc.bracket |> Doc.pp sout ;
   Caml.Format.pp_print_flush sout () ;
-  Caml.Format.flush_symbolic_output_buffer sob |>
+  Caml.Format.flush_symbolic_output_buffer sob
+
+let formx_to_string fx =
+  let buf = Buffer.create 19 in
+  formx_to_sout fx |>
   List.iter ~f:Caml.Format.(fun item ->
       match item with
-      | Output_flush -> pp_print_flush out ()
-      | Output_newline -> pp_print_string out "\\htmlClass{brk}{}"
-      | Output_string str -> pp_print_string out str
-      | Output_spaces n | Output_indent n ->
-          if n > 0 then fprintf out "\\htmlData{spc=%d}{}" n
-      (* | Output_indent n -> fprintf out "\\mbox{\\hspace{%dex}}" n *)
-    )
+      | Output_newline -> Buffer.add_string buf "\\htmlClass{brk}{}"
+      | Output_string str -> Buffer.add_string buf str
+      | ( Output_spaces n | Output_indent n ) when n > 0 ->
+          Buffer.add_string buf "\\htmlData{spc=" ;
+          Buffer.add_string buf (Int.to_string n) ;
+          Buffer.add_string buf "}{}"
+      | _ -> ()
+    ) ;
+  Buffer.contents buf
+
+let pp_formx out fx =
+  Caml.Format.pp_print_as out 0 (formx_to_string fx)
 
 let pp_sigma out sg =
   Caml.Format.pp_open_vbox out 0 ; begin
