@@ -27,8 +27,8 @@ let to_string (doc : doc) =
   let buf = Buffer.create 19 in
   let out = Caml.Format.formatter_of_buffer buf in
   Caml.Format.pp_set_geometry out
-    ~margin:100_000_000
-    ~max_indent:99_999_999 ;
+    ~margin:Int.max_value
+    ~max_indent:(Int.max_value - 1) ;
   doc out ;
   Caml.Format.pp_print_flush out () ;
   Buffer.contents buf
