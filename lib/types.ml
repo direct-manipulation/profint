@@ -14,15 +14,31 @@ module Ty = struct
     | Arrow of t * t
     | Var of {
         id : int ;
-        mutable subst : t Option.t ;
+        mutable subst : t Option.t [@equal.ignore] ;
       }
   [@@deriving equal, sexp_of]
 
   type ty = t
 
   let rec norm = function
-    | Var { subst = Some ty ; _ } -> norm ty
-    | ty -> ty
+    | Basic _ as ty -> Some ty
+    | Arrow (tya, tyb) -> begin
+        match norm tya, norm tyb with
+        | Some tya, Some tyb ->
+            Some (Arrow (tya, tyb))
+        | _ -> None
+      end
+    | Var { subst = Some ty ; _ } ->
+        norm ty
+    | Var { subst = None ; _ } ->
+        None
+
+  exception Norm
+
+  let norm_exn ty =
+    match norm ty with
+    | None -> raise Norm
+    | Some ty -> ty
 
   let k_o = Ident.of_string "\\o"
   let o = Basic k_o
@@ -30,24 +46,24 @@ module Ty = struct
   let rec to_exp ty =
     match ty with
     | Basic a ->
-        if Ident.equal a k_o then Doc.(Atom (String "\\o"))
-        else Doc.(Atom (String (Ident.to_string a)))
+        if Ident.equal a k_o then Doc.(Atom (string "\\o"))
+        else Doc.(Atom (string (Ident.to_string a)))
     | Arrow (ta, tb) ->
-        Doc.(Appl (1, Infix (String " -> ", Right,
+        Doc.(Appl (1, Infix (string " -> ", Right,
                              [to_exp ta ; to_exp tb])))
     | Var v -> begin
         match v.subst with
         | None ->
             let rep = "'a" ^ Int.to_string v.id in
-            Doc.(Atom (String rep))
+            Doc.(Atom (string rep))
         | Some ty -> to_exp ty
       end
 
   let pp out ty =
-    to_exp ty |> Doc.bracket |> Doc.pp_doc out
+    to_exp ty |> Doc.bracket |> Doc.pp out
 
   let to_string ty =
-    to_exp ty |> Doc.bracket |> Doc.lin_doc
+    to_exp ty |> Doc.bracket |> Doc.to_string
 end
 
 type poly_ty = {

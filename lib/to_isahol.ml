@@ -18,24 +18,25 @@ let rec ty_to_exp ty =
   match ty with
   | Ty.Basic a ->
       let rep = if Ident.equal a Ty.k_o then "bool" else "'" ^ (Ident.to_string a) in
-      Doc.(Atom (String rep))
+      Doc.(Atom (string rep))
   | Ty.Arrow (ta, tb) ->
-      Doc.(Appl (1, Infix (StringAs (3, " \\<Rightarrow> "), Right,
+      Doc.(Appl (1, Infix (string_as 3 " \\<Rightarrow> ", Right,
                            [ty_to_exp ta ; ty_to_exp tb])))
   | Ty.Var v -> begin
       match v.subst with
-      | None -> Doc.(Atom (String "_"))
+      | None -> Doc.(Atom (string "_"))
       | Some ty -> ty_to_exp ty
     end
 
-let pp_ty out ty = ty_to_exp ty |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_ty out ty = ty_to_exp ty |> Doc.bracket |> Doc.pp_linear out
 let ty_to_string ty = pp_to_string pp_ty ty
 
 let rec termx_to_exp_ ~cx t =
   match t with
   | T.Abs { var ; body } ->
       with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
-        let rep = Doc.String (Printf.sprintf "\\<lambda> %s. " (Ident.to_string vty.var)) in
+        let rep = Caml.Format.dprintf {|\<lambda> %s. |}
+            (Ident.to_string vty.var) in
         Doc.(Appl (1, Prefix (rep, termx_to_exp_  ~cx body)))
       end
   | T.App { head ; spine = [] } ->
@@ -43,10 +44,10 @@ let rec termx_to_exp_ ~cx t =
   | T.App { head ; spine } ->
       let head = Term.head_to_exp ~cx head in
       let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
-      Doc.(Appl (100, Infix (String " ", Left, (head :: spine))))
+      Doc.(Appl (100, Infix (string " ", Left, (head :: spine))))
 
 let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
-let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_linear out
 
 let rec formx_to_exp_ ~cx f =
   match expose f with
@@ -54,24 +55,24 @@ let rec formx_to_exp_ ~cx f =
   | Eq (s, t, _) ->
       let s = termx_to_exp_ ~cx s in
       let t = termx_to_exp_ ~cx t in
-      Doc.(Appl (40, Infix (String " = ", Non, [s ; t])))
+      Doc.(Appl (40, Infix (string " = ", Non, [s ; t])))
   | And (a, b) ->
       let a = formx_to_exp_ ~cx a in
       let b = formx_to_exp_ ~cx b in
-      Doc.(Appl (30, Infix (StringAs (3, " \\<and> "), Right, [a ; b])))
-  | Top -> Doc.(Atom (String "True"))
+      Doc.(Appl (30, Infix (string_as 3 " \\<and> ", Right, [a ; b])))
+  | Top -> Doc.(Atom (string "True"))
   | Or (a, b) ->
       let a = formx_to_exp_ ~cx a in
       let b = formx_to_exp_ ~cx b in
-      Doc.(Appl (20, Infix (StringAs (3, " \\<or> "), Right, [a ; b])))
-  | Bot -> Doc.(Atom (String "False"))
+      Doc.(Appl (20, Infix (string_as 3 " \\<or> ", Right, [a ; b])))
+  | Bot -> Doc.(Atom (string "False"))
   | Imp (a, b) ->
       let a = formx_to_exp_ ~cx a in
       let b = formx_to_exp_ ~cx b in
-      Doc.(Appl (10, Infix (StringAs (3, " \\<longrightarrow> "), Right, [a ; b])))
+      Doc.(Appl (10, Infix (string_as 3 " \\<longrightarrow> ", Right, [a ; b])))
   | Forall (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Doc.Fmt Caml.Format.(fun out ->
+        let q = Caml.Format.(fun out ->
             pp_print_as out 3 "\\<forall> " ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " :: " ;
@@ -82,7 +83,7 @@ let rec formx_to_exp_ ~cx f =
       end
   | Exists (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Doc.Fmt Caml.Format.(fun out ->
+        let q = Caml.Format.(fun out ->
             pp_print_as out 3 "\\<exists> " ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " :: " ;
@@ -94,7 +95,7 @@ let rec formx_to_exp_ ~cx f =
   | Mdata (_, _, f) -> formx_to_exp_ ~cx f
 
 let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx fx.data
-let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let pp_sigma out sg =
   Map.iteri sg.consts ~f:begin fun ~key:k ~data:ty ->
@@ -140,23 +141,23 @@ let fresh_inner_counter =
 
 let init_like_lemma ~emit sss ty ss ts target =
   let eqns =
-    make_eqns (Ty.norm ty) ss ts |>
+    make_eqns (Ty.norm_exn ty) ss ts |>
     List.filter_map ~f:begin fun (l, r, _) ->
       if Term.eq_term l r then None else
       let l = termx_to_exp { tycx = sss.tycx ; data = l } in
       let r = termx_to_exp { tycx = sss.tycx ; data = r } in
-      Some Doc.(Appl (40, Infix (String " = ", Non, [l ; r])))
+      Some Doc.(Appl (40, Infix (string " = ", Non, [l ; r])))
     end
   in
   let eqn = match eqns with
-    | [] -> Doc.(Atom (String "True"))
+    | [] -> Doc.(Atom (string "True"))
     | [eq] -> eq
-    | _ -> Doc.(Appl (30, Infix (StringAs (3, " \\<and> "), Right, eqns)))
+    | _ -> Doc.(Appl (30, Infix (string_as 3 " \\<and> ", Right, eqns)))
   in
   let target = formx_to_exp { tycx = sss.tycx ; data = target } in
-  let lem = Doc.(Appl (1, Infix (StringAs (3, " \\<longrightarrow> "),
+  let lem = Doc.(Appl (1, Infix (string_as 3 " \\<longrightarrow> ",
                                  Right, [eqn ; target]))) |>
-            Doc.bracket |> Doc.lin_doc in
+            Doc.bracket |> Doc.to_string in
   let lem = List.fold_left sss.tycx.linear ~init:lem
       ~f:begin fun lem vty ->
         Caml.Format.asprintf "\\<And> %s :: %a. %s"
@@ -200,7 +201,7 @@ let rec step_surgery ~emit sss =
           match expose sss.conclusion with
           | Eq (T.(App { head ; spine = ss }),
                 T.(App { spine = ts ; _ }), _) -> begin
-              let ty = Ty.norm @@ ty_infer sss.tycx head in
+              let ty = Ty.norm_exn @@ ty_infer sss.tycx head in
               init_like_lemma ~emit sss ty ss ts sss.conclusion
             end
           | _ -> fail ()

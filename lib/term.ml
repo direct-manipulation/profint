@@ -152,7 +152,7 @@ let rec term_to_exp ?(cx = empty) term =
   match term with
   | Abs {var ; body} ->
       with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
-        let rep = String (Printf.sprintf "[%s] " (Ident.to_string vty.var)) in
+        let rep = string (Printf.sprintf "[%s] " (Ident.to_string vty.var)) in
         Appl (1, Prefix (rep, term_to_exp ~cx body))
       end
   | App {head ; spine = []} ->
@@ -163,12 +163,12 @@ let rec term_to_exp ?(cx = empty) term =
         | [t] -> term_to_exp ~cx t
         | _ ->
             Wrap (Opaque,
-                  String "[",
-                  Appl (0, Infix (String ",", Left,
+                  string "[",
+                  Appl (0, Infix (string ",", Left,
                                   List.map ~f:(term_to_exp ~cx) spine)),
-                  String "]")
+                  string "]")
       in
-      Appl (2, Infix (String " ", Non, [left ; right]))
+      Appl (2, Infix (string " ", Non, [left ; right]))
 
 and head_to_exp ?(cx = empty) head =
   let open Doc in
@@ -176,10 +176,10 @@ and head_to_exp ?(cx = empty) head =
   | Index n -> begin
       try
         let vstr = Ident.to_string (List.nth_exn cx.linear n).var in
-        Atom (String vstr)
-      with _ -> Atom (String ("?" ^ Int.to_string n))
+        Atom (string vstr)
+      with _ -> Atom (string ("?" ^ Int.to_string n))
     end
-  | Const (k, _) -> Atom (String (Ident.to_string k))
+  | Const (k, _) -> Atom (string (Ident.to_string k))
 
 let termx_to_exp tx = term_to_exp ~cx:tx.tycx tx.data
 let headx_to_exp hx = head_to_exp ~cx:hx.tycx hx.data
@@ -187,19 +187,19 @@ let headx_to_exp hx = head_to_exp ~cx:hx.tycx hx.data
 let pp_term ?cx out term =
   term_to_exp ?cx term
   |> Doc.bracket
-  |> Doc.pp_doc out
+  |> Doc.pp out
 
 let term_to_string ?cx term =
   term_to_exp ?cx term
   |> Doc.bracket
-  |> Doc.lin_doc
+  |> Doc.to_string
 
 let pp_head ?cx out head =
   head_to_exp ?cx head
   |> Doc.bracket
-  |> Doc.pp_doc out
+  |> Doc.pp out
 
 let head_to_string ?cx head =
   head_to_exp ?cx head
   |> Doc.bracket
-  |> Doc.lin_doc
+  |> Doc.to_string

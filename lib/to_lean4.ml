@@ -17,24 +17,24 @@ let rec ty_to_exp ty =
   match ty with
   | Ty.Basic a ->
       let rep = if Ident.equal a Ty.k_o then "Prop" else Ident.to_string a in
-      Doc.(Atom (String rep))
+      Doc.(Atom (string rep))
   | Ty.Arrow (ta, tb) ->
-      Doc.(Appl (1, Infix (StringAs (3, " → "), Right,
+      Doc.(Appl (1, Infix (string_as 3 " → ", Right,
                            [ty_to_exp ta ; ty_to_exp tb])))
   | Ty.Var v -> begin
       match v.subst with
-      | None -> Doc.(Atom (String "_"))
+      | None -> Doc.(Atom (string "_"))
       | Some ty -> ty_to_exp ty
     end
 
-let pp_ty out ty = ty_to_exp ty |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_ty out ty = ty_to_exp ty |> Doc.bracket |> Doc.pp_linear out
 let ty_to_string ty = pp_to_string pp_ty ty
 
 let rec termx_to_exp_ ~cx t =
   match t with
   | T.Abs { var ; body } ->
       with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
-        let rep = Doc.String (Printf.sprintf "fun %s => " (Ident.to_string vty.var)) in
+        let rep = Doc.string (Printf.sprintf "fun %s => " (Ident.to_string vty.var)) in
         Doc.(Appl (1, Prefix (rep, termx_to_exp_  ~cx body)))
       end
   | T.App { head ; spine = [] } ->
@@ -42,10 +42,10 @@ let rec termx_to_exp_ ~cx t =
   | T.App { head ; spine } ->
       let head = Term.head_to_exp ~cx head in
       let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
-      Doc.(Appl (100, Infix (String " ", Left, (head :: spine))))
+      Doc.(Appl (100, Infix (string " ", Left, (head :: spine))))
 
 let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
-let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_linear out
 
 let rec formx_to_exp_ ~cx f =
   match expose f with
@@ -53,24 +53,24 @@ let rec formx_to_exp_ ~cx f =
   | Eq (s, t, _) ->
       let s = termx_to_exp_ ~cx s in
       let t = termx_to_exp_ ~cx t in
-      Doc.(Appl (40, Infix (String " = ", Non, [s ; t])))
+      Doc.(Appl (40, Infix (string " = ", Non, [s ; t])))
   | And (a, b) ->
       let a = formx_to_exp_ ~cx a in
       let b = formx_to_exp_ ~cx b in
-      Doc.(Appl (30, Infix (StringAs (3, " ∧ "), Right, [a ; b])))
-  | Top -> Doc.(Atom (String "True"))
+      Doc.(Appl (30, Infix (string_as 3 " ∧ ", Right, [a ; b])))
+  | Top -> Doc.(Atom (string "True"))
   | Or (a, b) ->
       let a = formx_to_exp_ ~cx a in
       let b = formx_to_exp_ ~cx b in
-      Doc.(Appl (20, Infix (StringAs (3, " ∨ "), Right, [a ; b])))
-  | Bot -> Doc.(Atom (String "False"))
+      Doc.(Appl (20, Infix (string_as 3 " ∨ ", Right, [a ; b])))
+  | Bot -> Doc.(Atom (string "False"))
   | Imp (a, b) ->
       let a = formx_to_exp_ ~cx a in
       let b = formx_to_exp_ ~cx b in
-      Doc.(Appl (10, Infix (StringAs (3, " → "), Right, [a ; b])))
+      Doc.(Appl (10, Infix (string_as 3 " → ", Right, [a ; b])))
   | Forall (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Doc.Fmt Caml.Format.(fun out ->
+        let q = Caml.Format.(fun out ->
             pp_print_as out 3 "∀ (" ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " : " ;
@@ -81,7 +81,7 @@ let rec formx_to_exp_ ~cx f =
       end
   | Exists (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Doc.Fmt Caml.Format.(fun out ->
+        let q = Caml.Format.(fun out ->
             pp_print_as out 3 "∃ (" ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " : " ;
@@ -93,7 +93,7 @@ let rec formx_to_exp_ ~cx f =
   | Mdata (_, _, f) -> formx_to_exp_ ~cx f
 
 let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx fx.data
-let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let pp_sigma out sg =
   Caml.Format.fprintf out "universe u@." ;

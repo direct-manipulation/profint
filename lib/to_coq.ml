@@ -18,24 +18,25 @@ let rec ty_to_exp ty =
   match ty with
   | Ty.Basic a ->
       let rep = if Ident.equal a Ty.k_o then "Prop" else Ident.to_string a in
-      Doc.(Atom (String rep))
+      Doc.(Atom (string rep))
   | Ty.Arrow (ta, tb) ->
-      Doc.(Appl (1, Infix (String (" -> "), Right,
+      Doc.(Appl (1, Infix (string " -> ", Right,
                            [ty_to_exp ta ; ty_to_exp tb])))
   | Ty.Var v -> begin
       match v.subst with
-      | None -> Doc.(Atom (String "_"))
+      | None -> Doc.(Atom (string "_"))
       | Some ty -> ty_to_exp ty
     end
 
-let pp_ty out ty = ty_to_exp ty |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_ty out ty = ty_to_exp ty |> Doc.bracket |> Doc.pp_linear out
 let ty_to_string ty = pp_to_string pp_ty ty
 
 let rec termx_to_exp_ ~cx t =
   match t with
   | T.Abs { var ; body } ->
       with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
-        let rep = Doc.String (Printf.sprintf "fun %s => " (Ident.to_string vty.var)) in
+        let rep = Caml.Format.dprintf "fun %s => "
+            (Ident.to_string vty.var) in
         Doc.(Appl (1, Prefix (rep, termx_to_exp_  ~cx body)))
       end
   | T.App { head ; spine = [] } ->
@@ -43,10 +44,10 @@ let rec termx_to_exp_ ~cx t =
   | T.App { head ; spine } ->
       let head = Term.head_to_exp ~cx head in
       let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
-      Doc.(Appl (100, Infix (String " ", Left, (head :: spine))))
+      Doc.(Appl (100, Infix (string " ", Left, (head :: spine))))
 
 let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
-let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_linear out
 
 let rec formx_to_exp_ ~cx f =
   match expose f with
@@ -54,24 +55,24 @@ let rec formx_to_exp_ ~cx f =
   | Eq (s, t, _) ->
       let s = termx_to_exp_ ~cx s in
       let t = termx_to_exp_ ~cx t in
-      Doc.(Appl (40, Infix (String " = ", Non, [s ; t])))
+      Doc.(Appl (40, Infix (string " = ", Non, [s ; t])))
   | And (a, b) ->
       let a = formx_to_exp_ ~cx a in
       let b = formx_to_exp_ ~cx b in
-      Doc.(Appl (30, Infix (String " /\\ ", Right, [a ; b])))
-  | Top -> Doc.(Atom (String "True"))
+      Doc.(Appl (30, Infix (string " /\\ ", Right, [a ; b])))
+  | Top -> Doc.(Atom (string "True"))
   | Or (a, b) ->
       let a = formx_to_exp_ ~cx a in
       let b = formx_to_exp_ ~cx b in
-      Doc.(Appl (20, Infix (String " \\/ ", Right, [a ; b])))
-  | Bot -> Doc.(Atom (String "False"))
+      Doc.(Appl (20, Infix (string " \\/ ", Right, [a ; b])))
+  | Bot -> Doc.(Atom (string "False"))
   | Imp (a, b) ->
       let a = formx_to_exp_ ~cx a in
       let b = formx_to_exp_ ~cx b in
-      Doc.(Appl (10, Infix (String " -> ", Right, [a ; b])))
+      Doc.(Appl (10, Infix (string " -> ", Right, [a ; b])))
   | Forall (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Doc.Fmt Caml.Format.(fun out ->
+        let q = Caml.Format.(fun out ->
             pp_print_as out 3 "forall (" ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " : " ;
@@ -82,7 +83,7 @@ let rec formx_to_exp_ ~cx f =
       end
   | Exists (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Doc.Fmt Caml.Format.(fun out ->
+        let q = Caml.Format.(fun out ->
             pp_print_as out 3 "exists (" ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " : " ;
@@ -94,7 +95,7 @@ let rec formx_to_exp_ ~cx f =
   | Mdata (_, _, f) -> formx_to_exp_ ~cx f
 
 let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx fx.data
-let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let pp_sigma out sg =
   Set.iter sg.basics ~f:begin fun i ->
@@ -127,20 +128,20 @@ let make_lemma (target : formx) (eqs : (T.term * T.term * Ty.t) list) : string =
   let target = formx_to_exp target in
   let eqs = List.filter_map eqs ~f:begin fun (l, r, ty) ->
       if Term.eq_term l r then None else
-      let ex = Doc.(Appl (100, Infix (String " ", Left,
-                                      [ Atom (String "@eq") ;
+      let ex = Doc.(Appl (100, Infix (string " ", Left,
+                                      [ Atom (string "@eq") ;
                                         ty_to_exp ty ;
                                         termx_to_exp { tycx ; data = l } ;
                                         termx_to_exp { tycx ; data = r } ]))) in
       Some ex
     end in
   let eq = match eqs with
-    | [] -> Doc.(Atom (String "True"))
+    | [] -> Doc.(Atom (string "True"))
     | [eq] -> eq
-    | _ -> Doc.(Appl (30, Infix (String " /\\ ", Right, eqs)))
+    | _ -> Doc.(Appl (30, Infix (string " /\\ ", Right, eqs)))
   in
-  Doc.(Appl (1, Infix (String " -> ", Right, [eq ; target]))) |>
-  Doc.bracket |> Doc.lin_doc
+  Doc.(Appl (1, Infix (string " -> ", Right, [eq ; target]))) |>
+  Doc.bracket |> Doc.to_string
 
 let pp_rule out goal rule =
   let has_subproof = ref false in
@@ -155,7 +156,7 @@ let pp_rule out goal rule =
             match expose a, expose b with
             | Atom T.(App { head = Const (_, ty) ; spine = ss }),
               Atom T.(App { spine = ts ; _ }) ->
-                make_eqns (Ty.norm ty) ss ts |>
+                make_eqns (Ty.norm_exn ty) ss ts |>
                 make_lemma { tycx = cx ; data = f } |>
                 Caml.Format.fprintf out "(_ : %s)" ;
                 has_subproof := true
@@ -169,8 +170,8 @@ let pp_rule out goal rule =
                          pp_to_string Form4.pp_formx { tycx = cx ; data = f } in
         match expose f with
         | Eq (T.(App { spine = ss ; head }), T.(App { spine = ts ; _ }), _) ->
-            let ty = Ty.norm @@ ty_infer cx head in
-            make_eqns (Ty.norm ty) ss ts |>
+            let ty = Ty.norm_exn @@ ty_infer cx head in
+            make_eqns ty ss ts |>
             make_lemma { tycx = cx ; data = f } |>
             Caml.Format.fprintf out "(_ : %s)" ;
             has_subproof := true

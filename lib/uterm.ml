@@ -190,32 +190,34 @@ let rec uterm_to_exp ~cx ut =
   match ut with
   | Idx n -> begin
       match List.nth cx.linear n with
-      | Some { var ; _ } -> Doc.(Atom (String (Ident.to_string var)))
+      | Some { var ; _ } -> Doc.(Atom (string (Ident.to_string var)))
       | None ->
-          Doc.(Atom (Fmt (fun out -> Caml.Format.fprintf out "`%d" n)))
+          Doc.(Atom (Caml.Format.dprintf "`%d" n))
     end
   | Var v
-  | Kon (v, None) -> Doc.(Atom (String (Ident.to_string v)))
+  | Kon (v, None) -> Doc.(Atom (string (Ident.to_string v)))
   | Kon (v, Some ty) ->
-      Doc.(Atom (Fmt (fun out ->
-          Caml.Format.fprintf out "@[<hv1>(%s:@,%a)@]" (Ident.to_string v) Ty.pp ty)))
+      Doc.(Atom (Caml.Format.dprintf "@[<hv1>(%s:@,%a)@]"
+                   (Ident.to_string v) Ty.pp ty))
   | App (t1, t2) ->
-      Doc.(Appl (100, Infix (String " ", Left, [
+      Doc.(Appl (100, Infix (string " ", Left, [
           uterm_to_exp ~cx t1 ;
           uterm_to_exp ~cx t2
         ])))
   | Abs (var, ty, body) ->
       let ty = Option.value ty ~default:K.ty_any in
       with_var cx { var ; ty } begin fun { var ; ty } cx ->
-        let rep = Doc.(Fmt (fun out ->
-            Caml.Format.fprintf out "@[<hv1>[%s:@,%a]@]@ " (Ident.to_string var) Ty.pp ty)) in
+        let rep =
+          Caml.Format.dprintf "@[<hv1>[%s:@,%a]@]@ "
+            (Ident.to_string var) Ty.pp ty
+        in
         Doc.(Appl (1, Prefix (rep, uterm_to_exp ~cx body)))
       end
 
 let pp_uterm cx out ut =
-  uterm_to_exp ~cx ut |> Doc.bracket |> Doc.pp_doc out
+  uterm_to_exp ~cx ut |> Doc.bracket |> Doc.pp out
 let uterm_to_string cx ut =
-  uterm_to_exp ~cx ut |> Doc.bracket |> Doc.lin_doc
+  uterm_to_exp ~cx ut |> Doc.bracket |> Doc.to_string
 
 let rec pp_uterm_ out ut =
   match ut with

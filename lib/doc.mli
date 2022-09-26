@@ -7,28 +7,17 @@
 
 open Base
 
-type box =
-  | NOBOX
-  | H | V of int | HV of int | HOV of int
+type doc = Caml.Format.formatter -> unit
 
-type doc =
-  | String of string
-  | StringAs of int * string
-  | Fmt of (Caml.Format.formatter -> unit)
-  | Break of int * int
-  | Group of box * doc list
-  | Newline
-
-val space : int -> doc
+val string : string -> doc
+val string_as : int -> string -> doc
 val cut : doc
+val (++) : doc -> doc -> doc
 
-val doc_map_strings : (elen:int -> string -> doc) -> doc -> doc
+val pp : Caml.Format.formatter -> doc -> unit
+val pp_linear : Caml.Format.formatter -> doc -> unit
 
-val pp_doc : Caml.Format.formatter -> doc -> unit
-
-val lin_doc_buffer : Buffer.t -> doc -> unit
-val lin_doc : doc -> string
-val pp_lin_doc : Caml.Format.formatter -> doc -> unit
+val to_string : doc -> string
 
 type wrapping = Transparent | Opaque
 

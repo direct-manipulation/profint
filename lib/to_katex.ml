@@ -16,11 +16,7 @@ open! Types
 open! Term
 open! Form4
 
-let rep_arr =
-  Doc.Fmt
-    Caml.Format.(fun out ->
-      pp_print_as out 2 {|\to|} ;
-      pp_print_cut out ())
+let rep_arr : Doc.doc = Doc.(string_as 2 {|\to|} ++ cut)
 
 let texify id =
   match String.split ~on:'_' id |>
@@ -38,30 +34,21 @@ let rec ty_to_exp ty =
       let rep = if Ident.equal a Ty.k_o then "Prop" else (Ident.to_string a) in
       let len = String.length rep in
       let rep = "\\mathsf{" ^ texify rep ^ "}" in
-      Doc.(Atom (StringAs (len, rep)))
+      Doc.(Atom (string_as len rep))
   | Ty.Arrow (ta, tb) ->
       Doc.(Appl (1, Infix (rep_arr, Right,
                            [ty_to_exp ta ; ty_to_exp tb])))
   | Ty.Var v -> begin
       match v.subst with
-      | None -> Doc.(Atom (StringAs (1, "\\_")))
+      | None -> Doc.(Atom (string_as 1 "\\_"))
       | Some ty -> ty_to_exp ty
     end
 
-let pp_ty out ty = ty_to_exp ty |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_ty out ty = ty_to_exp ty |> Doc.bracket |> Doc.pp_linear out
 
-let rep_lambda var =
-  Doc.Fmt Caml.Format.(fun out ->
-      pp_print_as out 1 "\\lambda{" ;
-      pp_print_string out var ;
-      pp_print_as out 1 "}.\\," ;
-      pp_print_cut out ()
-    )
-let rep_appl =
-  Doc.Fmt Caml.Format.(fun out ->
-      pp_print_as out 1 "\\," ;
-      pp_print_cut out () ;
-    )
+let rep_lambda var : Doc.doc =
+  Caml.Format.dprintf {|\lambda{%s}.\,@,|} var
+let rep_appl : Doc.doc = Caml.Format.dprintf {|\,@,|}
 
 let fresh_id =
   let count = ref 0 in
@@ -73,12 +60,9 @@ let rec termx_to_exp_ ~cx t =
       with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
         Doc.(Appl (1, Prefix (rep_lambda (Ident.to_string vty.var), termx_to_exp_  ~cx body)))
       end
-  | T.App { head ; spine = [] } -> begin
-      match Term.head_to_exp ~cx head with
-      | Doc.(Atom (String h)) ->
-          Doc.(Atom (StringAs (String.length h, texify h)))
-      | _ -> assert false
-    end
+  | T.App { head ; spine = [] } ->
+      let rep = Term.head_to_string ~cx head in
+      Doc.(Atom (string_as (String.length rep) (texify rep)))
   | T.App { head ; spine } ->
       let head = Term.head_to_exp ~cx head in
       let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
@@ -86,53 +70,27 @@ let rec termx_to_exp_ ~cx t =
 
 let termx_to_exp tx =
   Doc.(Wrap (Transparent,
-             StringAs (0, Printf.sprintf "\\htmlId{t%d}{" @@ fresh_id ()),
+             string_as 0 (Printf.sprintf "\\htmlId{t%d}{" @@ fresh_id ()),
              termx_to_exp_ ~cx:tx.tycx tx.data,
-             StringAs (0, "}")))
-let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_lin_doc out
+             string_as 0 "}"))
+let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_linear out
 
-let rep_eq =
-  Doc.Fmt Caml.Format.(fun out ->
-      pp_print_as out 2 {|\mathbin{\doteq}|} ;
-      pp_print_cut out ())
-let rep_and =
-  Doc.Fmt Caml.Format.(fun out ->
-      pp_print_as out 2 {|\mathbin{\land}|} ;
-      pp_print_cut out ())
-let rep_top =
-  Doc.Fmt Caml.Format.(fun out ->
-      pp_print_as out 1 {|\top|})
-let rep_or =
-  Doc.Fmt Caml.Format.(fun out ->
-      pp_print_as out 2 {|\mathbin{\lor}|} ;
-      pp_print_cut out ())
-let rep_bot =
-  Doc.Fmt Caml.Format.(fun out ->
-      pp_print_as out 1 {|\bot|})
-let rep_imp =
-  Doc.Fmt Caml.Format.(fun out ->
-      pp_print_as out 2 {|\mathbin{\Rightarrow}|} ;
-      pp_print_cut out ())
-let rep_forall vty =
-  Doc.Fmt Caml.Format.(fun out ->
-      pp_print_as out 1 "\\forall{" ;
-      let v = Ident.to_string vty.var in
-      pp_print_as out (String.length v) (texify v) ;
-      pp_print_as out 1 "{:}" ;
-      pp_ty out vty.ty ;
-      pp_print_as out 1 "}.\\," ;
-      pp_print_cut out ()
-    )
-let rep_exists vty =
-  Doc.Fmt Caml.Format.(fun out ->
-      pp_print_as out 1 "\\exists{" ;
-      let v = Ident.to_string vty.var in
-      pp_print_as out (String.length v) (texify v) ;
-      pp_print_as out 1 "{:}" ;
-      pp_ty out vty.ty ;
-      pp_print_as out 1 "}.\\," ;
-      pp_print_cut out ()
-    )
+let rep_eq  : Doc.doc = Caml.Format.dprintf {|\mathbin{\doteq}@,|}
+let rep_and : Doc.doc = Caml.Format.dprintf {|\mathbin{\land}@,|}
+let rep_top : Doc.doc = Caml.Format.dprintf {|\top|}
+let rep_or  : Doc.doc = Caml.Format.dprintf {|\mathbin{\lor}@,|}
+let rep_bot : Doc.doc = Caml.Format.dprintf {|\bot|}
+let rep_imp : Doc.doc = Caml.Format.dprintf {|\mathbin{\Rightarrow}@,|}
+let rep_forall vty : Doc.doc =
+  let v = Ident.to_string vty.var in
+  Caml.Format.dprintf {|\forall{%t}{:}%a.\,@,|}
+    (Doc.string_as (String.length v) (texify v))
+    pp_ty vty.ty
+let rep_exists vty : Doc.doc  =
+  let v = Ident.to_string vty.var in
+  Caml.Format.dprintf {|\exists{%t}{:}%a.\,@,|}
+    (Doc.string_as (String.length v) (texify v))
+    pp_ty vty.ty
 
 let dir_to_string (d : dir) =
   match d with
@@ -152,7 +110,7 @@ let wrap path doc =
       (fresh_id ())
       (path_to_string path)
   in
-  Doc.(Wrap (Transparent, StringAs (0, lbra), doc, StringAs (0, "}}")))
+  Doc.(Wrap (Transparent, string_as 0 lbra, doc, string_as 0 "}}"))
 
 let rec formx_to_exp_ ~cx (path : path) f =
   match expose f with
@@ -190,17 +148,17 @@ let rec formx_to_exp_ ~cx (path : path) f =
       match md with
       | T.App { head = Const ({base = "src" ; _}, _) ; _ } ->
           Doc.(Wrap (Transparent,
-                     StringAs (0, "\\lnsrc{"),
-                     doc, StringAs (0, "}")))
+                     string_as 0 "\\lnsrc{",
+                     doc, string_as 0 "}"))
       | T.App { head = Const ({base = "dest" ; _}, _) ; _ } ->
           Doc.(Wrap (Transparent,
-                     StringAs (0, "\\lndest{"),
-                     doc, StringAs (0, "}")))
+                     string_as 0 "\\lndest{",
+                     doc, string_as 0 "}"))
       | _ -> assert false
     end
 
 let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx Q.empty fx.data
-let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let pp_sigma out sg =
   Caml.Format.pp_open_vbox out 0 ; begin

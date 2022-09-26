@@ -58,9 +58,13 @@ r : i -> i -> \o.
           const formulaText = $(this).text();
           const url = makeURL(premadeSignature, formulaText);
           const formulaExpr = profint.formulaToHTML(formulaText);
-          const html = katex.renderToString(formulaExpr, katex_options);
-          let anc = $('<a>').attr('href', url).html(html);
-          $(this).empty().append(anc);
+          try {
+            const html = katex.renderToString(formulaExpr, katex_options);
+            let anc = $('<a>').attr('href', url).html(html);
+            $(this).empty().append(anc);
+          } catch (error) {
+            console.error(`KATEX PARSE ERROR\nformulaText=${formulaText}\nformulaExpr=${formulaExpr}\n${error}`)
+          }
         });
       });
     </script>

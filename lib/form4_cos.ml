@@ -178,7 +178,7 @@ exception Bad_spines of {
   }
 
 let rec spine_equations (ty : Ty.t) (ss : spine) (ts : spine) : form list =
-  let ty = Ty.norm ty in
+  let ty = Ty.norm_exn ty in
   match ty, ss, ts with
   | Arrow (tya, ty), (s :: ss), (t :: ts) ->
       (if Term.eq_term s t then [] else [mk_eq s t tya]) @

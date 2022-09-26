@@ -7,74 +7,34 @@
 
 open Base
 
-type box =
-  | NOBOX
-  | H | V of int | HV of int | HOV of int
+type doc = Caml.Format.formatter -> unit
 
-type doc =
-  | String of string
-  | StringAs of int * string
-  | Fmt of (Caml.Format.formatter -> unit)
-  | Break of int * int
-  | Group of box * doc list
-  | Newline
+let string s : doc =
+  fun out -> Caml.Format.pp_print_string out s
 
-let space n = Break (n, 0)
-let cut = Break (0, 0)
+let string_as n s : doc =
+  fun out -> Caml.Format.pp_print_as out n s
 
-let rec doc_map_strings fn = function
-  | String s -> fn ~elen:(String.length s) s
-  | StringAs (elen, s) -> fn ~elen s
-  | Group (b, ds) -> Group (b, List.map ~f:(doc_map_strings fn) ds)
-  | (Fmt _ | Break _ | Newline) as d -> d
+let cut : doc =
+  fun out -> Caml.Format.pp_print_cut out ()
 
-let rec pp_doc ff = function
-  | String s ->
-      Caml.Format.pp_print_string ff s
-  | StringAs (n, s) ->
-      Caml.Format.pp_print_as ff n s
-  | Fmt fmt -> fmt ff
-  | Break (nsp, offs) ->
-      Caml.Format.pp_print_break ff nsp offs
-  | Group (b, ds) ->
-      begin match b with
-      | NOBOX -> ()
-      | H -> Caml.Format.pp_open_hbox ff ()
-      | V ind -> Caml.Format.pp_open_vbox ff ind
-      | HV ind -> Caml.Format.pp_open_hvbox ff ind
-      | HOV ind -> Caml.Format.pp_open_hovbox ff ind
-      end ;
-      List.iter ~f:(pp_doc ff) ds ;
-      begin match b with
-      | NOBOX -> ()
-      | _ -> Caml.Format.pp_close_box ff ()
-      end
-  | Newline ->
-      Caml.Format.pp_force_newline ff ()
+let (++) d1 d2 : doc =
+  fun out -> d1 out ; d2 out
 
-let lin_doc_buffer buf d =
+let pp out (doc : doc) = doc out
+
+let to_string (doc : doc) =
+  let buf = Buffer.create 19 in
   let out = Caml.Format.formatter_of_buffer buf in
-  let rec output = function
-    | String s | StringAs (_, s) ->
-        Caml.Format.pp_print_string out s
-    | Fmt fmt ->
-        Caml.Format.fprintf out "%t" fmt
-    | Group (_, ds) ->
-        List.iter ~f:output ds
-    | Break (0, _) -> ()
-    | Break _ | Newline ->
-        Caml.Format.pp_print_char out ' '
-  in
-  output d ;
-  Caml.Format.pp_print_flush out ()
-
-let lin_doc d =
-  let buf = Buffer.create 10 in
-  lin_doc_buffer buf d ;
+  Caml.Format.pp_set_geometry out
+    ~margin:100_000_000
+    ~max_indent:99_999_999 ;
+  doc out ;
+  Caml.Format.pp_print_flush out () ;
   Buffer.contents buf
 
-let pp_lin_doc out d =
-  lin_doc d |> Caml.Format.pp_print_string out
+let pp_linear out (doc : doc) =
+  Caml.Format.pp_print_as out 0 (to_string doc)
 
 type wrapping = Transparent | Opaque
 
@@ -94,11 +54,6 @@ let rec ( >=? ) prec be = match be with
   | Appl (subprec, _) when prec >= subprec -> true
   | Wrap (Transparent, _, be, _) -> prec >=? be
   | _ -> false
-
-(* let rec ( >? ) prec be = match be with
- *   | Atom _ -> false
- *   | Wrap (_, _, be, _) -> prec >? be
- *   | _ -> true *)
 
 let rec ( >? ) prec be = match be with
   | Appl (subprec, _) when prec > subprec -> true
@@ -161,9 +116,9 @@ let rec reprec e =
   end
 
 let delimit ?(cond=true) ~ld ~rd d =
-  if not cond then d else Group (H, [ld ; d ; rd])
+  if not cond then d else ld ++ d ++ rd
 
-let rec bracket ~ld ~rd = function
+let rec bracket ~(ld:doc) ~(rd:doc) = function
   | Atom d -> d
   | Wrap (_, ld1, be, rd1) ->
       delimit ~ld:ld1 ~rd:rd1 (bracket ~ld ~rd be)
@@ -171,18 +126,16 @@ let rec bracket ~ld ~rd = function
       match appl with
       | Prefix (oprep, be) ->
           let opd = bracket ~ld ~rd be in
-          Group begin HOV 2, [
-              oprep ;
-              delimit opd ~ld ~rd
-                ~cond:(prec >? be && not (is_prefix be)) ;
-            ] end
+          Caml.Format.dprintf "@[<hov2>%t%t@]"
+            oprep
+            (delimit opd ~ld ~rd
+               ~cond:(prec >? be && not (is_prefix be)))
       | Postfix (oprep, be) ->
           let opd = bracket ~ld ~rd be in
-          Group begin H, [
-              delimit opd ~ld ~rd
-                ~cond:(prec >? be && not (is_postfix be)) ;
-              oprep
-            ] end
+          Caml.Format.dprintf "@[<h>%t%t@]"
+            (delimit opd ~ld ~rd
+               ~cond:(prec >? be && not (is_postfix be)))
+            oprep
       | Infix (oprep, asc, l :: es) ->
           let ms, r = match List.rev es with
             | r :: rms -> List.rev rms, r
@@ -199,10 +152,16 @@ let rec bracket ~ld ~rd = function
                 [oprep ; delimit (bracket ~ld ~rd e) ~ld ~rd ~cond:(prec >=? e)]
               end ms in
           let ms = List.concat ms in
-          Group (HOV 0, l :: ms @ [oprep ; r])
+          fun out -> begin
+              Caml.Format.pp_open_hovbox out 0 ;
+              l out ;
+              List.iter ~f:(fun m -> m out) ms ;
+              oprep out ; r out ;
+              Caml.Format.pp_close_box out ()
+            end
       | Infix (_, _, []) -> invalid_arg "bracket"
     end
 
-let bracket ?(ld = String "(") ?(rd = String ")") e =
+let bracket ?(ld = string "(") ?(rd = string ")") e =
   let (e, _) = reprec e in
   bracket ~ld ~rd e

@@ -18,7 +18,7 @@ let pp_ty = To_katex.pp_ty
 
 let termx_to_exp_ ~cx t = To_katex.termx_to_exp_ ~cx t
 let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
-let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_linear out
 
 let rec formx_to_exp_ ~cx (path : path) f =
   match expose f with
@@ -56,12 +56,12 @@ let rec formx_to_exp_ ~cx (path : path) f =
       match md with
       | T.App { head = Const ({base = "hl" ; _}, _) ; _ } ->
           Doc.(Wrap (Transparent,
-                     StringAs (0, "\\hl{"),
-                     doc, StringAs (0, "}")))
+                     string_as 0 "\\hl{",
+                     doc, string_as 0 "}"))
       | _ -> assert false
     end
 let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx Q.empty fx.data
-let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let mk_hl f =
   Mk.mk_mdata (T.App { head = Const (Ident.of_string "hl", K.ty_any) ; spine = [] }) K.ty_any f

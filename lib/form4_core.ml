@@ -65,24 +65,24 @@ let rec form_to_exp ~cx f =
   | Eq (s, t, _) ->
       let s = term_to_exp ~cx s in
       let t = term_to_exp ~cx t in
-      Doc.(Appl (40, Infix (String " = ", Non, [s ; t])))
+      Doc.(Appl (40, Infix (string " = ", Non, [s ; t])))
   | And (a, b) ->
       let a = form_to_exp ~cx a in
       let b = form_to_exp ~cx b in
-      Doc.(Appl (30, Infix (StringAs (3, " ∧ "), Right, [a ; b])))
-  | Top -> Doc.(Atom (String "True"))
+      Doc.(Appl (30, Infix (string_as 3 " ∧ ", Right, [a ; b])))
+  | Top -> Doc.(Atom (string "True"))
   | Or (a, b) ->
       let a = form_to_exp ~cx a in
       let b = form_to_exp ~cx b in
-      Doc.(Appl (20, Infix (StringAs (3, " ∨ "), Right, [a ; b])))
-  | Bot -> Doc.(Atom (String "False"))
+      Doc.(Appl (20, Infix (string_as 3 " ∨ ", Right, [a ; b])))
+  | Bot -> Doc.(Atom (string "False"))
   | Imp (a, b) ->
       let a = form_to_exp ~cx a in
       let b = form_to_exp ~cx b in
-      Doc.(Appl (10, Infix (StringAs (3, " → "), Right, [a ; b])))
+      Doc.(Appl (10, Infix (string_as 3 " → ", Right, [a ; b])))
   | Forall (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Doc.Fmt Caml.Format.(fun out ->
+        let q = Caml.Format.(fun out ->
             pp_print_as out 3 "∀ (" ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " : " ;
@@ -93,7 +93,7 @@ let rec form_to_exp ~cx f =
       end
   | Exists (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Doc.Fmt Caml.Format.(fun out ->
+        let q = Caml.Format.(fun out ->
             pp_print_as out 3 "∃ (" ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " : " ;
@@ -106,7 +106,7 @@ let rec form_to_exp ~cx f =
 
 let formx_to_exp (fx : formx) = form_to_exp ~cx:fx.tycx fx.data
 
-let pp_form ~cx out f = form_to_exp ~cx f |> Doc.bracket |> Doc.pp_lin_doc out
+let pp_form ~cx out f = form_to_exp ~cx f |> Doc.bracket |> Doc.pp_linear out
 let pp_formx out (fx : formx) = pp_form ~cx:fx.tycx out fx.data
 
 let form_to_string ~cx f = pp_to_string (pp_form ~cx) f
