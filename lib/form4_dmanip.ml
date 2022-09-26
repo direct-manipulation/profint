@@ -227,10 +227,10 @@ let can_descend (dir : Side.t) concl =
       (not @@ equal_path concl.lpath single_l)
   | L, R ->
       (* descend left on l2r links only if already at dest *)
-      (not @@ equal_path concl.rpath single_r)
+      (equal_path concl.rpath single_r)
   | R, L ->
       (* descend right on r2l links only if already at dest *)
-      (not @@ equal_path concl.lpath single_l)
+      (equal_path concl.lpath single_l)
   | R, R ->
       (* descend right on l2r links unless already at dest *)
       (not @@ equal_path concl.rpath single_r)
