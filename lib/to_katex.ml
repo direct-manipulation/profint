@@ -192,8 +192,7 @@ let formx_to_string fx =
     ) ;
   Buffer.contents buf
 
-let pp_formx out fx =
-  Caml.Format.pp_print_as out 0 (formx_to_string fx)
+let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let pp_sigma out sg =
   Caml.Format.pp_open_vbox out 0 ; begin
