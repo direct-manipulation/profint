@@ -14,8 +14,6 @@ const katex_options = {
   trust: true,
   output: "html",
   strict: false,
-  displayMode: true,
-  fleqn: true,
   maxExpand: Infinity,
   macros
 };
@@ -189,7 +187,7 @@ demo.doRedo = doRedo;
 function renderFormula() {
   clearLinks();
   $("#output").html(function(){
-    const expr = profint.getStateHTML();
+    const expr = '\\displaystyle{' + profint.getStateHTML() + '}';
     // console.log("render: " + expr);
     const rend = katex.renderToString(expr, katex_options);
     // console.log("render: " + rend);

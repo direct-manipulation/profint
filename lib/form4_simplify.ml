@@ -131,10 +131,10 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : pa
             if not @@ Side.equal side R then OTHER (Mk.mk_ex vty b) else
             match Option.(ebind 0 b >>= Term.lower ~above:0 ~by:1) with
             | Some t -> begin
-                Caml.Format.printf "Found e-subst: %s := %a@.For: %a@."
-                  (Ident.to_string vty.var)
-                  (Term.pp_term ~cx:fx.tycx) t
-                  (pp_form ~cx:tycx) b ;
+                (* Caml.Format.printf "Found e-subst: %s := %a@.For: %a@." *)
+                (*   (Ident.to_string vty.var) *)
+                (*   (Term.pp_term ~cx:fx.tycx) t *)
+                (*   (pp_form ~cx:tycx) b ; *)
                 let cpr = emit { name = Inst { side ; term = t |@ fx } ; path } in
                 let b = cpr.prin in
                 (* Caml.Format.printf "Result of e-subst: %a@.prin = %a@." *)
@@ -154,8 +154,8 @@ and ebind n f =
   match expose f with
   | Eq (s, t, _) -> begin
       let u = T.App { head = Index n ; spine = [] } in
-      if Term.eq_term u s then Some t else
-      if Term.eq_term u t then Some s else None
+      if Term.eq_term u s && suitable n t then Some t else
+      if Term.eq_term u t && suitable n s then Some s else None
     end
   | And (f, g) -> begin
       match ebind n f with
@@ -194,6 +194,18 @@ and ubind n f =
         Term.lower ~above:0 ~by:1 t)
   | Top | Or _ | Bot | Eq _ | Atom _ -> None
   | Mdata (_, _, f) -> ubind n f
+
+and suitable n t =
+  match t with
+  | T.App { head ; spine } ->
+      suitable_head n head && List.for_all spine ~f:(suitable n)
+  | T.Abs { body ; _ } ->
+      suitable (n + 1) body
+
+and suitable_head n head =
+  match head with
+  | T.Const _ -> true
+  | T.Index k -> k > n
 
 let recursive_simplify ~emit fx path side =
   ignore @@ recursive_simplify ~emit fx path side

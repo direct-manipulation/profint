@@ -28,6 +28,8 @@ let texify id =
         i ^ "_{" ^ n ^ "}"
       end ~init:last rev_rest
 
+let tex_string str = Doc.string_as (String.length str) (texify str)
+
 let rec ty_to_exp ty =
   match ty with
   | Ty.Basic a ->
@@ -61,12 +63,20 @@ let rec termx_to_exp_ ~cx t =
         Doc.(Appl (1, Prefix (rep_lambda (Ident.to_string vty.var), termx_to_exp_  ~cx body)))
       end
   | T.App { head ; spine = [] } ->
-      let rep = Term.head_to_string ~cx head in
-      Doc.(Atom (string_as (String.length rep) (texify rep)))
+      head_to_exp_ ~cx head
   | T.App { head ; spine } ->
-      let head = Term.head_to_exp ~cx head in
+      let head = head_to_exp_ ~cx head in
       let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
       Doc.(Appl (100, Infix (rep_appl, Left, (head :: spine))))
+
+and head_to_exp_ ~cx head =
+  match head with
+  | T.Const (k, _) ->
+      let k = Ident.to_string k in
+      Doc.(Atom (string_as 0 "\\mathsf{" ++ tex_string k ++ string_as 0 "}"))
+  | T.Index n ->
+      let v = Ident.to_string (List.nth_exn cx.linear n).var in
+      Doc.(Atom (tex_string v))
 
 let termx_to_exp tx =
   Doc.(Wrap (Transparent,
