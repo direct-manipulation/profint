@@ -186,8 +186,9 @@ demo.doRedo = doRedo;
 
 function renderFormula() {
   clearLinks();
-  $("#output").html(function(){
-    const expr = '\\displaystyle{' + profint.getStateHTML() + '}';
+  const output = $("#output");
+  output.html(function(){
+    const expr = '\\displaystyle{' + profint.getStateTeX() + '}';
     // console.log("render: " + expr);
     const rend = katex.renderToString(expr, katex_options);
     // console.log("render: " + rend);
@@ -266,16 +267,6 @@ function renderFormula() {
     $(this).removeClass("hl-range");
     // $("span.enclosing").css({"border-bottom": "0"});
   });
-  $("#history").html(function(){
-    const expr = profint.historyHTML();
-    return katex.renderToString(expr, katex_options);
-  });
-  $("#doUndo").prop("disabled", profint.countHistory() <= 0);
-  $("#future").html(function(){
-    const expr = profint.futureHTML();
-    return katex.renderToString(expr, katex_options);
-  });
-  $("#doRedo").prop("disabled", profint.countFuture() <= 0);
   $("#output .brk").html("<br>");
   $("#output span[data-spc]").html(function(){
     // console.log('data: ', $(this).data("spc"));
@@ -287,6 +278,79 @@ function renderFormula() {
     // $(this).css({ "white-space": "pre" })
     //   .html(''.padEnd($(this).data("spc")));
   });
+  const outWidth = output.width();
+  // HISTORY
+  let historyCount = 0;
+  $("#history").html(function(){
+    let arr = profint.historyTeX();
+    historyCount = arr.length;
+    arr = arr.map(expr => {
+      return ["<div class='elem'>",
+              katex.renderToString(expr + "\\mathstrut", katex_options),
+              "</div>"].join("");
+    });
+    return arr.join("");
+  });
+  $("#history > div").each(function(index) {
+    if (index + 1 == historyCount) return;
+    const next = $(this).next();
+    if ($(this).width() > next.width()) {
+      $(this).addClass("b-bot");
+      next.removeClass("b-top");
+    } else {
+      next.addClass("b-top");
+      $(this).removeClass("b-bot");
+    }
+  });
+  if (historyCount > 0) {
+    const first = $("#history > div:first-child");
+    // console.log('history.width:', first.width(), outWidth);
+    if (first.width() > outWidth) {
+      first.addClass("b-top");
+      output.removeClass("b-bot");
+    } else {
+      output.addClass("b-bot");
+      first.removeClass("b-top");
+    }
+  } else
+    output.removeClass("b-bot");
+  $("#doUndo").prop("disabled", historyCount <= 0);
+  // FUTURE
+  let futureCount = 0;
+  $("#future").html(function(){
+    let arr = profint.futureTeX();
+    futureCount = arr.length;
+    arr = arr.map(expr => {
+      return ["<div class='elem'>",
+              katex.renderToString(expr + "\\mathstrut", katex_options),
+              "</div>"].join("");
+    });
+    return arr.join("");
+  });
+  $("#future > div").each(function(index) {
+    if (index == 0) return;
+    const prev = $(this).prev();
+    if ($(this).width() > prev.width()) {
+      $(this).addClass("b-top");
+      prev.removeClass("b-bot");
+    } else {
+      prev.addClass("b-bot");
+      $(this).removeClass("b-top");
+    }
+  });
+  if (futureCount > 0) {
+    const last = $("#future > div:last-child");
+    // console.log('future.width:', last.width(), outWidth);
+    if (last.width() > outWidth) {
+      last.addClass("b-bot");
+      output.removeClass("b-top");
+    } else {
+      output.addClass("b-top");
+      last.removeClass("b-bot");
+    }
+  } else
+    output.removeClass("b-top");
+  $("#doRedo").prop("disabled", futureCount <= 0);
 }
 
 function setFormula(text) {
@@ -294,8 +358,8 @@ function setFormula(text) {
   if (res) renderFormula();
   else {
     // console.log("formChange() failed");
-    $("#output").css({"background-color": "red"});
-    $("#output").animate({"background-color": "white"}, "slow");
+    output.css({"background-color": "red"});
+    output.animate({"background-color": "white"}, "slow");
   }
 }
 
@@ -387,7 +451,7 @@ function demoSetup() {
   if (!sigText) {
     demo.toggleSignature = () => {};
     $("button, select").prop("disabled", true);
-    $("#output").html("<h3><em>Invalid parameters!</em></h3><br>Could not initialize profint");
+    output.html("<h3><em>Invalid parameters!</em></h3><br>Could not initialize profint");
     $("#future, #history").html("");
     throw new Error("Could not initialize profint!");
   }

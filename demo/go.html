@@ -41,9 +41,13 @@
           right: 0;
       }
       #interface { visibility: hidden; }
-      .icon { font-family:'Material Icons'; font-size: inherit; vertical-align: middle; }
+      .icon {
+          font-family:'Material Icons';
+          font-size: inherit;
+          vertical-align: middle;
+      }
       #output-container {
-          margin-top: 10px;
+          margin: 0 0;
           overflow-x: auto;
           width: 100%;
           text-align: center;
@@ -52,20 +56,30 @@
           display: inline-block;
           font-size: 250%;
           text-align: left;
-          /* margin-top: 10px; */
-          /* font-size: 200%; */
-          /* overflow-x: auto; */
-          /* white-space: nowrap; */
-          /* width: 100%; */
+          padding: 2vh 2vh;
+          box-shadow:
+              rgba(50, 0, 20, 0.5) inset 0px 0px 6px 3px;
       }
       #output .enclosing {border-bottom: 0;}
       #output .hl-range {border-bottom: 3px solid red;}
       #output > .katex-display { margin: 0 0; }
-      .f-src {background-color: #f2cf98;}
-      .f-dest {background-color: #9cb3e0;}
-      .link-droppable {background-color: #9cc8f8;}
-      #history { margin-top: 10px; font-size: 150%; }
-      #future { margin-top: 10px; margin-bottom: 10px; font-size: 150%; }
+      .f-src {
+          background-color: rgba(242, 207, 152, .5);
+          box-shadow: rgba(242, 207, 152, 0.5) 0px 0px 6px 3px;
+      }
+      .f-dest, .link-droppable {
+          background-color: rgba(156, 200, 248, .5);
+          box-shadow: rgba(156, 200, 248, 0.5) 0px 0px 6px 3px;
+      }
+      .b-top { border-top: 2px solid black; }
+      .b-bot { border-bottom: 2px solid black; }
+      .b-none { border: none; }
+      #history, #future {
+          font-size: 150%;
+          display: flex;
+          align-items: center;
+          flex-direction: column;
+      }
       .center-screen {
           display: flex;
           flex-direction: column;

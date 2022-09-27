@@ -57,7 +57,7 @@ r : i -> i -> \o.
         $("#premade span.f").each(function(){
           const formulaText = $(this).text();
           const url = makeURL(premadeSignature, formulaText);
-          const formulaExpr = profint.formulaToHTML(formulaText);
+          const formulaExpr = profint.formulaToTeX(formulaText);
           try {
             const html = katex.renderToString(formulaExpr, katex_options);
             let anc = $('<a>').attr('href', url).html(html);
@@ -183,7 +183,7 @@ a, t : i -&gt; i -&gt; \o.</pre>
             return allOk;
           }
           function formEditorUpdate(e) {
-            const formExpr = profint.formulaToHTML(formEditor.getValue());
+            const formExpr = profint.formulaToTeX(formEditor.getValue());
             isOk.form = false;
             if (formExpr) {
               isOk.form = true;
@@ -326,12 +326,12 @@ a, t : i -&gt; i -&gt; \o.</pre>
         <script>
           profint.signatureChange(premadeSignature);
           $(".tex-form").each(function (elem) {
-            const form = profint.formulaToHTML($(this).html());
+            const form = profint.formulaToTeX($(this).html());
             const html = katex.renderToString(form, katex_options);
             $(this).html(html);
           });
           $(".tex-term").each(function (elem) {
-            const form = profint.termToHTML($(this).html());
+            const form = profint.termToTeX($(this).html());
             const html = katex.renderToString(form, katex_options);
             $(this).html(html);
           });

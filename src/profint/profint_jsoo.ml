@@ -136,49 +136,41 @@ let profint_object =
     method formulaChange text =
       change_formula @@ Js.to_string text
 
-    method getStateHTML =
+    method getStateTeX =
       stage_to_string state.goal |> Js.string
 
-    method termToHTML text =
+    method termToTeX text =
       try
         let (f, _) = Uterm.term_of_string @@ Js.to_string text in
         Js.some @@ Js.string @@ pp_to_string To.Katex.pp_termx @@ Types.triv f
       with _ -> Js.null
 
-    method formulaToHTML text =
+    method formulaToTeX text =
       try
         let f = Uterm.form_of_string @@ Js.to_string text in
         Js.some @@ Js.string @@ pp_to_string To.Katex.pp_formx @@ Types.triv f
       with _e ->
-        (* Caml.Format.eprintf "formulaToHTML: %S: %s@." *)
+        (* Caml.Format.eprintf "formulaToTeX: %S: %s@." *)
         (*   (Js.to_string text) *)
         (*   (Printexc.to_string e) ; *)
         Js.null
 
-    method historyHTML =
-      let contents =
-        state.history
-        |> List.map ~f:stage_to_string
-        |> String.concat ~sep:{| \mathstrut \\ \hline |}
-      in
-      {| \begin{array}{c} \hline |} ^ contents ^ {| \end{array} |}
-      |> Js.string
+    method historyTeX =
+      match state.history with
+      | [] -> Js.array [| |]
+      | _ -> state.history
+             |> List.map ~f:(fun stg -> Js.string @@ stage_to_string stg)
+             |> Array.of_list
+             |> Js.array
 
-    method countHistory = List.length state.history
-    method countFuture = List.length state.future
-
-    method futureHTML =
-      let str = match state.future with
-        | [] -> ""
-        | _ ->
-            let contents =
-              state.future
-              |> List.rev_map ~f:stage_to_string
-              |> String.concat ~sep:{| \mathstrut \\ \hline |}
-            in
-            {| \begin{array}{c} |} ^ contents ^ {| \\ \hline \end{array} |}
-      in
-      Js.string str
+    method futureTeX =
+      match state.future with
+      | [] -> Js.array [| |]
+      | _ ->
+          state.future
+          |> List.rev_map ~f:(fun stg -> Js.string @@ stage_to_string stg)
+          |> Array.of_list
+          |> Js.array
 
     method doUndo =
       match state.history with
