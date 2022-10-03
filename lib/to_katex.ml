@@ -33,7 +33,7 @@ let tex_string str = Doc.string_as (String.length str) (texify str)
 let rec ty_to_exp ty =
   match ty with
   | Ty.Basic a ->
-      let rep = if Ident.equal a Ty.k_o then "Prop" else (Ident.to_string a) in
+      let rep = if Ident.equal a Ty.k_o then "o" else (Ident.to_string a) in
       let len = String.length rep in
       let rep = "\\mathsf{" ^ texify rep ^ "}" in
       Doc.(Atom (string_as len rep))

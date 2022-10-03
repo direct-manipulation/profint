@@ -73,11 +73,11 @@ let pp_sigma out sg =
   Caml.Format.pp_open_vbox out 0 ; begin
     Set.iter ~f:begin fun i ->
       if Set.mem sigma0.basics i then () else
-        Caml.Format.fprintf out {|%s &: \mathsf{type}.\\@,|} (Ident.to_string i)
+        Caml.Format.fprintf out {|\mathsf{%s} &: \mathsf{type}.\\@,|} (Ident.to_string i)
     end sg.basics ;
     Map.iteri ~f:begin fun ~key:k ~data:ty ->
       if Map.mem sigma0.consts k then () else
-        Caml.Format.fprintf out {|%s &: %a.\\@,|} (Ident.to_string k) pp_ty (thaw_ty ty)
+        Caml.Format.fprintf out {|\mathsf{%s} &: %a.\\@,|} (Ident.to_string k) pp_ty (thaw_ty ty)
     end sg.consts
   end ; Caml.Format.pp_close_box out () ;
   Caml.Format.pp_print_string out {|\end{align*}
@@ -114,10 +114,10 @@ let pp_footer out () =
 
 let pp_deriv out (sg, deriv) =
   pp_header out () ;
-  let chunks = CCList.chunks 30 (deriv.Cos.middle) in
+  let chunks = CCList.chunks 30 (List.rev deriv.Cos.middle) in
   List.iter ~f:begin fun chunk ->
-    let (top, _, _) = List.hd_exn chunk in
-    let chunk = List.rev chunk in
+    let (top, _, _) = List.last_exn chunk in
+    (* let chunk = List.rev chunk in *)
     Caml.Format.fprintf out {|\begin{gather*}
 |} ;
     List.iter ~f:begin fun (_, rule, concl) ->
@@ -129,7 +129,7 @@ let pp_deriv out (sg, deriv) =
 \end{gather*}
 \clearpage
 |} pp_formx top (String.make (List.length chunk) '}') ;
-  end (List.rev chunks) ;
+  end chunks ; (* (List.rev chunks) ; *)
   pp_sigma out sg ;
   pp_footer out ()
 
@@ -138,8 +138,16 @@ let pp_comment out str =
            pp_print_string out str ;
            pp_print_newline out () )
 
+let makefile = {|
+.DEFAULT_GOAL := proof.pdf
+
+%.pdf: %.tex
+	pdflatex -interaction batchmode $(<)
+|} |> String.strip
+
 let name = "pdf"
 let files pf = [
-  File { fname = "proof.tex" ; contents = pf }
+  File { fname = "proof.tex" ; contents = pf } ;
+  File { fname = "Makefile" ; contents = makefile } ;
 ]
-let build () = "latexmk -pdfxe proof.tex"
+let build () = "make -k"

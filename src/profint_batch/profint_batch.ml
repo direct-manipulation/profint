@@ -122,15 +122,19 @@ let process_file out ~mode fname =
       List.iteri ~f:(process_problem out ~mode ~fname) probs
   | _ -> bad_json ()
 
-let run_command cmd =
+let run_command ?(print : unit option) cmd =
   let cmd = cmd ^ " 2>&1" in
+  Caml.Printf.printf "Running [CWD=%s]: %s\n%!"
+    (Unix.getcwd ()) cmd ;
   let ic = Unix.open_process_in cmd in
   match Unix.waitpid [] (Unix.process_in_pid ic) with
   | (_, Unix.WEXITED 0) ->
-      read_all ic
+      let output = read_all ic in
+      if Option.is_some print then
+        Caml.Printf.printf "%s\n%!" (setoff "> " output) ;
   | _ | exception _ ->
-      Caml.Printf.eprintf "Error in subprocess\nCommand: \"%s\"\n%s\n%!"
-        cmd (setoff "> " (read_all ic)) ;
+      Caml.Printf.eprintf "Error in subprocess:\n%s\n%!"
+        (setoff "> " (read_all ic)) ;
       failwith "Error in subprocess"
 
 let main () =
@@ -166,7 +170,7 @@ let main () =
   let outdir = serialize_into !outdir !mode proofs in
   if !doit then begin
     Unix.chdir outdir ;
-    ignore (run_command (T.build ()) : string) ;
+    run_command ~print:() (T.build ()) ;
     Caml.Printf.printf "Build complete.\n"
   end
 
