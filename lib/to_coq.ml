@@ -193,6 +193,34 @@ let pp_rule out goal rule =
             end
         | _ -> fail ()
       end
+    | Cos.Rewrite { from } -> begin
+        let dstr = match from with L -> "ltr" | _ -> "rtl" in
+        let fail () =
+          unprintable @@ "rewrite_" ^ dstr ^ ": got " ^
+                         pp_to_string Form4.pp_formx { tycx = cx ; data = f } in
+        match expose f with
+        | Imp (a, b) -> begin
+            match expose a with
+            | Eq (s, t, ty) -> begin
+                let tfrom, tto = match from with
+                  | L -> s, t
+                  | _ -> t, s
+                in
+                let var = Ident.of_string "__profint_var" in
+                let const = T.App { head = Const (var, ty) ; spine = [] } in
+                let pbody = Term.rewrite ~tfrom ~tto:const b in
+                Caml.Format.fprintf out "%@rewrite_%s (%a) (%a) (%a) (fun (%s : %a) => %a)"
+                  dstr
+                  pp_ty ty
+                  pp_termx { tycx = cx ; data = tfrom }
+                  pp_termx { tycx = cx ; data = tto }
+                  (Ident.to_string var) pp_ty ty
+                  pp_formx { tycx = cx ; data = pbody }
+              end
+            | _ -> fail ()
+          end
+        | _ -> fail ()
+      end
     | _ -> Cos.pp_rule_name out name
   in
   let rec pp_path n cx f0 path =

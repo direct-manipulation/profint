@@ -214,7 +214,7 @@ let pp_rule out (prem, rule, goal) =
                 let var = Ident.of_string "__profint_var" in
                 let const = T.App { head = Const (var, ty) ; spine = [] } in
                 let pbody = Term.rewrite ~tfrom ~tto:const b in
-                Caml.Format.fprintf out "%@rewrite_%s %a (fun (%s : %a), %a) (%a) (%a)"
+                Caml.Format.fprintf out "%@rewrite_%s (%a) (fun (%s : %a), %a) (%a) (%a)"
                   dstr
                   pp_ty ty
                   (Ident.to_string var) pp_ty ty
