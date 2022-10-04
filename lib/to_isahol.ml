@@ -5,7 +5,7 @@
  * See LICENSE for licensing details.
  *)
 
-(** Output suitable for Coq *)
+(** Output suitable for Isabelle/HOL *)
 
 open Base
 
@@ -336,7 +336,7 @@ let pp_rule stepno out (prem, rule, goal) =
 let pp_step out stepno prc = pp_rule stepno out prc
 
 let pp_deriv out (sg, deriv) =
-  Caml.Format.fprintf out "lemma profint__export:@.%a  assumes prem: \"%a\"@.  shows \"%a\"@."
+  Caml.Format.fprintf out "lemma@.%a  assumes prem: \"%a\"@.  shows \"%a\"@."
     pp_sigma sg
     pp_formx deriv.Cos.top
     pp_formx deriv.Cos.bottom ;
@@ -347,7 +347,7 @@ let pp_deriv out (sg, deriv) =
   Caml.Format.fprintf out "show \"%a\" by (rule l%d)@]@."
     pp_formx deriv.Cos.bottom
     (List.length deriv.Cos.middle) ;
-  Caml.Format.fprintf out "qed@.@.print_statement profint__export@."
+  Caml.Format.fprintf out "qed@."
 
 let pp_header out () =
   Caml.Format.fprintf out "import Profint@." ;
@@ -356,7 +356,7 @@ let pp_header out () =
 let pp_footer _out () = ()
 
 let pp_comment out str =
-  Caml.Format.fprintf out "/- %s -/@\n" str
+  Caml.Format.fprintf out "(* %s *)@\n" str
 
 let name = "isahol"
 let files pf =
@@ -369,6 +369,11 @@ let files pf =
     File { fname = "Proof.thy" ;
            contents = replace [%blob "lib/systems/isabelle_hol/Proof.thy"] } ;
     File { fname = "ROOT" ;
-           contents = replace [%blob "lib/systems/isabelle_hol/ROOT"] } ;
+           contents = [%blob "lib/systems/isabelle_hol/ROOT"] } ;
+    Dir { dname = "document" ;
+          contents = [
+            File { fname = "root.tex" ;
+                   contents = [%blob "lib/systems/isabelle_hol/document/root.tex"] } ;
+          ] } ;
   ]
-let build () = "leanpkg build"
+let build () = {|isabelle build -D .|}

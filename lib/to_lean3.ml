@@ -5,7 +5,7 @@
  * See LICENSE for licensing details.
  *)
 
-(** Output suitable for Coq *)
+(** Output suitable for Lean3 *)
 
 open Base
 
