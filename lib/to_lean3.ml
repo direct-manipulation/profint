@@ -189,13 +189,41 @@ let pp_rule out (prem, rule, goal) =
         | Forall ({ var ; ty }, b)
         | Exists ({ var ; ty }, b) ->
             with_var cx { var ; ty } begin fun { var ; ty } cx ->
-              Caml.Format.fprintf out "@@inst_%s %a (fun (%s : %a), %a) (%a)"
+              Caml.Format.fprintf out "%@inst_%s %a (fun (%s : %a), %a) (%a)"
                 (match side with L -> "l" | _ -> "r")
                 pp_ty ty
                 (Ident.to_string var) pp_ty ty
                 pp_formx { tycx = cx ; data = b }
                 pp_termx tx
             end
+        | _ -> fail ()
+      end
+    | Cos.Rewrite { from } -> begin
+        let dstr = match from with L -> "ltr" | _ -> "rtl" in
+        let fail () =
+          unprintable @@ "rewrite_" ^ dstr ^ ": got " ^
+                         pp_to_string Form4.pp_formx { tycx = cx ; data = fc } in
+        match expose fc with
+        | Imp (a, b) -> begin
+            match expose a with
+            | Eq (s, t, ty) -> begin
+                let tfrom, tto = match from with
+                  | L -> s, t
+                  | _ -> t, s
+                in
+                let var = Ident.of_string "__profint_var" in
+                let const = T.App { head = Const (var, ty) ; spine = [] } in
+                let pbody = Term.rewrite ~tfrom ~tto:const b in
+                Caml.Format.fprintf out "%@rewrite_%s %a (fun (%s : %a), %a) (%a) (%a)"
+                  dstr
+                  pp_ty ty
+                  (Ident.to_string var) pp_ty ty
+                  pp_formx { tycx = cx ; data = pbody }
+                  pp_termx { tycx = cx ; data = tfrom }
+                  pp_termx { tycx = cx ; data = tto }
+              end
+            | _ -> fail ()
+          end
         | _ -> fail ()
       end
     | _ -> Cos.pp_rule_name out name
@@ -212,37 +240,37 @@ let pp_rule out (prem, rule, goal) =
     | Some (dir, path) -> begin
         match expose goal, expose prem, dir with
         | And (b, c), And (a, _), Paths.Dir.L ->
-            Caml.Format.fprintf out "@@go_left_and (%a) (%a) (%a) ("
+            Caml.Format.fprintf out "%@go_left_and (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
         | And (c, b), And (_, a), R ->
-            Caml.Format.fprintf out "@@go_right_and (%a) (%a) (%a) ("
+            Caml.Format.fprintf out "%@go_right_and (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
         | Or (b, c), Or (a, _), L ->
-            Caml.Format.fprintf out "@@go_left_or (%a) (%a) (%a) ("
+            Caml.Format.fprintf out "%@go_left_or (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
         | Or (c, b), Or (_, a), R ->
-            Caml.Format.fprintf out "@@go_right_or (%a) (%a) (%a) ("
+            Caml.Format.fprintf out "%@go_right_or (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
         | Imp (b, c), Imp (a, _), L ->
-            Caml.Format.fprintf out "@@go_left_imp (%a) (%a) (%a) ("
+            Caml.Format.fprintf out "%@go_left_imp (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx a b path
         | Imp (c, b), Imp (_, a), R ->
-            Caml.Format.fprintf out "@@go_right_imp (%a) (%a) (%a) ("
+            Caml.Format.fprintf out "%@go_right_imp (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
@@ -251,7 +279,7 @@ let pp_rule out (prem, rule, goal) =
         | Forall ({ ty ; _ }, q), Forall (_, p), I var ->
             with_var cx { var ; ty } begin fun { var ; _ } cx ->
               let var = Ident.to_string var in
-              Caml.Format.fprintf out "@@go_down_all (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "
+              Caml.Format.fprintf out "%@go_down_all (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "
                 pp_ty ty
                 var pp_ty ty pp_formx { tycx = cx ; data = p }
                 var pp_ty ty pp_formx { tycx = cx ; data = q }
@@ -262,7 +290,7 @@ let pp_rule out (prem, rule, goal) =
         | Exists ({ ty ; _ }, q), Exists (_, p), I var ->
             with_var cx { var ; ty } begin fun { var ; _ } cx ->
               let var = Ident.to_string var in
-              Caml.Format.fprintf out "@@go_down_ex (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "
+              Caml.Format.fprintf out "%@go_down_ex (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "
                 pp_ty ty
                 var pp_ty ty pp_formx { tycx = cx ; data = p }
                 var pp_ty ty pp_formx { tycx = cx ; data = q }
