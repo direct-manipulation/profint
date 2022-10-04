@@ -1,0 +1,14 @@
+[
+  {
+    "sig": [ "i : \\type.",
+             "t : i -> i -> \\o." ],
+    "goal": [ "(\\A [x] t x x \\to \\bot) \\to",
+              "(\\A [x, y, z] t x y \\to t y z \\to t x z) \\to",
+              "(\\A [x, y] t x y \\to t y x \\to \\bot)" ],
+    "msteps": [ "L (go l d r) (go r r d d r r) f"
+              , "L (go l d d d l) (go r d d l) f"
+              , "L (go d d l d l) (go d d r l) f"
+              , "L (go d d l) (go d d r d) f"
+              ]
+  }
+]

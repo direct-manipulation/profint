@@ -14,19 +14,15 @@ def checkDefEq (t1 t2 : Expr) : TacticM Unit := do
   if (← isDefEq t1 t2) then pure ()
   else throwError s!"match failure"
 
-def filterEqns (pins qins pouts qouts : Array Expr) (k : Nat)
-  : TacticM (Array Expr × Array Expr) := do
-  if k >= pins.size then pure ⟨pouts, qouts⟩ else
-  if (← isDefEq pins[k]! qins[k]!) then
-    filterEqns pins qins pouts qouts (k + 1)
-  else
-    filterEqns pins qins (pouts.push pins[k]!) (qouts.push qins[k]!) (k + 1)
-termination_by filterEqns pins _ _ _ k => pins.size - k
-decreasing_by
-  rename_i hgt ; simp_wf ; apply Nat.sub_succ_lt_self
-  simp_arith at hgt |- ; assumption
+def filterSame (qs : Array (Expr × Expr)) : TacticM (Array (Expr × Expr)) := do
+  let mut result := #[]
+  for (s, t) in qs do
+    if !(← isDefEq s t) then
+      result := result.push (s, t)
+  return result
 
 def mkBigEq (qs : Array (Expr × Expr)) : TacticM Expr := do
+  let qs ← filterSame qs
   if qs.isEmpty then return (mkConst ``True) else
   let (s, t) := qs.back
   let mut result ← mkEq s t
@@ -43,11 +39,11 @@ Given:
 Builds:
   - a proof term for: `s1 = t1 ∧ s2 = t2 ∧ ... ∧ sn = tn → p s1 s2 ... sn → p t1 t2 ... tn`
 -/
-def mkProofInit (hd : Expr) (lTy : Expr) (pargs qargs : Array Expr) : TacticM Term := do
+def mkProofInit (hd : Expr) (pargs qargs : Array Expr) : TacticM Term := do
   let qs := Array.zip pargs qargs
   let premise ← mkBigEq qs
   let qTy ← Lean.PrettyPrinter.delab premise
-  let lTy ← Lean.PrettyPrinter.delab lTy
+  let lTy ← Lean.PrettyPrinter.delab (mkAppN hd pargs)
   if qs.size = 0 then `(fun (_ : $(mkIdent ``True)) (x : $lTy) => x) else
   let mut x ← mkIdentFromRef (← mkFreshUserName `x)
   let q ← mkIdentFromRef (← mkFreshUserName `q)
@@ -55,16 +51,17 @@ def mkProofInit (hd : Expr) (lTy : Expr) (pargs qargs : Array Expr) : TacticM Te
   let mut curQ ← `($q:term)
   let mut qargs := qargs
   for i in List.range pargs.size do
-    let u ← mkIdentFromRef (← mkFreshUserName `u)
-    qargs := qargs.set! i (mkBVar 0)
-    let fn ← Lean.PrettyPrinter.delab <|
-               Expr.lam u.getId (← inferType pargs[i]!) (mkAppN hd qargs) BinderInfo.default
-    qargs := qargs.set! i pargs[i]!
-    let eqn ← if i + 1 < pargs.size then `($curQ.1) else `($curQ)
-    let xNew ← mkIdent <$> Lean.Elab.Term.mkFreshBinderName
-    result ← `(let $x := $(mkIdent ``Eq.subst) ($(mkIdent `motive) := $fn) $eqn $xNew ; $result)
-    x := xNew
-    curQ ← `($curQ.2)
+    if !(← isDefEq pargs[i]! qargs[i]!) then
+      let u ← mkIdentFromRef (← mkFreshUserName `u)
+      qargs := qargs.set! i (mkBVar 0)
+      let fn ← Lean.PrettyPrinter.delab <|
+                 Expr.lam u.getId (← inferType pargs[i]!) (mkAppN hd qargs) BinderInfo.default
+      qargs := qargs.set! i pargs[i]!
+      let eqn ← if i + 1 < pargs.size then `($curQ.1) else `($curQ)
+      let xNew ← mkIdent <$> Lean.Elab.Term.mkFreshBinderName
+      result ← `(let $x := $(mkIdent ``Eq.subst) ($(mkIdent `motive) := $fn) $eqn $xNew ; $result)
+      x := xNew
+      curQ ← `($curQ.2)
   `(fun ($q : $qTy) ($x : $lTy) => $result)
 
 /--
@@ -76,9 +73,10 @@ Builds:
   - a proof term for: `s1 = t1 ∧ s2 = t2 ∧ ... ∧ sn = tn → f s1 s2 ... sn = f t1 t2 ... tn`
     (no matter what `f` is)
 -/
-def mkProofCongr (hd lhs : Expr) (fargs gargs : Array Expr) : TacticM Term := do
+def mkProofCongr (hd : Expr) (fargs gargs : Array Expr) : TacticM Term := do
   let qs := Array.zip fargs gargs
   let qTy ← Lean.PrettyPrinter.delab (← mkBigEq qs)
+  let lhs := mkAppN hd fargs
   let lhsTm ← Lean.PrettyPrinter.delab lhs
   if qs.size = 0 then `(fun (_ : $(mkIdent ``True)) => $(mkIdent ``Eq.refl) $lhsTm) else
   let mut x ← mkIdentFromRef (← mkFreshUserName `x)
@@ -87,17 +85,18 @@ def mkProofCongr (hd lhs : Expr) (fargs gargs : Array Expr) : TacticM Term := do
   let mut curQ ← `($q:term)
   let mut gargs := gargs
   for i in List.range fargs.size do
-    let u ← mkIdentFromRef (← mkFreshUserName `u)
-    gargs := gargs.set! i (mkBVar 0)
-    let lhs_here := mkAppN hd gargs
-    let mot := Expr.lam u.getId (← inferType fargs[i]!) (← mkEq lhs lhs_here)
-                 BinderInfo.default
-    let eqn ← if i + 1 < fargs.size then `($curQ.1) else `($curQ)
-    let mot ← Lean.PrettyPrinter.delab mot
-    result ← `(let $x := $(mkIdent ``Eq.subst) ($(mkIdent `motive) := $mot) $eqn $u ; $result)
-    x := u
-    curQ ← `($curQ.2)
-    gargs := gargs.set! i fargs[i]!
+    if !(← isDefEq fargs[i]! gargs[i]!) then
+      let u ← mkIdentFromRef (← mkFreshUserName `u)
+      gargs := gargs.set! i (mkBVar 0)
+      let lhs_here := mkAppN hd gargs
+      let mot := Expr.lam u.getId (← inferType fargs[i]!) (← mkEq lhs lhs_here)
+                   BinderInfo.default
+      let eqn ← if i + 1 < fargs.size then `($curQ.1) else `($curQ)
+      let mot ← Lean.PrettyPrinter.delab mot
+      result ← `(let $x := $(mkIdent ``Eq.subst) ($(mkIdent `motive) := $mot) $eqn $u ; $result)
+      x := u
+      curQ ← `($curQ.2)
+      gargs := gargs.set! i fargs[i]!
   `(fun ($q : $qTy) => let $x := $(mkIdent ``Eq.refl) $lhsTm ; $result)
 
 /--
@@ -150,9 +149,7 @@ def mkInner (rn : Term) (goal : Expr) : TacticM Term := do
       (← whnf l).withApp fun p pargs => do
       (← whnf r).withApp fun q qargs => do
         checkDefEq p q <|> throwError s!"predicates {p} and {q} do not match"
-        let lTy := mkAppN p pargs
-        let ⟨pargs, qargs⟩ ← filterEqns pargs qargs #[] #[] 0
-        mkProofInit p lTy pargs qargs
+        mkProofInit p pargs qargs
   | `(congr) =>
     match (← whnf goal).eq? with
     | .none => throwError "goal not ="
@@ -160,9 +157,7 @@ def mkInner (rn : Term) (goal : Expr) : TacticM Term := do
       (← whnf l).withApp fun f fargs => do
       (← whnf r).withApp fun g gargs => do
         checkDefEq f g <|> throwError s!"functions {f} and {g} do not match"
-        let lhs := mkAppN f fargs
-        let ⟨fargs, gargs⟩ ← filterEqns fargs gargs #[] #[] 0
-        mkProofCongr f lhs fargs gargs
+        mkProofCongr f fargs gargs
   | `(rewrite_rtl) => doRewrite goal True
   | `(rewrite_ltr) => doRewrite goal False
   | _ => pure rn
@@ -237,12 +232,6 @@ elab "within " path:term,* " use " rule:term : tactic => do
   let goal ← Lean.MVarId.getType (← getMainGoal)
   let arg ← mkWithinArg path 0 rule goal
   trace[Meta.debug] "within/arg:\n{arg}"
-  -- let trm := Std.Format.pretty (← Lean.PrettyPrinter.formatTerm arg) 80
-  -- trace[Meta.debug] "within/argpp:\n{trm}"
-  -- let trm ← elabTerm arg none
-  -- trace[Meta.debug] "within/argE:\n{trm}"
-  -- let typ ← inferType (← elabTerm arg none)
-  -- trace[Meta.debug] "within/typ:\n{typ}"
   evalTactic (← `(tactic| refine' $arg _))
 
 end Profint
