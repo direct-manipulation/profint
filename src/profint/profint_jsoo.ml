@@ -50,15 +50,14 @@ let to_trail str : F.path =
   | [""] -> Q.empty
   | dirs ->
       Q.of_list dirs |>
-      Q.map begin function
-      | "l" -> Form4.Paths.Dir.L
-      | "r" -> R
-      | "d" -> D
-      | dir when Char.equal dir.[0] 'i' ->
-          I (String.sub dir ~pos:2 ~len:(String.length dir - 3)
-              |> Ident.of_string)
-      | dir -> failwith @@ "invalid direction: " ^ dir
-      end
+      Q.map ~f:(function
+          | "l" -> Form4.Paths.Dir.L
+          | "r" -> R
+          | "d" -> D
+          | dir when Char.equal dir.[0] 'i' ->
+              I (String.sub dir ~pos:2 ~len:(String.length dir - 3)
+                 |> Ident.of_string)
+          | dir -> failwith @@ "invalid direction: " ^ dir)
 
 let change_formula text =
   try

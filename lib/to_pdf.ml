@@ -84,8 +84,8 @@ let pp_sigma out sg =
 |}
 
 let pp_path out (path : path) =
-  Q.to_seq path |>
-  Caml.Format.pp_print_seq
+  Q.to_list path |>
+  Caml.Format.pp_print_list
     ~pp_sep:(fun out () -> Caml.Format.pp_print_string out ", ")
     (fun out -> function
        | Paths.Dir.L -> Caml.Format.pp_print_string out "l"

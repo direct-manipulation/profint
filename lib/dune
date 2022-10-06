@@ -1,8 +1,13 @@
 (library
   (name profint)
   (public_name profint.lib)
-  (libraries base containers-data)
-  (preprocess (pps ppx_blob ppx_base))
+  (libraries base)
+  ; (inline_tests)
+  (preprocess (pps
+    ppx_blob
+    ppx_base
+    ; ppx_expect
+  ))
   (preprocessor_deps (glob_files_rec systems/**))
 )
 
