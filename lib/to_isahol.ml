@@ -169,7 +169,7 @@ let init_like_lemma ~emit sss ty ss ts target =
   let lemid = "i" ^ fresh_inner_counter () in
   Caml.Format.fprintf out "have %s: \"%s\"@,  by blast@?" lemid lem ;
   Caml.Format.fprintf sss.out "%s%s"
-    lemid (CCString.of_list sss.close)
+    lemid (String.of_char_list sss.close)
 
 let rec step_surgery ~emit sss =
   match Q.take_front sss.from_here with
@@ -177,7 +177,7 @@ let rec step_surgery ~emit sss =
       match sss.rule with
       | Inner_reference lemid ->
           Caml.Format.fprintf sss.out "%s%s"
-            lemid (CCString.of_list sss.close)
+            lemid (String.of_char_list sss.close)
       | Cos_rule_name Cos.Init -> begin
           let fail () =
             "init: got " ^
@@ -222,14 +222,14 @@ let rec step_surgery ~emit sss =
                   (Ident.to_string var) pp_ty ty
                   pp_formx { tycx = cx ; data = b }
                   pp_termx tx
-                  (CCString.of_list sss.close)
+                  (String.of_char_list sss.close)
               end
           | _ -> fail ()
         end
       | Cos_rule_name name ->
           Caml.Format.fprintf sss.out "%a%s"
             Cos.pp_rule_name name
-            (CCString.of_list sss.close)
+            (String.of_char_list sss.close)
     end
   | Some (dir, path) -> begin
       match dir, expose sss.conclusion, expose sss.premise with
@@ -361,8 +361,8 @@ let pp_comment out str =
 let name = "isahol"
 let files pf =
   let replace contents =
-    CCString.replace ~which:`Left contents
-      ~sub:"(*PROOF*)\n" ~by:pf
+    String.substr_replace_first contents
+      ~pattern:"(*PROOF*)\n" ~with_:pf
   in [
     File { fname = "Profint.thy" ;
            contents = [%blob "lib/systems/isabelle_hol/Profint.thy"] } ;

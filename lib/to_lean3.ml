@@ -337,8 +337,8 @@ let pp_comment out str =
 let name = "lean3"
 let files pf =
   let replace contents =
-    CCString.replace ~which:`Left contents
-      ~sub:"/-PROOF-/\n" ~by:pf
+    String.substr_replace_first contents
+      ~pattern:"/-PROOF-/\n" ~with_:pf
   in [
     File { fname = "lean-toolchain" ;
            contents = [%blob "lib/systems/lean3/lean-toolchain"] } ;

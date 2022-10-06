@@ -114,7 +114,7 @@ let pp_footer out () =
 
 let pp_deriv out (sg, deriv) =
   pp_header out () ;
-  let chunks = CCList.chunks 30 (List.rev deriv.Cos.middle) in
+  let chunks = List.chunks_of ~length:30 (List.rev deriv.Cos.middle) in
   List.iter ~f:begin fun chunk ->
     let (top, _, _) = List.last_exn chunk in
     (* let chunk = List.rev chunk in *)

@@ -118,8 +118,8 @@ let pp_deriv out (sg, deriv) =
 let name = "coq_reflect"
 let files pf =
   let replace contents =
-    CCString.replace ~which:`Left contents
-      ~sub:"(*PROOF*)\n" ~by:pf
+    String.substr_replace_first contents
+      ~pattern:"(*PROOF*)\n" ~with_:pf
   in [
     File { fname = "Proof.v" ;
            contents = replace [%blob "lib/systems/coq_reflect/Proof.v"] } ;
