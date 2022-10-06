@@ -198,6 +198,13 @@ module U = struct
     | App of term * term
     | Abs of Ident.t * Ty.t option * term
   [@@deriving equal, sexp_of]
+
+  let rec app h args =
+    match args with
+    | [] -> h
+    | arg :: args -> app (App (h, arg)) args
+
+  let var_s s = Var (Ident.of_string s)
 end
 
 (** Typed and normalized terms *)

@@ -273,6 +273,16 @@ let profint_object =
         |> Js.some
       with _ -> Js.null
 
+    method getUITrace =
+      let open Types in
+      let stage_to_uterm stg = Form4.mstep_to_uterm stg.mstep in
+      let history = U.app (U.var_s "H") @@ List.map ~f:stage_to_uterm state.history in
+      let future = U.app (U.var_s "F") @@ List.map ~f:stage_to_uterm state.future in
+      let goal = stage_to_uterm state.goal in
+      let utm = U.app (U.var_s "TR") [goal ; history ; future] in
+      let str = Uterm.uterm_to_string empty utm in
+      Js.string str
+
   end
 
 let () = Js.export "profint" profint_object

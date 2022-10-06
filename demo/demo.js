@@ -491,4 +491,10 @@ function demoSetup() {
 
 demo.demoSetup = demoSetup;
 
+function permaLink() {
+  console.log('permalink:', profint.getUITrace());
+}
+
+demo.permaLink = permaLink;
+
 })();
