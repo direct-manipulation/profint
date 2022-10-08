@@ -11,6 +11,7 @@ module Dir = struct
   type t = L | R
   [@@deriving equal]
 
+  let flip = function L -> R | _ -> L
   let of_bool = function true -> R | _ -> L
   let to_bool = function L -> false | _ -> true
   let to_string = function L -> "l" | _ -> "r"
@@ -21,7 +22,13 @@ type t = Z.t
 
 let to_string : t -> _ = Z.to_string
 
+let size (p : t) = Z.numbits p - 1
+let length = size
+
 let init : t = Z.one
+let empty = init
+
+let is_empty (p : t) = Z.(equal p init)
 
 let cons dir (p : t) : t =
   let p = Z.(p lsl 1) in
@@ -37,6 +44,12 @@ let snoc (p : t) dir : t =
 
 let flip_cons p d = cons d p
 let flip_snoc d p = snoc p d
+
+let append (p1 : t) (p2 : t) : t =
+  let p1_depth = Z.numbits p1 - 1 in
+  (* flip p2's lsb, since it will be flipped again *)
+  let p2 = Z.((p2 lxor one) lsl p1_depth) in
+  Z.(p1 lxor p2)
 
 exception Empty
 

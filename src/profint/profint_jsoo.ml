@@ -47,17 +47,14 @@ let sig_change text =
 let to_trail str : F.path =
   let path = Js.to_string str |> String.split ~on:';' in
   match path with
-  | [""] -> Q.empty
+  | [""] -> Path.empty
   | dirs ->
-      Q.of_list dirs |>
-      Q.map ~f:(function
-          | "l" -> Form4.Paths.Dir.L
-          | "r" -> R
-          | "d" -> D
-          | dir when Char.equal dir.[0] 'i' ->
-              I (String.sub dir ~pos:2 ~len:(String.length dir - 3)
-                 |> Ident.of_string)
-          | dir -> failwith @@ "invalid direction: " ^ dir)
+      List.map dirs
+        ~f:(function
+            | "l" -> Path.Dir.L
+            | "r" -> R
+            | dir -> failwith @@ "invalid direction: " ^ dir) |>
+      Path.of_list
 
 let change_formula text =
   try

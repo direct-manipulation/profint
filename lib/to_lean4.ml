@@ -107,16 +107,12 @@ let pp_sigma out sg =
   end sg.consts
 
 let pp_path out path =
-  Q.to_list path |>
+  Path.to_list path |>
   Caml.Format.pp_print_list
     ~pp_sep:(fun out () -> Caml.Format.pp_print_string out ",")
-    Paths.Dir.(fun out -> function
+    Path.Dir.(fun out -> function
         | L -> Caml.Format.pp_print_string out "l"
-        | R -> Caml.Format.pp_print_string out "r"
-        | D -> Caml.Format.pp_print_string out "d"
-        | I x ->
-            Caml.Format.pp_print_string out "i " ;
-            Caml.Format.pp_print_string out (Ident.to_string x))
+        | R -> Caml.Format.pp_print_string out "r")
     out
 
 let pp_rule_name out rn =

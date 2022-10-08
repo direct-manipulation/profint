@@ -172,7 +172,7 @@ let init_like_lemma ~emit sss ty ss ts target =
     lemid (String.of_char_list sss.close)
 
 let rec step_surgery ~emit sss =
-  match Q.take_front sss.from_here with
+  match Path.expose_front sss.from_here with
   | None -> begin
       match sss.rule with
       | Inner_reference lemid ->
@@ -207,7 +207,7 @@ let rec step_surgery ~emit sss =
           | _ -> fail ()
         end
       | Cos_rule_name (Cos.Inst { side ; term = tx }) -> begin
-          let f = if Paths.Side.equal side L then sss.premise else sss.conclusion in
+          let f = if Path.Dir.equal side L then sss.premise else sss.conclusion in
           let fail () =
             Caml.Format.kasprintf unprintable
               "inst_%s: got %a"
@@ -239,7 +239,7 @@ let rec step_surgery ~emit sss =
             (match dir with L -> "left" | _ -> "right") ;
           step_surgery ~emit
             { sss with
-              to_here = Q.snoc sss.to_here dir ;
+              to_here = Path.snoc sss.to_here dir ;
               from_here = path ;
               premise = a ; conclusion = b ;
               close = ']' :: sss.close }
@@ -249,7 +249,7 @@ let rec step_surgery ~emit sss =
             (match dir with L -> "left" | _ -> "right") ;
           step_surgery ~emit
             { sss with
-              to_here = Q.snoc sss.to_here dir ;
+              to_here = Path.snoc sss.to_here dir ;
               from_here = path ;
               premise = a ; conclusion = b ;
               close = ']' :: sss.close }
@@ -259,15 +259,13 @@ let rec step_surgery ~emit sss =
             (match dir with L -> "left" | _ -> "right") ;
           step_surgery ~emit
             { sss with
-              to_here = Q.snoc sss.to_here dir ;
+              to_here = Path.snoc sss.to_here dir ;
               from_here = path ;
               premise = if Caml.(dir = L) then b else a ;
               conclusion = if Caml.(dir = L) then a else b ;
               close = ']' :: sss.close }
-      | D, Forall ({ var ; ty }, q), Forall (_, p)
-      | D, Exists ({ var ; ty }, q), Exists (_, p)
-      | I var, Forall ({ ty ; _ }, q), Forall (_, p)
-      | I var, Exists ({ ty ; _ }, q), Exists (_, p) ->
+      | L, Forall ({ var ; ty }, q), Forall (_, p)
+      | L, Exists ({ var ; ty }, q), Exists (_, p) ->
           with_var sss.tycx { var ; ty } begin fun vty tycx ->
             let lemid = "d" ^ fresh_inner_counter () in
             let transport_rule = match expose sss.conclusion with
@@ -277,7 +275,7 @@ let rec step_surgery ~emit sss =
             Caml.Format.fprintf sss.out "impE[OF %s " transport_rule ;
             step_surgery ~emit
               { sss with
-                from_here = Q.empty ;
+                from_here = Path.empty ;
                 rule = Inner_reference lemid ;
                 close = ']' :: sss.close } ;
             let buf = Buffer.create 19 in
@@ -300,7 +298,7 @@ let rec step_surgery ~emit sss =
             Caml.Format.fprintf out "  by (rule " ;
             let sss = { sss with
                         out ; tycx ; premise = p ; conclusion = q ;
-                        to_here = Q.empty ; from_here = path ;
+                        to_here = Path.empty ; from_here = path ;
                         close = [] } in
             step_surgery ~emit sss ;
             Caml.Format.fprintf out ")@,qed@]@?"
@@ -319,7 +317,7 @@ let pp_rule stepno out (prem, rule, goal) =
   step_surgery ~emit {
     out = mainout ;
     close = [] ;
-    to_here = Q.empty ;
+    to_here = Path.empty ;
     from_here = rule.Cos.path ;
     tycx = empty ;
     premise = prem.data ;

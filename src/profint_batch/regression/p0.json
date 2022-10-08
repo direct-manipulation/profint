@@ -69,56 +69,56 @@
              "p : i -> \\o.",
              "a : \\o." ],
     "goal": "a \\to \\A [x] p x",
-    "msteps": [ "L (go l) (go r d) f" ]
+    "msteps": [ "L (go l) (go r l) f" ]
   },
   {
     "sig": [ "i : \\type.",
              "p : i -> \\o.",
              "a : \\o." ],
     "goal": "a \\to \\A [x] p x",
-    "msteps": [ "L (go l) (go r (i u)) f" ]
+    "msteps": [ "L (go l) (go r l) f" ]
   },
   {
     "sig": [ "i : \\type.",
              "p : i -> \\o.",
              "a : \\o." ],
     "goal": "(\\A [x] p x) \\to a",
-    "msteps": [ "L (go l d) (go r) f" ]
+    "msteps": [ "L (go l l) (go r) f" ]
   },
   {
     "sig": [ "i : \\type.",
              "p : i -> \\o.",
              "a : \\o." ],
     "goal": "(\\A [x] p x) \\to a",
-    "msteps": [ "L (go l (i u)) (go r) f" ]
+    "msteps": [ "L (go l l) (go r) f" ]
   },
   {
     "sig": [ "i : \\type.",
              "p : i -> \\o.",
              "a : \\o." ],
     "goal": "a \\to \\E [x] p x",
-    "msteps": [ "L (go l) (go r d) f" ]
+    "msteps": [ "L (go l) (go r l) f" ]
   },
   {
     "sig": [ "i : \\type.",
              "p : i -> \\o.",
              "a : \\o." ],
     "goal": "a \\to \\E [x] p x",
-    "msteps": [ "L (go l) (go r (i u)) f" ]
+    "msteps": [ "L (go l) (go r l) f" ]
   },
   {
     "sig": [ "i : \\type.",
              "p : i -> \\o.",
              "a : \\o." ],
     "goal": "(\\E [x] p x) \\to a",
-    "msteps": [ "L (go l d) (go r) f" ]
+    "msteps": [ "L (go l l) (go r) f" ]
   },
   {
     "sig": [ "i : \\type.",
              "p : i -> \\o.",
              "a : \\o." ],
     "goal": "(\\E [x] p x) \\to a",
-    "msteps": [ "L (go l (i u)) (go r) f" ]
+    "msteps": [ "L (go l l) (go r) f" ]
   },
   {
     "sig": [ "i : \\type.",
@@ -142,6 +142,6 @@
              "p : i -> \\o.",
              "a : \\o." ],
     "goal": "\\A [x:i] \\E [y] p y",
-    "msteps": [ "I (go (i u)) (f u)" ]
+    "msteps": [ "I (go l) (f x)" ]
   }
 ]

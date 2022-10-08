@@ -18,11 +18,11 @@ open Mk
 (* CoS rules *)
 
 type rule_name =
-  | Goal_ts_imp of { pick : Side.t }
+  | Goal_ts_imp of { pick : Path.Dir.t }
   | Goal_imp_ts
-  | Goal_ts_and of { pick : Side.t }
-  | Goal_and_ts of { pick : Side.t }
-  | Goal_ts_or  of { pick : Side.t }
+  | Goal_ts_and of { pick : Path.Dir.t }
+  | Goal_and_ts of { pick : Path.Dir.t }
+  | Goal_ts_or  of { pick : Path.Dir.t }
   | Goal_or_ts
   | Goal_ts_all
   | Goal_all_ts
@@ -30,35 +30,35 @@ type rule_name =
   | Goal_ex_ts
 
   | Init
-  | Rewrite of { from : Side.t }
+  | Rewrite of { from : Path.Dir.t }
 
-  | Asms_and of { minor : Side.t ; pick : Side.t }
-  | Asms_or  of { minor : Side.t ; pick : Side.t }
-  | Asms_imp of { minor : Side.t ; pick : Side.t }
-  | Asms_all of { minor : Side.t }
-  | Asms_ex  of { minor : Side.t }
+  | Asms_and of { minor : Path.Dir.t ; pick : Path.Dir.t }
+  | Asms_or  of { minor : Path.Dir.t ; pick : Path.Dir.t }
+  | Asms_imp of { minor : Path.Dir.t ; pick : Path.Dir.t }
+  | Asms_all of { minor : Path.Dir.t }
+  | Asms_ex  of { minor : Path.Dir.t }
 
-  | Simp_and_top of { cxkind : Side.t ; minor : Side.t }
-  | Simp_or_top  of { cxkind : Side.t ; minor : Side.t }
-  | Simp_imp_top of { cxkind : Side.t ; minor : Side.t }
-  | Simp_all_top of { cxkind : Side.t }
+  | Simp_and_top of { cxkind : Path.Dir.t ; minor : Path.Dir.t }
+  | Simp_or_top  of { cxkind : Path.Dir.t ; minor : Path.Dir.t }
+  | Simp_imp_top of { cxkind : Path.Dir.t ; minor : Path.Dir.t }
+  | Simp_all_top of { cxkind : Path.Dir.t }
 
-  | Simp_and_bot of { cxkind : Side.t ; minor : Side.t }
-  | Simp_or_bot  of { cxkind : Side.t ; minor : Side.t }
-  | Simp_bot_imp of { cxkind : Side.t }
-  | Simp_ex_bot  of { cxkind : Side.t }
+  | Simp_and_bot of { cxkind : Path.Dir.t ; minor : Path.Dir.t }
+  | Simp_or_bot  of { cxkind : Path.Dir.t ; minor : Path.Dir.t }
+  | Simp_bot_imp of { cxkind : Path.Dir.t }
+  | Simp_ex_bot  of { cxkind : Path.Dir.t }
 
   | Congr
   | Contract
   | Weaken
-  | Inst of { side : Side.t ; term : term incx }
+  | Inst of { side : Path.Dir.t ; term : term incx }
 
 and rule = {
   name : rule_name ;
-  path : path ;
+  path : Path.t ;
 }
 
-let side_to_string (side : Side.t) =
+let side_to_string (side : Path.Dir.t) =
   match side with
   | L -> "l"
   | R -> "r"
@@ -150,23 +150,20 @@ let pp_rule_name out rn =
         (side_to_string side)
         (Term.pp_term ~cx:tx.tycx) tx.data
 
-let rec pp_path_list out (path : Dir.t list) =
+let rec pp_path_list out (path : Path.Dir.t list) =
   match path with
   | [] -> ()
   | [L] -> Caml.Format.fprintf out "l"
   | [R] -> Caml.Format.fprintf out "r"
-  | [I x] -> Caml.Format.fprintf out "i %s" (Ident.to_string x)
-  | [D] -> Caml.Format.fprintf out "d"
   | dir :: (_ :: _ as path) ->
       Caml.Format.fprintf out "%a, %a" pp_path_list [dir] pp_path_list path
 
-let pp_path out (path : path) =
-  pp_path_list out (Q.to_list path)
+let pp_path out (path : Path.t) = Caml.Format.pp_print_string out (Path.to_dirstring path)
 
 let pp_rule out rule =
   Caml.Format.fprintf out "@[%a%s:: %a@]"
     pp_path rule.path
-    (if Q.size rule.path = 0 then "" else " ")
+    (if Path.is_empty rule.path then "" else " ")
     pp_rule_name rule.name
 
 let rule_to_string rule = pp_to_string pp_rule rule
@@ -354,32 +351,32 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
       (* simplification: top *)
       | ( _, And (a, f), Simp_and_top { cxkind ; minor = L }
         | _, And (f, a), Simp_and_top { cxkind ; minor = R } )
-        when Side.equal cxkind side -> begin
+        when Path.Dir.equal cxkind side -> begin
           match expose f with
           | Top -> a
           | _ -> bad_match "20"
         end
       | ( _, Or (_, f), Simp_or_top { cxkind ; minor = L }
         | _, Or (f, _), Simp_or_top { cxkind ; minor = R } )
-        when Side.equal cxkind side -> begin
+        when Path.Dir.equal cxkind side -> begin
           match expose f with
           | Top -> f
           | _ -> bad_match "21"
         end
       | _, Imp (_, f), Simp_imp_top { cxkind ; minor = L }
-        when Side.equal cxkind side -> begin
+        when Path.Dir.equal cxkind side -> begin
           match expose f with
           | Top -> f
           | _ -> bad_match "22"
         end
       | _, Imp (f, a), Simp_imp_top { cxkind ; minor = R }
-        when Side.equal cxkind side -> begin
+        when Path.Dir.equal cxkind side -> begin
           match expose f with
           | Top -> a
           | _ -> bad_match "23"
         end
       | _, Forall (_, f), Simp_all_top { cxkind }
-        when Side.equal cxkind side -> begin
+        when Path.Dir.equal cxkind side -> begin
           match expose f with
           | Top -> f
           | _ -> bad_match "24"
@@ -387,26 +384,26 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
       (* simplification: bot *)
       | ( _, And (_, f), Simp_and_bot { cxkind ; minor = L }
         | _, And (f, _), Simp_and_bot { cxkind ; minor = R } )
-        when Side.equal cxkind side -> begin
+        when Path.Dir.equal cxkind side -> begin
           match expose f with
           | Bot -> f
           | _ -> bad_match "25"
         end
       | ( _, Or (a, f), Simp_or_bot { cxkind ; minor = L }
         | _, Or (f, a), Simp_or_bot { cxkind ; minor = R } )
-        when Side.equal cxkind side -> begin
+        when Path.Dir.equal cxkind side -> begin
           match expose f with
           | Bot -> a
           | _ -> bad_match "26"
         end
       | _, Imp (f, _), Simp_bot_imp { cxkind }
-        when Side.equal cxkind side -> begin
+        when Path.Dir.equal cxkind side -> begin
           match expose f with
           | Bot -> mk_top
           | _ -> bad_match "27"
         end
       | _, Exists (_, f), Simp_ex_bot { cxkind }
-        when Side.equal cxkind side -> begin
+        when Path.Dir.equal cxkind side -> begin
           match expose f with
           | Bot -> f
           | _ -> bad_match "28"

@@ -6,12 +6,12 @@
               "(\\A [x, y] a x y \\to a y x \\to \\eq x y) \\to",
               "(\\A [x, y] t x y \\to a x y) \\to",
               "\\A [x, y] a x y \\to t x y" ],
-    "msteps": [ "L (go l d d l) (go r r r d d r) t",
-                "L (go r r l d d l) (go r r r d d r l) f",
-                "L (go r l d d l) (go r r d d l) f",
-                "L (go r d d l l) (go r d d r l) f",
-                "L (go r d d l) (go r d d r) f",
-                "L (go l d d l) (go r d d) f",
-                "L (go d d l) (go d d r) f" ]
+    "msteps": [ "L (go l l l l) (go r r r l l r) t",
+                "L (go r r l l l l) (go r r r l l r l) f",
+                "L (go r l l l l) (go r r l l l) f",
+                "L (go r l l l l) (go r l l r l) f",
+                "L (go r l l l) (go r l l r) f",
+                "L (go l l l l) (go r l l) f",
+                "L (go l l l) (go l l r) f" ]
   }
 ]

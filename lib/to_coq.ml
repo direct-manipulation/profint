@@ -224,7 +224,7 @@ let pp_rule out goal rule =
     | _ -> Cos.pp_rule_name out name
   in
   let rec pp_path n cx f0 path =
-    match Q.take_front path with
+    match Path.expose_front path with
     | None ->
         pp_rule cx f0 rule.Cos.name ;
         Caml.Format.fprintf out "%s _%c.@." (String.make (n - 1) ')') ')' ;
@@ -234,7 +234,7 @@ let pp_rule out goal rule =
         end
     | Some (dir, path) -> begin
         match expose f0, dir with
-        | And (f, _), Paths.Dir.L ->
+        | And (f, _), Path.Dir.L ->
             Caml.Format.pp_print_string out "go_left_and (" ;
             pp_path (n + 1) cx f path
         | And (_, f), R ->
@@ -252,15 +252,13 @@ let pp_rule out goal rule =
         | Imp (_, f), R ->
             Caml.Format.pp_print_string out "go_right_imp (" ;
             pp_path (n + 1) cx f path
-        | Forall ({ var ; ty }, f), D
-        | Forall ({ ty ; _ }, f), I var ->
+        | Forall ({ var ; ty }, f), L ->
             with_var cx { var ; ty } begin fun { var ; _ } cx ->
               Caml.Format.fprintf out "go_down_all (fun (%s : %a) => "
                 (Ident.to_string var) pp_ty ty ;
               pp_path (n + 1) cx f path
             end
-        | Exists ({ var ; ty }, f), D
-        | Exists ({ ty ; _ }, f), I var ->
+        | Exists ({ var ; ty }, f), L ->
             with_var cx { var ; ty } begin fun { var ; _ } cx ->
               Caml.Format.fprintf out "go_down_ex (fun (%s : %a) => "
                 (Ident.to_string var) pp_ty ty ;

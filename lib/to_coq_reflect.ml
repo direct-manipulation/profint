@@ -51,11 +51,11 @@ let pp_rule out goal rule =
         Cos.pp_rule_name out name
   in
   let rec pp_path n cx f0 dirs path =
-    match Q.take_front path with
+    match Path.expose_front path with
     | None -> (List.rev dirs, cx, f0)
     | Some (dir, path) -> begin
         match expose f0, dir with
-        | And (f, _), Paths.Dir.L ->
+        | And (f, _), Path.Dir.L ->
             pp_path (n + 1) cx f (0 :: dirs) path
         | And (_, f), R ->
             pp_path (n + 1) cx f (1 :: dirs) path
@@ -67,13 +67,11 @@ let pp_rule out goal rule =
             pp_path (n + 1) cx f (0 :: dirs) path
         | Imp (_, f), R ->
             pp_path (n + 1) cx f (1 :: dirs) path
-        | Forall ({ var ; ty }, f), D
-        | Forall ({ ty ; _ }, f), I var ->
+        | Forall ({ var ; ty }, f), L ->
             with_var cx { var ; ty } begin fun _ cx ->
               pp_path (n + 1) cx f (0 :: dirs) path
             end
-        | Exists ({ var ; ty }, f), D
-        | Exists ({ ty ; _ }, f), I var ->
+        | Exists ({ var ; ty }, f), L ->
             with_var cx { var ; ty } begin fun _ cx ->
               pp_path (n + 1) cx f (0 :: dirs) path
             end

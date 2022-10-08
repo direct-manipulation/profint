@@ -179,7 +179,7 @@ let pp_rule out (prem, rule, goal) =
         | _ -> fail ()
       end
     | Cos.Inst { side ; term = tx } -> begin
-        let f = if Paths.Side.equal side L then fp else fc in
+        let f = if Path.Dir.equal side L then fp else fc in
         let fail () =
           Caml.Format.kasprintf unprintable
             "inst_%s: got %a"
@@ -229,7 +229,7 @@ let pp_rule out (prem, rule, goal) =
     | _ -> Cos.pp_rule_name out name
   in
   let rec pp_path n cx goal prem path =
-    match Q.take_front path with
+    match Path.expose_front path with
     | None ->
         pp_rule cx goal prem rule.Cos.name ;
         Caml.Format.fprintf out "%s _,@." @@ String.make n ')' ;
@@ -239,7 +239,7 @@ let pp_rule out (prem, rule, goal) =
         end
     | Some (dir, path) -> begin
         match expose goal, expose prem, dir with
-        | And (b, c), And (a, _), Paths.Dir.L ->
+        | And (b, c), And (a, _), Path.Dir.L ->
             Caml.Format.fprintf out "%@go_left_and (%a) (%a) (%a) ("
               pp_formx { tycx = cx ; data = a }
               pp_formx { tycx = cx ; data = b }
@@ -275,8 +275,7 @@ let pp_rule out (prem, rule, goal) =
               pp_formx { tycx = cx ; data = b }
               pp_formx { tycx = cx ; data = c } ;
             pp_path (n + 1) cx b a path
-        | Forall ({ var ; ty }, q), Forall (_, p), D
-        | Forall ({ ty ; _ }, q), Forall (_, p), I var ->
+        | Forall ({ var ; ty }, q), Forall (_, p), L ->
             with_var cx { var ; ty } begin fun { var ; _ } cx ->
               let var = Ident.to_string var in
               Caml.Format.fprintf out "%@go_down_all (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "
@@ -286,8 +285,7 @@ let pp_rule out (prem, rule, goal) =
                 var pp_ty ty ;
               pp_path (n + 1) cx q p path
             end
-        | Exists ({ var ; ty }, q), Exists (_, p), D
-        | Exists ({ ty ; _ }, q), Exists (_, p), I var ->
+        | Exists ({ var ; ty }, q), Exists (_, p), L ->
             with_var cx { var ; ty } begin fun { var ; _ } cx ->
               let var = Ident.to_string var in
               Caml.Format.fprintf out "%@go_down_ex (%a) (fun (%s : %a), %a) (fun (%s : %a), %a) (fun (%s : %a), "

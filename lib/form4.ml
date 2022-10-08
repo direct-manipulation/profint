@@ -10,9 +10,9 @@
 
 module Core     = Form4_core
 include Core
+type dir = Path.Dir.t
+type path = Path.t
 module Paths    = Form4_paths
-type dir = Paths.Dir.t
-type path = Paths.path
 module Cos      = Form4_cos
 (* module Simplify = Form4_simplify *)
 include Form4_simplify
