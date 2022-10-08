@@ -23,6 +23,7 @@
  (depends
   (ocaml (>= 4.12))
 ;  (containers-data (>= 3.8))
+  (zarith (>= 1.12))
   (js_of_ocaml (>= 3.9.0))
   (js_of_ocaml-ppx (>= 4.0.0))
   (ppx_blob (>= 0.7.2))

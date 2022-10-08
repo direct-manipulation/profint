@@ -1,7 +1,7 @@
 (library
   (name profint)
   (public_name profint.lib)
-  (libraries base)
+  (libraries base zarith)
   ; (inline_tests)
   (preprocess (pps
     ppx_blob

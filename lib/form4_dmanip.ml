@@ -581,7 +581,7 @@ let mstep_to_uterm mstep =
 
 exception Bad_path
 
-let rec to_path (form : form) (id : int) : path =
+let to_path (form : form) (id : int) : path =
   if id = 0 then raise Bad_path else
   let rec aux here form trail =
     if List.equal Int.equal trail [] then here else
