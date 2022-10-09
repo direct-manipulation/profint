@@ -363,16 +363,11 @@ let profint_object =
       try
         let path = to_path path in
         let var = Js.to_string text |> Ident.of_string in
-        let f = F.Paths.transform_at state.goal.fx.data path begin
-            fun f -> match F.expose f with
-              | F.Forall ({ ty ; _ }, bod) ->
-                  F.Mk.mk_all { var ; ty } bod
-              | F.Exists ({ ty ; _ }, bod) ->
-                  F.Mk.mk_ex { var ; ty } bod
-              | _ -> failwith "not a quantifier"
-          end in
-        let fx = { state.goal.fx with data = f } in
-        state.goal <- mk_stage ~fx ~mstep:state.goal.mstep ;
+        state.goal <- mk_stage
+            ~fx:state.goal.fx
+            ~mstep:F.(Rename { path ; var }) ;
+        let deriv = compute_derivation state.goal in
+        push_goal @@ mk_stage ~fx:deriv.top ~mstep:F.Pristine ;
         true
       with e -> fail (Exn.to_string e)
 

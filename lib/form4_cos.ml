@@ -52,6 +52,7 @@ type rule_name =
   | Contract
   | Weaken
   | Inst of { side : Path.Dir.t ; term : term incx }
+  | Rename of Ident.t
 
 and rule = {
   name : rule_name ;
@@ -149,6 +150,9 @@ let pp_rule_name out rn =
       Caml.Format.fprintf out "inst_%s[@[%a@]]"
         (side_to_string side)
         Term.pp_termx term
+  | Rename var ->
+      Caml.Format.fprintf out "rename[@[%s@]]"
+        (Ident.to_string var)
 
 let rec pp_path_list out (path : Path.Dir.t list) =
   match path with
@@ -442,6 +446,10 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
       | R, Exists (vty, b), Inst { side = R ; term = wtx } ->
           Term.ty_check prin.tycx wtx.data vty.ty ;
           Term.do_app (Abs {var = vty.var ; body = b}) [wtx.data]
+      | _, Forall (vty, b), Rename var ->
+          mk_all { vty with var } b
+      | _, Exists (vty, b), Rename var ->
+          mk_ex { vty with var } b
       | _ -> bad_match "32"
   } in
   let goal = { goal with data = replace_at goal.data rule.path prin.data } in

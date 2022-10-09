@@ -430,6 +430,8 @@ type mstep =
                   copy : bool } (* contract? *)
   | Inst     of { path : Path.t ;
                   term : U.term }
+  | Rename   of { path : Path.t ;
+                  var  : Ident.t }
 
 exception Bad_mstep of mstep
 
@@ -473,6 +475,8 @@ let compute_derivation goal msteps =
           let term = term |@ fx in
           let goal = (emit { name = Inst { side ; term } ; path }).goal in
           recursive_simplify ~emit goal Path.init R
+      | Rename { path ; var } ->
+          ignore @@ emit { name = Rename var ; path }
       | Link { src ; dest ; copy } -> begin
           let (cpath, lpath, rpath, dest_in) = analyze_link Path.init src dest in
           let (goal, cpath) =
@@ -512,7 +516,8 @@ let mark_locations goal mstep =
   | Contract { path }
   | Weaken { path } ->
       transform_at goal.data path mk_src |@ goal
-  | Inst { path ; _ } ->
+  | Inst { path ; _ }
+  | Rename { path ; _ } ->
       transform_at goal.data path mk_src |@ goal
   | Link lf ->
       let f = transform_at goal.data lf.src mk_src in
@@ -531,6 +536,10 @@ let pp_mstep out mstep =
       Caml.Format.fprintf out "Inst @[<hv2>{ path = %a ;@ termx = @[<hov2>%a@] }@]"
         pp_path path
         Uterm.pp_uterm_ term
+  | Rename { path ; var } ->
+      Caml.Format.fprintf out "Rename @[<hv2>{ path = %a ;@ ident = %s }@]"
+        pp_path path
+        (Ident.to_string var)
   | Link { src ; dest ; copy } ->
       Caml.Format.fprintf out "Link @[<hv2>{ src = %a ;@ dest = %a ;@ copy = %b }@]"
         pp_path src
@@ -558,6 +567,9 @@ let mstep_to_uterm mstep =
   | Inst { path ; term } ->
       let path = path_to_uterm path in
       U.app (U.var_s "I") [path ; term]
+  | Rename { path ; var } ->
+      let path = path_to_uterm path in
+      U.app (U.var_s "R") [ path ; U.Var var ]
 
 let un_app utm =
   let rec grab_args args utm =
@@ -585,4 +597,7 @@ let uterm_to_mstep (utm : U.term) : mstep =
   | Some ("I", [ path ; term ]) ->
       let path = uterm_to_path path in
       Inst { path ; term }
+  | Some ("R", [ path ; U.Var var ]) ->
+      let path = uterm_to_path path in
+      Rename { path ; var }
   | _ -> failwith "uterm_to_mstep"
