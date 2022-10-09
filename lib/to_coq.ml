@@ -221,6 +221,7 @@ let pp_rule out goal rule =
           end
         | _ -> fail ()
       end
+    | Cos.Rename _ -> Caml.Format.fprintf out "(fun x => x)"
     | _ -> Cos.pp_rule_name out name
   in
   let rec pp_path n cx f0 path =

@@ -233,6 +233,7 @@ Inductive rule_name : Type :=
 | RN_inst_l {T : Type} (t : T)   (* (forall x, p x) -> p t *)
 | RN_rewrite_rtl                 (* p s -> s = t -> p t *)
 | RN_rewrite_ltr                 (* p t -> s = t -> p s *)
+| RN_repeat                      (* a -> a *)
 | RN_simp_goal_and_top           (* a -> (a /\ True) *)
 | RN_simp_goal_top_and           (* a -> (True /\ a) *)
 | RN_simp_asms_and_top           (* (a /\ True) -> a *)
@@ -455,6 +456,11 @@ Fixpoint check (deriv : deriv) (goal : Prop) : Prop :=
           exists Ts ctx U (s t : Ts ▷ U) p,
           resolve goal path Pos Ts ctx ((s ≐ t) → (p ◆ s))
           /\ check deriv (ctx{{ p ◆ t}})
+      | RN_repeat =>
+          (* a -> a *)
+          exists Ts ctx a,
+          resolve goal path Pos Ts ctx a
+          /\ check deriv (ctx{{ a }})
       | RN_simp_goal_and_top =>
           (* a -> (a /\ True) *)
           exists Ts ctx a,

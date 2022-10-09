@@ -226,6 +226,7 @@ let pp_rule out (prem, rule, goal) =
           end
         | _ -> fail ()
       end
+    | Cos.Rename _ -> Caml.Format.pp_print_string out "id"
     | _ -> Cos.pp_rule_name out name
   in
   let rec pp_path n cx goal prem path =

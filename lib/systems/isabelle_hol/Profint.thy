@@ -99,6 +99,8 @@ theorem rewrite_rtl: "\<And> s t. p s \<longrightarrow> s = t \<longrightarrow> 
   by blast
 theorem rewrite_ltr: "\<And> s t. p t \<longrightarrow> s = t \<longrightarrow> p s"
   by blast
+theorem repeat: "a \<longrightarrow> a"
+  by blast
 
 theorem simp_goal_and_top: "a \<longrightarrow> (a \<and> True)"
   by blast

@@ -180,6 +180,8 @@ let pp_rule_name out rn =
       Caml.Format.fprintf out "inst_%s (%a)"
         (match side with R -> "r" | _ -> "l")
         pp_termx tx
+  | Cos.Rename _ ->
+      Caml.Format.pp_print_string out "id"
   | _ -> Cos.pp_rule_name out rn
 
 let pp_deriv out (sg, deriv) =

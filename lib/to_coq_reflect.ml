@@ -46,6 +46,8 @@ let pp_rule out goal rule =
         end ;
         Caml.Format.fprintf out "%a)" pp_termx tx
       end
+    | Cos.Rename _ ->
+        Caml.Format.pp_print_string out "RN_repeat"
     | _ ->
         Caml.Format.pp_print_string out "RN_" ;
         Cos.pp_rule_name out name

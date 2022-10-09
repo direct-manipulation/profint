@@ -226,6 +226,9 @@ let rec step_surgery ~emit sss =
               end
           | _ -> fail ()
         end
+      | Cos_rule_name (Cos.Rename _) ->
+          Caml.Format.fprintf sss.out "repeat%s"
+            (String.of_char_list sss.close)
       | Cos_rule_name name ->
           Caml.Format.fprintf sss.out "%a%s"
             Cos.pp_rule_name name
