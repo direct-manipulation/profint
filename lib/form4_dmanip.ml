@@ -540,6 +540,11 @@ let pp_mstep out mstep =
 let path_to_uterm (path : Path.t) : U.term =
   U.var_s (Path.to_string path)
 
+let uterm_to_path (utm : U.term) : Path.t =
+  match utm with
+  | U.Var id -> Path.of_string (Ident.to_string id)
+  | _ -> failwith "uterm_to_path"
+
 let mstep_to_uterm mstep =
   match mstep with
   | Pristine -> U.var_s "P"
@@ -553,3 +558,31 @@ let mstep_to_uterm mstep =
   | Inst { path ; term } ->
       let path = path_to_uterm path in
       U.app (U.var_s "I") [path ; term]
+
+let un_app utm =
+  let rec grab_args args utm =
+    match utm with
+    | U.App (utm, arg) -> grab_args (arg :: args) utm
+    | U.Var v -> Some (Ident.to_string v, args)
+    | _ -> None
+  in
+  grab_args [] utm
+
+let uterm_to_mstep (utm : U.term) : mstep =
+  match un_app utm with
+  | Some ("P", []) -> Pristine
+  | Some ("C", [path]) ->
+      let path = uterm_to_path path in
+      Contract { path }
+  | Some ("W", [path]) ->
+      let path = uterm_to_path path in
+      Weaken { path }
+  | Some (("L" | "Lc" as lnk), [ src ; dest ]) ->
+      let src = uterm_to_path src in
+      let dest = uterm_to_path dest in
+      let copy = String.equal lnk "Lc" in
+      Link { src ; dest ; copy }
+  | Some ("I", [ path ; term ]) ->
+      let path = uterm_to_path path in
+      Inst { path ; term }
+  | _ -> failwith "uterm_to_mstep"

@@ -103,7 +103,9 @@ let pp_sigma out sg =
   end sg.basics ;
   Map.iteri ~f:begin fun ~key:k ~data:ty ->
     if Map.mem sigma0.consts k then () else
-      Caml.Format.fprintf out "variable {%s : %s}@," (Ident.to_string k) (ty_to_string @@ thaw_ty ty)
+      Caml.Format.fprintf out "variable {%s : %s}@,"
+        (Ident.to_string k)
+        (ty_to_string @@ thaw_ty ty)
   end sg.consts ;
   Caml.Format.fprintf out "@,@]"
 

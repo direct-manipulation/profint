@@ -351,6 +351,9 @@ function renderFormula() {
   } else
     output.removeClass("b-top");
   $("#doRedo").prop("disabled", futureCount <= 0);
+  const url = new URL(document.location);
+  url.searchParams.set("p", profint.getUITrace());
+  history.replaceState({}, 'Profint Interface', url.href);
 }
 
 function setFormula(text) {
@@ -492,7 +495,12 @@ function demoSetup() {
 demo.demoSetup = demoSetup;
 
 function permaLink() {
-  console.log('permalink:', profint.getUITrace());
+  const trace = profint.getUITrace();
+  let url = new URL(document.location);
+  url.searchParams.set("p", trace);
+  console.log("permalink:", url.href);
+  // document.location.assign(url.href);
+  window.open(url.href, "_blank");
 }
 
 demo.permaLink = permaLink;

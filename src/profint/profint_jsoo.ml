@@ -30,6 +30,55 @@ type state = {
 let state = { goal = { fx = Types.triv F.Mk.mk_top ; mstep = F.Pristine } ;
               future = [] ; history = [] }
 
+let save_uterm () =
+  let open Types in
+  let stage_to_uterm stg = Form4.mstep_to_uterm stg.mstep in
+  let history = U.app (U.var_s "H") @@ List.map ~f:stage_to_uterm state.history in
+  let future = U.app (U.var_s "F") @@ List.map ~f:stage_to_uterm state.future in
+  let goal = stage_to_uterm state.goal in
+  U.app (U.var_s "T") [goal ; history ; future]
+
+let get_history fx utm =
+  match F.un_app utm with
+  | Some ("H", utms) ->
+      List.fold_right utms ~init:([], fx)
+        ~f:(fun utm (history, fx) ->
+            let mstep = F.uterm_to_mstep utm in
+            let stg = { fx ; mstep } in
+            let history = stg :: history in
+            let fx = (compute_derivation stg).top in
+            (history, fx))
+  | _ -> failwith "get_history"
+
+let get_future fx utm =
+  match F.un_app utm with
+  | Some ("F", utms) ->
+      List.fold_left utms ~init:([], fx)
+        ~f:(fun (future, fx) utm ->
+            let mstep = F.uterm_to_mstep utm in
+            let stg = { fx ; mstep } in
+            let future = stg :: future in
+            let fx = (compute_derivation stg).top in
+            (future, fx))
+  | _ -> failwith "get_future"
+
+let load_uterm fx utm =
+  match F.un_app utm with
+  | Some ("T", [ goal_mstep ; history_msteps ; future_msteps ]) ->
+      (* Caml.Printf.printf "Trying to load history...\n" ; *)
+      let (history, fx) = get_history fx history_msteps in
+      (* Caml.Printf.printf "Loaded history [size=%d]...\n" (List.length history) ; *)
+      (* Caml.Printf.printf "Trying to load goal...\n" ; *)
+      let goal = { fx ; mstep = F.uterm_to_mstep goal_mstep } in
+      let fx = (compute_derivation goal).top in
+      (* Caml.Printf.printf "Trying to load future...\n" ; *)
+      let (future, _) = get_future fx future_msteps in
+      (* Caml.Printf.printf "Loaded future [size=%d]...\n" (List.length future) ; *)
+      state.goal <- goal ;
+      state.history <- history ;
+      state.future <- List.rev future
+  | _ -> failwith "load_uterm"
+
 let push_goal goal =
   state.future <- [] ;
   state.history <- state.goal :: state.history ;
@@ -117,7 +166,13 @@ let profint_object =
             raise Cannot_start
         end @@ Map.find pmap "f" ;
         (* Printf.printf "formula initailized\n%!" ; *)
-        Js.some @@ Js.string @@ pp_to_string Types.pp_sigma !Types.sigma
+        Option.iter ~f:begin fun permaText ->
+          let permaText = Url.urldecode permaText in
+          (* Caml.Printf.printf "Trying to load perma: %S\n%!" permaText ; *)
+          let utm = Uterm.thing_of_string Proprs.one_term permaText in
+          load_uterm state.goal.fx utm
+        end @@ Map.find pmap "p" ;
+        Js.some @@ Js.string @@ pp_to_string Types.pp_sigma !Types.sigma ;
       with Cannot_start -> Js.null
 
     method signatureChange text =
@@ -265,13 +320,8 @@ let profint_object =
       with _ -> Js.null
 
     method getUITrace =
-      let open Types in
-      let stage_to_uterm stg = Form4.mstep_to_uterm stg.mstep in
-      let history = U.app (U.var_s "H") @@ List.map ~f:stage_to_uterm state.history in
-      let future = U.app (U.var_s "F") @@ List.map ~f:stage_to_uterm state.future in
-      let goal = stage_to_uterm state.goal in
-      let utm = U.app (U.var_s "T") [goal ; history ; future] in
-      let str = Uterm.uterm_to_string empty utm in
+      let utm = save_uterm () in
+      let str = Uterm.uterm_to_string Types.empty utm in
       Js.string str
 
   end
