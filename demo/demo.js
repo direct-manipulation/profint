@@ -47,17 +47,8 @@ demo.clearLinks = clearLinks;
 
 var witnessBox = null;
 
-function makeWitnessBox(ev) {
-  if (witnessBox) {
-    console.log("there is already a witness box");
-    return;
-  }
-  var hlForm = $(".hl-range");
-  if (hlForm.length != 1) {
-    console.log("there is more than one hl!");
-    return;
-  }
-  const path = findPath(hlForm);
+function makeWitnessBoxAt(elem) {
+  const path = findPath(elem)
   const txt = profint.testWitness(path);
   if (txt) {
     witnessBox = $("<input>")
@@ -91,10 +82,22 @@ function makeWitnessBox(ev) {
           ev.stopPropagation();
         }
       });
-    $(".hl-range > span:nth-child(2) > span:first-child")
-      .replaceWith(witnessBox);
+    $($(elem).children("span")[1]).replaceWith(witnessBox);
     witnessBox.focus();
   }
+}
+
+function makeWitnessBox() {
+  if (witnessBox) {
+    console.log("there is already a witness box");
+    return;
+  }
+  var hlForm = $(".hl-range");
+  if (hlForm.length != 1) {
+    console.log("there is more than one hl!");
+    return;
+  }
+  makeWitnessBoxAt(hlForm);
 }
 
 function flashRed() {
@@ -184,6 +187,8 @@ function doRedo() {
 
 demo.doRedo = doRedo;
 
+var $rmenu = undefined;
+
 function renderFormula() {
   clearLinks();
   const output = $("#output");
@@ -196,6 +201,23 @@ function renderFormula() {
   });
   $("#output .enclosing[data-path]")
     .attr("draggable", true)
+    .on("contextmenu", function (ev) {
+      const path = findPath(this);
+      const operations = profint.getItems(path);
+      // console.log(operations);
+      if (operations.show) {
+        $rmenu.data("attachment", this);
+        $rmenu.children().css({ display: "none" });
+        if (operations.contract) $("#rmenu-contract").css({ display: "block" });
+        if (operations.weaken) $("#rmenu-weaken").css({ display: "block" });
+        if (operations.instantiate) $("#rmenu-instantiate").css({ display: "block" });
+        // if (operations.rename) $("#rmenu-rename").css({ display: "block" });
+        $rmenu.css({ top: `${ev.clientY-5}px`,
+                     left: `${ev.clientX-5}px` });
+        $rmenu.addClass("visible");
+      }
+      return false;
+    })
     .on("dragstart", function (ev) {
       // console.log("dragstart", this);
       if (formLink.src) {
@@ -245,6 +267,12 @@ function renderFormula() {
     })
     .on("click", function (ev) {
       // console.log("clicked:", this);
+      // if ($rmenu.hasClass("visible")
+      //     && !$rmenu.is(ev.target.offsetParent)) {
+      //   $rmenu.removeClass("visible");
+      //   ev.stopPropagation();
+      //   return false;
+      // }
       if (ev.ctrlKey) {
         if (formLink.src)
           linkSubformula(this, true);
@@ -490,6 +518,23 @@ function demoSetup() {
         $(this).blur();
       }
     });
+  $rmenu = $("#rmenu");
+  $rmenu.on("mouseleave", (ev) => {
+    $rmenu.removeClass("visible");
+  });
+  $rmenu.children().on("mouseup", function(ev) {
+    $rmenu.removeClass("visible");
+    // console.log($rmenu.data("attachment"), $(this).attr("id"));
+    const elem = $rmenu.data("attachment");
+    const id = $(this).attr("id");
+    if (id === "rmenu-contract")
+      contractSubformula(elem);
+    else if (id === "rmenu-weaken")
+      weakenSubformula(elem);
+    else if (id === "rmenu-instantiate")
+      makeWitnessBoxAt(elem);
+    return false;
+  });
 }
 
 demo.demoSetup = demoSetup;

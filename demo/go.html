@@ -142,5 +142,39 @@
         ...
       </div>
     </div>
+
+    <div id="rmenu">
+      <div id="rmenu-contract" class="rmenu-item">Contract</div>
+      <div id="rmenu-weaken" class="rmenu-item">Weaken</div>
+      <div id="rmenu-instantiate" class="rmenu-item">Instantiate</div>
+      <div id="rmenu-rename" class="rmenu-item">Rename</div>
+    </div>
+
+    <style>
+      #rmenu {
+          position: fixed;
+          z-index: 10000;
+          background: #1b1a1a;
+          border-radius: 4px;
+          display: none;
+      }
+
+      #rmenu.visible {
+          display: block;
+      }
+
+      #rmenu .rmenu-item {
+          padding: 8px 10px;
+          font-size: 15px;
+          font-family: "DejaVu Sans", sans-serif;
+          color: #eee;
+          cursor: pointer;
+          border-radius: inherit;
+      }
+
+      #rmenu .rmenu-item:hover {
+          background: #343434;
+      }
+    </style>
   </body>
 </html>

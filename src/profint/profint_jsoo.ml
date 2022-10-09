@@ -281,6 +281,38 @@ let profint_object =
         state.goal <- old_goal ;
         false
 
+    method getItems path =
+      let fail () = Js.null in
+      try
+        let path = to_path path in
+        let fx, side = F.Paths.formx_at state.goal.fx path in
+        let contract    = ref false in
+        let weaken      = ref false in
+        let rename      = ref false in
+        let instantiate = ref false in
+        let () =
+          match F.expose fx.data with
+          | F.Forall _ ->
+              rename := true ;
+              instantiate := Path.Dir.equal side L
+          | F.Exists _ ->
+              rename := true ;
+              instantiate := Path.Dir.equal side R
+          | F.Imp _ ->
+              contract := Path.Dir.equal side R ;
+              weaken := Path.Dir.equal side R
+          | _ -> ()
+        in
+        object%js
+          val contract    = Js.bool !contract
+          val weaken      = Js.bool !weaken
+          val instantiate = Js.bool !instantiate
+          val rename      = Js.bool !rename
+          val show        = Js.bool (!contract || !weaken ||
+                                     !instantiate || !rename)
+        end |> Js.some
+      with _ -> fail ()
+
     method testWitness src =
       let fail reason =
         Caml.Format.eprintf "testWitness: failure: %s@." reason ;
