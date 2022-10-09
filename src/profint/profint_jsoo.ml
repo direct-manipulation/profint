@@ -12,11 +12,17 @@ open Util
 open Js_of_ocaml
 module F = Form4
 
-type stage = { fx : F.formx ; mstep : F.mstep }
+type stage = {
+  fx : F.formx ;
+  mstep : F.mstep ;
+  rep : Js.js_string Js.t ;
+}
 
-let stage_to_string stage =
-  To_katex.formx_to_string @@
-  F.mark_locations stage.fx stage.mstep
+let mk_stage ~fx ~mstep =
+  let rep = F.mark_locations fx mstep |>
+            To_katex.formx_to_string |>
+            Js.string in
+  { fx ; mstep ; rep }
 
 let compute_derivation stage =
   F.compute_derivation stage.fx [stage.mstep]
@@ -27,8 +33,9 @@ type state = {
   mutable future : stage list ;
 }
 
-let state = { goal = { fx = Types.triv F.Mk.mk_top ; mstep = F.Pristine } ;
-              future = [] ; history = [] }
+let state = { goal = mk_stage ~fx:(Types.triv F.Mk.mk_top) ~mstep:F.Pristine ;
+              future = [] ;
+              history = [] }
 
 let save_uterm () =
   let open Types in
@@ -44,7 +51,7 @@ let get_history fx utm =
       List.fold_right utms ~init:([], fx)
         ~f:(fun utm (history, fx) ->
             let mstep = F.uterm_to_mstep utm in
-            let stg = { fx ; mstep } in
+            let stg = mk_stage ~fx ~mstep in
             let history = stg :: history in
             let fx = (compute_derivation stg).top in
             (history, fx))
@@ -56,7 +63,7 @@ let get_future fx utm =
       List.fold_left utms ~init:([], fx)
         ~f:(fun (future, fx) utm ->
             let mstep = F.uterm_to_mstep utm in
-            let stg = { fx ; mstep } in
+            let stg = mk_stage ~fx ~mstep in
             let future = stg :: future in
             let fx = (compute_derivation stg).top in
             (future, fx))
@@ -69,7 +76,7 @@ let load_uterm fx utm =
       let (history, fx) = get_history fx history_msteps in
       (* Caml.Printf.printf "Loaded history [size=%d]...\n" (List.length history) ; *)
       (* Caml.Printf.printf "Trying to load goal...\n" ; *)
-      let goal = { fx ; mstep = F.uterm_to_mstep goal_mstep } in
+      let goal = mk_stage ~fx ~mstep:(F.uterm_to_mstep goal_mstep) in
       let fx = (compute_derivation goal).top in
       (* Caml.Printf.printf "Trying to load future...\n" ; *)
       let (future, _) = get_future fx future_msteps in
@@ -101,8 +108,9 @@ let to_path str : F.path =
 
 let change_formula text =
   try
-    state.goal <- { fx = Types.triv (Uterm.form_of_string text) ;
-                    mstep = F.Pristine } ;
+    state.goal <- mk_stage
+        ~fx:(Types.triv (Uterm.form_of_string text))
+        ~mstep:F.Pristine ;
     state.history <- [] ;
     state.future <- [] ;
     true
@@ -181,8 +189,7 @@ let profint_object =
     method formulaChange text =
       change_formula @@ Js.to_string text
 
-    method getStateTeX =
-      stage_to_string state.goal |> Js.string
+    method getStateTeX = state.goal.rep
 
     method termToTeX text =
       try
@@ -204,7 +211,7 @@ let profint_object =
       match state.history with
       | [] -> Js.array [| |]
       | _ -> state.history
-             |> List.map ~f:(fun stg -> Js.string @@ stage_to_string stg)
+             |> List.map ~f:(fun stg -> stg.rep)
              |> Array.of_list
              |> Js.array
 
@@ -213,7 +220,7 @@ let profint_object =
       | [] -> Js.array [| |]
       | _ ->
           state.future
-          |> List.rev_map ~f:(fun stg -> Js.string @@ stage_to_string stg)
+          |> List.rev_map ~f:(fun stg -> stg.rep)
           |> Array.of_list
           |> Js.array
 
@@ -238,12 +245,13 @@ let profint_object =
     method makeLink src dest (copy : bool) =
       let old_goal = state.goal in
       try
-        state.goal <- { state.goal with
-                        mstep = F.Link { copy ;
-                                         src = to_path src ;
-                                         dest = to_path dest } } ;
+        let src = to_path src in
+        let dest = to_path dest in
+        state.goal <- mk_stage
+            ~fx:state.goal.fx
+            ~mstep:F.(Link { copy ; src ; dest }) ;
         let deriv = compute_derivation state.goal in
-        push_goal { fx = deriv.top ; mstep = F.Pristine } ;
+        push_goal @@ mk_stage ~fx:deriv.top ~mstep:F.Pristine ;
         true
       with _ ->
         state.goal <- old_goal ;
@@ -252,10 +260,10 @@ let profint_object =
     method doContraction path =
       let old_goal = state.goal in
       try
-        state.goal <- { state.goal with
-                        mstep = F.Contract { path = to_path path } } ;
+        let path = to_path path in
+        state.goal <- mk_stage ~fx:state.goal.fx ~mstep:F.(Contract { path }) ;
         let deriv = compute_derivation state.goal in
-        push_goal { fx = deriv.top ; mstep = F.Pristine } ;
+        push_goal @@ mk_stage ~fx:deriv.top ~mstep:F.Pristine ;
         true
       with _ ->
         state.goal <- old_goal ;
@@ -264,10 +272,10 @@ let profint_object =
     method doWeakening path =
       let old_goal = state.goal in
       try
-        state.goal <- { state.goal with
-                        mstep = F.Weaken { path = to_path path } } ;
+        let path = to_path path in
+        state.goal <- mk_stage ~fx:state.goal.fx ~mstep:F.(Weaken { path }) ;
         let deriv = compute_derivation state.goal in
-        push_goal { fx = deriv.top ; mstep = F.Pristine } ;
+        push_goal @@ mk_stage ~fx:deriv.top ~mstep:F.Pristine ;
         true
       with _ ->
         state.goal <- old_goal ;
@@ -302,9 +310,10 @@ let profint_object =
         match F.expose ex.data, side with
         | F.Forall _, L
         | F.Exists _, R ->
-            state.goal <- { state.goal with mstep = F.Inst { path ; term } } ;
+            state.goal <- mk_stage ~fx:state.goal.fx
+                ~mstep:F.(Inst { path ; term }) ;
             let deriv = compute_derivation state.goal in
-            push_goal { fx = deriv.top ; mstep = F.Pristine } ;
+            push_goal @@ mk_stage ~fx:deriv.top ~mstep:F.Pristine ;
             true
         | _ -> fail "not an exists"
       with e -> fail (Exn.to_string e)
