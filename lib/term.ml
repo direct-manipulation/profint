@@ -217,6 +217,8 @@ let pp_term ?cx out term =
   |> Doc.bracket
   |> Doc.pp out
 
+let pp_termx out term = pp_term ~cx:term.tycx out term.data
+
 let term_to_string ?cx term =
   term_to_exp ?cx term
   |> Doc.bracket

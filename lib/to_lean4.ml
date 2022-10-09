@@ -106,14 +106,70 @@ let pp_sigma out sg =
       Caml.Format.fprintf out "variable {%s : %s}@." (Ident.to_string k) (ty_to_string @@ thaw_ty ty)
   end sg.consts
 
-let pp_path out path =
-  Path.to_list path |>
-  Caml.Format.pp_print_list
-    ~pp_sep:(fun out () -> Caml.Format.pp_print_string out ",")
-    Path.Dir.(fun out -> function
-        | L -> Caml.Format.pp_print_string out "l"
-        | R -> Caml.Format.pp_print_string out "r")
-    out
+exception Unprintable
+
+type lean_dir = L of int | R of int | I of Ident.t list
+[@@deriving equal]
+
+let compatible d1 d2 =
+  match d1, d2 with
+  | L _, L _
+  | R _, R _
+  | I _, I _ -> true
+  | _ -> false
+
+let join d1 d2 =
+  match d1, d2 with
+  | L m, L n -> L (m + n)
+  | R m, R n -> R (m + n)
+  | I xs, I ys -> I (xs @ ys)
+  | _ -> assert false
+
+let ldir_to_string = function
+  | L 1 -> "l"
+  | L n -> "l " ^ Int.to_string n
+  | R 1 -> "r"
+  | R n -> "r " ^ Int.to_string n
+  | I xs ->
+      "i " ^ (List.map ~f:Ident.to_string xs |>
+              String.concat ~sep:" ")
+
+let pp_path rule concl out =
+  let trail = ref [] in
+  let push ldir =
+    match !trail with
+    | old_ldir :: rest when compatible old_ldir ldir ->
+        trail := join old_ldir ldir :: rest
+    | _ ->
+        trail := ldir :: !trail
+  in
+  let rec get_trail cx goal path =
+    match Path.expose_front path with
+    | None -> ()
+    | Some (dir, path) -> begin
+        match dir, expose goal with
+        | L, (And (goal, _) | Or (goal, _) | Imp (goal, _)) ->
+            push (L 1) ;
+            get_trail cx goal path
+        | R, (And (_, goal) | Or (_, goal) | Imp (_, goal)) ->
+            push (R 1) ;
+            get_trail cx goal path
+        | L, (Forall (vty, goal) | Exists (vty, goal)) ->
+            with_var cx vty begin fun { var ; _ } cx ->
+              push (I [var]) ;
+              get_trail cx goal path
+            end
+        | _, Mdata (_, _, goal) ->
+            get_trail cx goal path
+        | _ ->
+            raise Unprintable
+      end
+  in
+  get_trail concl.tycx concl.data rule.Cos.path ;
+  List.rev !trail |>
+  List.map ~f:ldir_to_string |>
+  String.concat ~sep:", " |>
+  Caml.Format.pp_print_string out
 
 let pp_rule_name out rn =
   match rn with
@@ -126,16 +182,16 @@ let pp_rule_name out rn =
 let pp_deriv out (sg, deriv) =
   Caml.Format.fprintf out "section Example@." ;
   pp_sigma out sg ;
-  Caml.Format.fprintf out "example (_ : %a) : %a := by@."
+  Caml.Format.fprintf out "example (__profint_prem : %a) : %a := by@."
     pp_formx deriv.Cos.top
     pp_formx deriv.Cos.bottom ;
-  List.iter ~f:begin fun (prem, rule, _) ->
-    Caml.Format.fprintf out "  within %a use %a@."
-      pp_path rule.Cos.path
+  List.iter ~f:begin fun (prem, rule, concl) ->
+    Caml.Format.fprintf out "  within %t use %a@."
+      (pp_path rule concl)
       pp_rule_name rule.Cos.name ;
     Caml.Format.fprintf out "  /- @[%a@] -/@." pp_formx prem ;
   end @@ List.rev deriv.middle ;
-  Caml.Format.fprintf out "  rename_i u ; exact u@." ;
+  Caml.Format.fprintf out "  exact __profint_prem@." ;
   Caml.Format.fprintf out "end Example@."
 
 let pp_header out () =

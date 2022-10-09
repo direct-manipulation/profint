@@ -65,7 +65,7 @@ let side_to_string (side : Path.Dir.t) =
 
 let pp_rule_name out rn =
   match rn with
-  | Goal_ts_imp { pick} ->
+  | Goal_ts_imp { pick } ->
       Caml.Format.fprintf out "goal_ts_imp_%s" (side_to_string pick)
   | Goal_imp_ts ->
       Caml.Format.fprintf out "goal_imp_ts"
@@ -145,10 +145,10 @@ let pp_rule_name out rn =
       Caml.Format.fprintf out "contract"
   | Weaken ->
       Caml.Format.fprintf out "weaken"
-  | Inst { side ; term = tx } ->
+  | Inst { side ; term } ->
       Caml.Format.fprintf out "inst_%s[@[%a@]]"
         (side_to_string side)
-        (Term.pp_term ~cx:tx.tycx) tx.data
+        Term.pp_termx term
 
 let rec pp_path_list out (path : Path.Dir.t list) =
   match path with

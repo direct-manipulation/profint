@@ -537,19 +537,8 @@ let pp_mstep out mstep =
         pp_path dest
         copy
 
-let dir_to_uterm n (d : Path.Dir.t) =
-  match d with
-  | L -> 2 * n
-  | R -> 2 * n + 1
-
 let path_to_uterm (path : Path.t) : U.term =
-  let buf = Buffer.create (Path.length path) in
-  Buffer.add_char buf 'P' ;
-  Path.to_list path |>
-  List.fold_left ~init:1 ~f:dir_to_uterm |>
-  Int.to_string |>
-  Buffer.add_string buf ;
-  U.var_s (Buffer.contents buf)
+  U.var_s (Path.to_string path)
 
 let mstep_to_uterm mstep =
   match mstep with
@@ -559,41 +548,8 @@ let mstep_to_uterm mstep =
   | Link { src ; dest ; copy } ->
       let src = path_to_uterm src in
       let dst = path_to_uterm dest in
-      let copy = if copy then U.var_s "t" else U.var_s "f" in
-      U.app (U.var_s "L") [src ; dst ; copy]
+      let fn = if copy then U.var_s "Lc" else U.var_s "L" in
+      U.app fn [src ; dst]
   | Inst { path ; term } ->
       let path = path_to_uterm path in
       U.app (U.var_s "I") [path ; term]
-
-exception Bad_path
-
-let to_path (form : form) (id : int) : Path.t =
-  if id = 0 then raise Bad_path else
-  let rec aux here form trail =
-    if List.equal Int.equal trail [] then here else
-    match expose form, trail with
-    | ( And (form, _) | Or (form, _) | Imp (form, _) ), (0 :: trail) ->
-        let here = Path.snoc here Path.Dir.L in
-        aux here form trail
-    | ( And (_, form) | Or (_, form) | Imp (_, form) ), (1 :: trail) ->
-        let here = Path.snoc here Path.Dir.R in
-        aux here form trail
-    | ( Forall (_, form) | Exists (_, form) ), (0 :: trail) ->
-        let here = Path.snoc here L in
-        aux here form trail
-    | Mdata (_, _, form), _ ->
-        aux here form trail
-    | _ ->
-        raise Bad_path
-  in
-  let trail =
-    let bits = ref [] in
-    let n = ref id in
-    while !n <> 0 do
-      bits := (!n land 1) :: !bits ;
-      n := !n lsr 1
-    done ;
-    List.tl_exn !bits
-  in
-  aux Path.empty form trail
-

@@ -24,6 +24,7 @@
   (ocaml (>= 4.12))
 ;  (containers-data (>= 3.8))
   (zarith (>= 1.12))
+  (zarith_stubs_js (>= "v0.15"))
   (js_of_ocaml (>= 3.9.0))
   (js_of_ocaml-ppx (>= 4.0.0))
   (ppx_blob (>= 0.7.2))

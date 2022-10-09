@@ -102,15 +102,18 @@ let rep_exists vty : Doc.doc  =
     (Doc.string_as (String.length v) (texify v))
     pp_ty vty.ty
 
-let dir_to_string (d : dir) =
-  match d with
-  | L -> "l"
-  | R -> "r"
-let path_to_string path =
-  path
-  |> Path.to_list
-  |> List.map ~f:dir_to_string
-  |> String.concat ~sep:";"
+(* let dir_to_string (d : dir) = *)
+(*   match d with *)
+(*   | L -> "l" *)
+(*   | R -> "r" *)
+
+(* let path_to_string path = *)
+(*   path *)
+(*   |> Path.to_list *)
+(*   |> List.map ~f:dir_to_string *)
+(*   |> String.concat ~sep:";" *)
+
+let path_to_string = Path.to_string
 
 let wrap path doc =
   let lbra =
@@ -205,12 +208,13 @@ let pp_sigma out sg =
   end ; Caml.Format.pp_close_box out ()
 
 let pp_path out (path : path) =
-  Path.to_list path |>
-  Caml.Format.pp_print_list
-    ~pp_sep:(fun out () -> Caml.Format.pp_print_string out ", ")
-    Path.Dir.(fun out -> function
-        | L -> Caml.Format.pp_print_string out "l"
-        | R -> Caml.Format.pp_print_string out "r") out
+  Caml.Format.pp_print_string out @@ Path.to_string path
+  (* Path.to_list path |> *)
+  (* Caml.Format.pp_print_list *)
+  (*   ~pp_sep:(fun out () -> Caml.Format.pp_print_string out ", ") *)
+  (*   Path.Dir.(fun out -> function *)
+  (*       | L -> Caml.Format.pp_print_string out "l" *)
+  (*       | R -> Caml.Format.pp_print_string out "r") out *)
 
 let pp_deriv out (sg, deriv) =
   pp_sigma out sg ;

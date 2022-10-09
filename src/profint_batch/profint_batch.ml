@@ -120,6 +120,19 @@ let process_file out ~mode fname =
       List.iteri ~f:(process_problem out ~mode ~fname) probs
   | _ -> bad_json ()
 
+let read_all ic =
+  let len = 64 in
+  let byte_buf = Bytes.create len in
+  let buf = Buffer.create 19 in
+  let rec spin () =
+    match Stdlib.input ic byte_buf 0 len with
+    | 0 -> ()                   (* EOF reached *)
+    | n ->
+        Buffer.add_subbytes buf byte_buf ~pos:0 ~len:n ;
+        spin ()
+  in
+  spin () ; Buffer.contents buf
+
 let run_command ?(print : unit option) cmd =
   let cmd = cmd ^ " 2>&1" in
   Caml.Printf.printf "Running [CWD=%s]: %s\n%!"

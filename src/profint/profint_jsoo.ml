@@ -44,17 +44,11 @@ let sig_change text =
     (* Caml.Format.eprintf "sig_change: %s@." (Printexc.to_string e) ; *)
     false
 
-let to_trail str : F.path =
-  let path = Js.to_string str |> String.split ~on:';' in
-  match path with
-  | [""] -> Path.empty
-  | dirs ->
-      List.map dirs
-        ~f:(function
-            | "l" -> Path.Dir.L
-            | "r" -> R
-            | dir -> failwith @@ "invalid direction: " ^ dir) |>
-      Path.of_list
+let to_path str : F.path =
+  try Js.to_string str |> Path.of_string
+  with e ->
+    Caml.Format.eprintf "to_path: %a@." Exn.pp e ;
+    Exn.reraise e "to_path"
 
 let change_formula text =
   try
@@ -191,8 +185,8 @@ let profint_object =
       try
         state.goal <- { state.goal with
                         mstep = F.Link { copy ;
-                                         src = to_trail src ;
-                                         dest = to_trail dest } } ;
+                                         src = to_path src ;
+                                         dest = to_path dest } } ;
         let deriv = compute_derivation state.goal in
         push_goal { fx = deriv.top ; mstep = F.Pristine } ;
         true
@@ -204,7 +198,7 @@ let profint_object =
       let old_goal = state.goal in
       try
         state.goal <- { state.goal with
-                        mstep = F.Contract { path = to_trail path } } ;
+                        mstep = F.Contract { path = to_path path } } ;
         let deriv = compute_derivation state.goal in
         push_goal { fx = deriv.top ; mstep = F.Pristine } ;
         true
@@ -216,7 +210,7 @@ let profint_object =
       let old_goal = state.goal in
       try
         state.goal <- { state.goal with
-                        mstep = F.Weaken { path = to_trail path } } ;
+                        mstep = F.Weaken { path = to_path path } } ;
         let deriv = compute_derivation state.goal in
         push_goal { fx = deriv.top ; mstep = F.Pristine } ;
         true
@@ -229,7 +223,7 @@ let profint_object =
         Caml.Format.eprintf "testWitness: failure: %s@." reason ;
         Js.null in
       try
-        let ex, side = F.Paths.formx_at state.goal.fx @@ to_trail src in
+        let ex, side = F.Paths.formx_at state.goal.fx @@ to_path src in
         match F.expose ex.data, side with
         | F.Forall ({ var ; ty }, _), L
         | F.Exists ({ var ; ty }, _), R ->
@@ -247,7 +241,7 @@ let profint_object =
         false
       in
       try
-        let path = to_trail path in
+        let path = to_path path in
         let (ex, side) = F.Paths.formx_at state.goal.fx path in
         let term = Uterm.thing_of_string Proprs.one_term @@ Js.to_string text in
         match F.expose ex.data, side with
@@ -276,7 +270,7 @@ let profint_object =
       let history = U.app (U.var_s "H") @@ List.map ~f:stage_to_uterm state.history in
       let future = U.app (U.var_s "F") @@ List.map ~f:stage_to_uterm state.future in
       let goal = stage_to_uterm state.goal in
-      let utm = U.app (U.var_s "TR") [goal ; history ; future] in
+      let utm = U.app (U.var_s "T") [goal ; history ; future] in
       let str = Uterm.uterm_to_string empty utm in
       Js.string str
 

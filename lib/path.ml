@@ -20,7 +20,13 @@ end
 type t = Z.t
 [@@deriving equal]
 
-let to_string : t -> _ = Z.to_string
+let to_string : t -> _ =
+  fun p -> "P" ^ Z.to_string p
+let of_string : _ -> t =
+  fun str ->
+  if String.length str > 1 && Char.equal (String.unsafe_get str 0) 'P' then
+    Z.of_substring str ~pos:1 ~len:(String.length str - 1)
+  else invalid_arg "Path.of_string"
 
 let size (p : t) = Z.numbits p - 1
 let length = size
