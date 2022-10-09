@@ -52,10 +52,6 @@ let rep_lambda var : Doc.doc =
   Caml.Format.dprintf {|\lambda{%s}.\,@,|} var
 let rep_appl : Doc.doc = Caml.Format.dprintf {|\,@,|}
 
-let fresh_id =
-  let count = ref 0 in
-  fun () -> Int.incr count ; !count
-
 let rec termx_to_exp_ ~cx t =
   match t with
   | T.Abs { var ; body } ->
@@ -78,50 +74,31 @@ and head_to_exp_ ~cx head =
       let v = Ident.to_string (List.nth_exn cx.linear n).var in
       Doc.(Atom (tex_string v))
 
-let termx_to_exp tx =
-  Doc.(Wrap (Transparent,
-             string_as 0 (Printf.sprintf "\\htmlId{t%d}{" @@ fresh_id ()),
-             termx_to_exp_ ~cx:tx.tycx tx.data,
-             string_as 0 "}"))
+let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
 let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_linear out
 
-let rep_eq  : Doc.doc = Caml.Format.dprintf {|\mathbin{\doteq}@,|}
-let rep_and : Doc.doc = Caml.Format.dprintf {|\mathbin{\land}@,|}
-let rep_top : Doc.doc = Caml.Format.dprintf {|\top|}
-let rep_or  : Doc.doc = Caml.Format.dprintf {|\mathbin{\lor}@,|}
-let rep_bot : Doc.doc = Caml.Format.dprintf {|\bot|}
-let rep_imp : Doc.doc = Caml.Format.dprintf {|\mathbin{\Rightarrow}@,|}
+let rep_eq  : Doc.doc = Caml.Format.dprintf "@<2>%s@," {|\mathbin{\doteq}|}
+let rep_and : Doc.doc = Caml.Format.dprintf "@<2>%s@," {|\mathbin{\land}|}
+let rep_top : Doc.doc = Caml.Format.dprintf "@<2>%s@," {|\top|}
+let rep_or  : Doc.doc = Caml.Format.dprintf "@<2>%s@," {|\mathbin{\lor}|}
+let rep_bot : Doc.doc = Caml.Format.dprintf "@<2>%s@," {|\bot|}
+let rep_imp : Doc.doc = Caml.Format.dprintf "@<2>%s@," {|\mathbin{\Rightarrow}|}
 let rep_forall vty : Doc.doc =
   let v = Ident.to_string vty.var in
-  Caml.Format.dprintf {|\forall{%t}{:}%a.\,@,|}
+  Caml.Format.dprintf {|@<4>%s%t@<1>%s%a.@<1>%s@,|}
+    {|\forall{|}
     (Doc.string_as (String.length v) (texify v))
-    pp_ty vty.ty
+    {|}{:}|} pp_ty vty.ty {|\,|}
 let rep_exists vty : Doc.doc  =
   let v = Ident.to_string vty.var in
-  Caml.Format.dprintf {|\exists{%t}{:}%a.\,@,|}
+  Caml.Format.dprintf {|@<4>%s%t@<1>%s%a.@<1>%s@,|}
+    {|\exists{|}
     (Doc.string_as (String.length v) (texify v))
-    pp_ty vty.ty
-
-(* let dir_to_string (d : dir) = *)
-(*   match d with *)
-(*   | L -> "l" *)
-(*   | R -> "r" *)
-
-(* let path_to_string path = *)
-(*   path *)
-(*   |> Path.to_list *)
-(*   |> List.map ~f:dir_to_string *)
-(*   |> String.concat ~sep:";" *)
-
-let path_to_string = Path.to_string
+    {|}{:}|} pp_ty vty.ty {|\,|}
 
 let wrap path doc =
-  let lbra =
-    Printf.sprintf "\\htmlId{f%d}{\\htmlData{path=%s}{"
-      (fresh_id ())
-      (path_to_string path)
-  in
-  Doc.(Wrap (Transparent, string_as 0 lbra, doc, string_as 0 "}}"))
+  let lbra = Printf.sprintf "\\htmlData{path=%s}{" (Path.to_string path) in
+  Doc.(Wrap (Transparent, string_as 0 lbra, doc, string_as 0 "}"))
 
 let rec formx_to_exp_ ~cx (path : path) f =
   match expose f with
@@ -173,7 +150,7 @@ let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx Path.empty fx.data
 let formx_to_sout fx =
   let sob = Caml.Format.make_symbolic_output_buffer () in
   let sout = Caml.Format.formatter_of_symbolic_output_buffer sob in
-  Caml.Format.pp_set_geometry sout ~margin:120 ~max_indent:119 ;
+  Caml.Format.pp_set_geometry sout ~margin:80 ~max_indent:79 ;
   formx_to_exp fx |> Doc.bracket |> Doc.pp sout ;
   Caml.Format.pp_print_flush sout () ;
   Caml.Format.flush_symbolic_output_buffer sob

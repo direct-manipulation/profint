@@ -94,26 +94,36 @@
     <pre id="signature"></pre>
 
     <div id="buttons" style="position:relative">
-      <!-- <button onclick="demo.changeFormula()">Change Formula</button> -->
-      <!-- <button id="permaLink" onclick="demo.permaLink()">New Window</button> -->
-      <button id="toggleSig" onclick="demo.toggleSignature()" style="margin-left:2vh;">Show Signature</button>
-      <button id="doUndo" onclick="demo.doUndo()" style="margin-left:2vh;"><span class="icon">&#xf1e3;</span></button>
-      <button id="doRedo" onclick="demo.doRedo()"><span class="icon">&#xf1e0;</span></button>
+      <button id="toggleSig" onclick="demo.toggleSignature()"
+              style="margin-left:2vh;">Show Signature</button>
+      <button id="doUndo" onclick="demo.doUndo()" style="margin-left:2vh;">
+        <span class="icon">&#xf1e3;</span>
+      </button>
+      <button id="doRedo" onclick="demo.doRedo()">
+        <span class="icon">&#xf1e0;</span>
+      </button>
       <div style="position:absolute;right:20px;top:0px;margin:0 0">
-        <button id="copyProof" onclick="demo.copyProof()" style="margin-left:auto;padding:2px 2px;"><span class="icon">&#xe14d;</span> Copy</button>
+        <button id="copyProof" onclick="demo.copyProof()"
+                style="margin-left:auto;padding:2px 2px;">
+          <span class="icon">&#xe14d;</span> Copy
+        </button>
         /
-        <button id="downProof" onclick="demo.downProof()" style="margin-left:auto;padding:2px 2px;"><span class="icon">&#xf090;</span> Download</button>
+        <button id="downProof" onclick="demo.downProof()"
+                style="margin-left:auto;padding:2px 2px;">
+          <span class="icon">&#xf090;</span> Download
+        </button>
         proof as
         <select id="proofSystem">
-          <option value="coq">Coq (trace)</option>
-          <option value="coq_reflect">Coq (reflective)</option>
+          <option value="coq">Coq</option>
+          <option value="coq_reflect">Coq-Reflective</option>
           <option value="isahol">Isabelle/HOL</option>
-          <option value="lean3">Lean3 (trace)</option>
-          <option value="lean4" selected>Lean4</option>
-          <option value="pdf">PDF (display only)</option>
+          <option value="lean3">Lean 3</option>
+          <option value="lean4" selected>Lean 4</option>
+          <option value="pdf">PDF</option>
         </select>
         named
-        <input type="text" id="downName" value="proof" size="5" placeholder="[a-zA-Z][a-zA-Z0-9_]*">
+        <input type="text" id="downName" value="proof" size="5"
+               placeholder="[a-zA-Z][a-zA-Z0-9_]*">
       </div>
     </div>
 
