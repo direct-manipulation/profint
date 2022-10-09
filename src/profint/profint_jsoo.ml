@@ -313,20 +313,23 @@ let profint_object =
         end |> Js.some
       with _ -> fail ()
 
-    method testWitness src =
-      let fail reason =
-        Caml.Format.eprintf "testWitness: failure: %s@." reason ;
-        Js.null in
+    method getBoundIdentifier path =
+      let fail () = Js.null in
       try
-        let ex, side = F.Paths.formx_at state.goal.fx @@ to_path src in
-        match F.expose ex.data, side with
-        | F.Forall ({ var ; ty }, _), L
-        | F.Exists ({ var ; ty }, _), R ->
-            Types.with_var ex.tycx { var ; ty } begin fun { var ; _ } _ ->
-              Js.some @@ Js.string (Ident.to_string var)
-            end
-        | _ -> fail @@ "not an exists: " ^ F.formx_to_string ex
-      with e -> fail (Exn.to_string e)
+        let fx, side = F.Paths.formx_at state.goal.fx @@ to_path path in
+        let quantifier, vty =
+          match F.expose fx.data with
+          | F.Forall (vty, _) -> "forall", vty
+          | F.Exists (vty, _) -> "exists", vty
+          | _ -> failwith "not a binder"
+        in
+        let ident = Types.with_var fx.tycx vty (fun vty _ -> vty.var) in
+        object%js
+          val side = Js.string (match side with L -> "L" | _ -> "R")
+          val quantifier = Js.string quantifier
+          val ident = Ident.to_string ident |> Js.string |> Js.some
+        end |> Js.some
+      with _ -> fail ()
 
     method doWitness path text =
       let old_goal = state.goal in
@@ -347,7 +350,30 @@ let profint_object =
             let deriv = compute_derivation state.goal in
             push_goal @@ mk_stage ~fx:deriv.top ~mstep:F.Pristine ;
             true
-        | _ -> fail "not an exists"
+        | _ -> fail "not instantiable"
+      with e -> fail (Exn.to_string e)
+
+    method doRename path text =
+      let old_goal = state.goal in
+      let fail reason =
+        Caml.Format.printf "doRename: failure: %s@." reason ;
+        state.goal <- old_goal ;
+        false
+      in
+      try
+        let path = to_path path in
+        let var = Js.to_string text |> Ident.of_string in
+        let f = F.Paths.transform_at state.goal.fx.data path begin
+            fun f -> match F.expose f with
+              | F.Forall ({ ty ; _ }, bod) ->
+                  F.Mk.mk_all { var ; ty } bod
+              | F.Exists ({ ty ; _ }, bod) ->
+                  F.Mk.mk_ex { var ; ty } bod
+              | _ -> failwith "not a quantifier"
+          end in
+        let fx = { state.goal.fx with data = f } in
+        state.goal <- mk_stage ~fx ~mstep:state.goal.mstep ;
+        true
       with e -> fail (Exn.to_string e)
 
     method getProof kind =

@@ -47,10 +47,19 @@ demo.clearLinks = clearLinks;
 
 var witnessBox = null;
 
-function makeWitnessBoxAt(elem) {
+function is_instantiable(bv) {
+  return (bv.side === "L" && bv.quantifier === "forall")
+    || (bv.side === "R" && bv.quantifier === "exists");
+}
+function is_anything(bv) {
+  return true;
+}
+
+function makeWitnessBoxAt(elem, tester, handler) {
   const path = findPath(elem)
-  const txt = profint.testWitness(path);
-  if (txt) {
+  const bv = profint.getBoundIdentifier(path);
+  if (bv && tester(bv)) {
+    const txt = bv.ident ;
     witnessBox = $("<input>")
       .attr("placeholder", txt)
       .attr("value", "")
@@ -64,8 +73,7 @@ function makeWitnessBoxAt(elem) {
       .on("change", function(ev){
         // console.log("path: " + $(ev.target).data("path"));
         // console.log("new witness: " + ev.target.value);
-        const res = profint.doWitness($(ev.target).data("path"),
-                                      ev.target.value);
+        const res = handler($(ev.target).data("path"), ev.target.value);
         if (res) {
           witnessBox = null;
           renderFormula();
@@ -87,7 +95,7 @@ function makeWitnessBoxAt(elem) {
   }
 }
 
-function makeWitnessBox() {
+function makeWitnessBox(tester, handler) {
   if (witnessBox) {
     console.log("there is already a witness box");
     return;
@@ -97,7 +105,7 @@ function makeWitnessBox() {
     console.log("there is more than one hl!");
     return;
   }
-  makeWitnessBoxAt(hlForm);
+  makeWitnessBoxAt(hlForm, tester, handler);
 }
 
 function flashRed() {
@@ -211,7 +219,7 @@ function renderFormula() {
         if (operations.contract) $("#rmenu-contract").css({ display: "block" });
         if (operations.weaken) $("#rmenu-weaken").css({ display: "block" });
         if (operations.instantiate) $("#rmenu-instantiate").css({ display: "block" });
-        // if (operations.rename) $("#rmenu-rename").css({ display: "block" });
+        if (operations.rename) $("#rmenu-rename").css({ display: "block" });
         $rmenu.css({ top: `${ev.clientY-5}px`,
                      left: `${ev.clientX-5}px` });
         $rmenu.addClass("visible");
@@ -447,7 +455,7 @@ function demoSetup() {
   const dateWithOffset = new Date(currDate.getTime() - currDate.getTimezoneOffset() * 60000);
   JSZip.defaults.date = dateWithOffset;
   // [END] JSZip hack
-  hotkeys("ctrl+up,ctrl+y,ctrl+down,ctrl+z,w,ctrl+c,n,d,escape", function (event, handler){
+  hotkeys("ctrl+up,ctrl+y,ctrl+down,ctrl+z,r,w,ctrl+c,n,d,escape", function (event, handler){
     switch (handler.key) {
     case "escape":
       clearLinks();
@@ -461,7 +469,10 @@ function demoSetup() {
       doRedo();
       break;
     case "w":
-      makeWitnessBox(event);
+      makeWitnessBox(is_instantiable, profint.doWitness);
+      break;
+    case "r":
+      makeWitnessBox(is_anything, profint.doRename);
       break;
     case 'd':
       $("#downProof").click();
@@ -532,7 +543,9 @@ function demoSetup() {
     else if (id === "rmenu-weaken")
       weakenSubformula(elem);
     else if (id === "rmenu-instantiate")
-      makeWitnessBoxAt(elem);
+      makeWitnessBoxAt(elem, is_instantiable, profint.doWitness);
+    else if (id === "rmenu-rename")
+      makeWitnessBoxAt(elem, is_anything, profint.doRename);
     return false;
   });
 }
