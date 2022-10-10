@@ -189,6 +189,12 @@ demo.doRedo = doRedo;
 
 var $rmenu = undefined;
 
+const setDropEffect = !window.chrome ? ((ev) => {}) :
+      (ev) => {
+        const ctrl = ev.originalEvent.ctrlKey;
+        ev.originalEvent.dataTransfer.dropEffect = ctrl ? "copy" : "move";
+      };
+
 function renderFormula() {
   clearLinks();
   const output = $("#output");
@@ -199,7 +205,8 @@ function renderFormula() {
     // console.log("render: " + rend);
     return rend;
   });
-  $("#output .enclosing[data-path]")
+  $allNodes = $("#output .enclosing[data-path]");
+  $allNodes
     .attr("draggable", true)
     .on("contextmenu", function (ev) {
       const path = findPath(this);
@@ -231,48 +238,40 @@ function renderFormula() {
     .on("dragend", function (ev) {
       // console.log("dragend", this);
       clearLinks();
+      $allNodes.removeClass("link-droppable");
       ev.stopPropagation();
-    })
-    .on("dragover", function(ev) {
-      const de = ev.originalEvent.dataTransfer.dropEffect;
-      if (de === "copy" || de === "move") {
-        ev.preventDefault();
-        $(this).addClass("link-droppable");
-        ev.stopPropagation();
-      }
-    })
-    .on("dragenter", function(ev) {
-      ev.preventDefault();
-      $(this).addClass("link-droppable");
-      ev.stopPropagation();
+      return false;
     })
     .on("dragleave", function(ev) {
-      $(this).removeClass("link-droppable");
+      $allNodes.removeClass("link-droppable");
+      return false;
+    })
+    .on("dragover", function(ev) {
+      setDropEffect(ev);
+      const de = ev.originalEvent.dataTransfer.dropEffect;
+      // console.log("dragover", de, this);
+      if (!$(this).hasClass("link-droppable")) {
+        $allNodes.removeClass("link-droppable");
+        $(this).addClass("link-droppable");
+      }
       ev.stopPropagation();
+      ev.preventDefault();
     })
     .on("drop", function(ev) {
       // console.log("drop", this);
+      setDropEffect(ev);
       const de = ev.originalEvent.dataTransfer.dropEffect;
-      if (de === "copy" || de === "move") {
-        // console.log("drop", de, this);
-        ev.preventDefault();
-        $(this).removeClass("link-droppable");
-        if (!formLink.src) {
-          flashRed();
-          return false;
-        }
-        linkSubformula(this, de === "copy");
-        ev.stopPropagation();
+      // console.log("drop", de, this);
+      // $(this).removeClass("link-droppable");
+      if (!formLink.src) {
+        flashRed();
+        return false;
       }
+      linkSubformula(this, de === "copy");
+      ev.stopPropagation();
+      return false;
     })
     .on("click", function (ev) {
-      // console.log("clicked:", this);
-      // if ($rmenu.hasClass("visible")
-      //     && !$rmenu.is(ev.target.offsetParent)) {
-      //   $rmenu.removeClass("visible");
-      //   ev.stopPropagation();
-      //   return false;
-      // }
       if (ev.ctrlKey) {
         if (formLink.src)
           linkSubformula(this, true);
