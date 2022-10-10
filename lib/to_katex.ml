@@ -18,25 +18,25 @@ open! Form4
 
 let rep_arr : Doc.doc = Doc.(string_as 2 {|\to|} ++ cut)
 
-let texify id =
-  match String.split ~on:'_' id |>
-        List.filter ~f:(fun s -> not @@ String.is_empty s) |>
-        List.rev with
-  | [] -> id
-  | last :: rev_rest ->
-      List.fold_left ~f:begin fun n i ->
-        i ^ "_{" ^ n ^ "}"
-      end ~init:last rev_rest
-
-let tex_string str = Doc.string_as (String.length str) (texify str)
+let string_to_doc ?(font="it") str =
+  let texify id =
+    match String.split ~on:'_' id |>
+          List.filter ~f:(fun s -> not @@ String.is_empty s) |>
+          List.rev with
+    | [] -> id
+    | last :: rev_rest ->
+        List.fold_left ~f:begin fun n i ->
+          i ^ "_{" ^ n ^ "}"
+        end ~init:last rev_rest
+  in
+  Doc.string_as (String.length str)
+  @@ {|\math|} ^ font ^ "{" ^ (texify str) ^ "}"
 
 let rec ty_to_exp ty =
   match ty with
   | Ty.Basic a ->
       let rep = if Ident.equal a Ty.k_o then "o" else (Ident.to_string a) in
-      let len = String.length rep in
-      let rep = "\\mathsf{" ^ texify rep ^ "}" in
-      Doc.(Atom (string_as len rep))
+      Doc.(Atom (string_to_doc ~font:"sf" rep))
   | Ty.Arrow (ta, tb) ->
       Doc.(Appl (1, Infix (rep_arr, Right,
                            [ty_to_exp ta ; ty_to_exp tb])))
@@ -69,10 +69,10 @@ and head_to_exp_ ~cx head =
   match head with
   | T.Const (k, _) ->
       let k = Ident.to_string k in
-      Doc.(Atom (string_as 0 "\\mathsf{" ++ tex_string k ++ string_as 0 "}"))
+      Doc.(Atom (string_to_doc ~font:"sf" k))
   | T.Index n ->
       let v = Ident.to_string (List.nth_exn cx.linear n).var in
-      Doc.(Atom (tex_string v))
+      Doc.(Atom (string_to_doc v))
 
 let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
 let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_linear out
@@ -87,13 +87,13 @@ let rep_forall vty : Doc.doc =
   let v = Ident.to_string vty.var in
   Caml.Format.dprintf {|@<4>%s%t@<1>%s%a.@<1>%s@,|}
     {|\forall{|}
-    (Doc.string_as (String.length v) (texify v))
+    (string_to_doc v)
     {|}{:}|} pp_ty vty.ty {|\,|}
 let rep_exists vty : Doc.doc  =
   let v = Ident.to_string vty.var in
   Caml.Format.dprintf {|@<4>%s%t@<1>%s%a.@<1>%s@,|}
     {|\exists{|}
-    (Doc.string_as (String.length v) (texify v))
+    (string_to_doc v)
     {|}{:}|} pp_ty vty.ty {|\,|}
 
 let wrap path doc =
@@ -176,11 +176,11 @@ let pp_sigma out sg =
   Caml.Format.pp_open_vbox out 0 ; begin
     Set.iter ~f:begin fun i ->
       if Set.mem sigma0.basics i then () else
-        Caml.Format.fprintf out {|%s : \mathsf{type}.@,|} (Ident.to_string i)
+        Caml.Format.fprintf out {|\mathsf{%s} : \mathsf{type}.@,|} (Ident.to_string i)
     end sg.basics ;
     Map.iteri ~f:begin fun ~key:k ~data:ty ->
       if Map.mem sigma0.consts k then () else
-        Caml.Format.fprintf out {|%s : %a.@,|} (Ident.to_string k) pp_ty (thaw_ty ty)
+        Caml.Format.fprintf out {|\mathsf{%s} : \mathsf{%a}.@,|} (Ident.to_string k) pp_ty (thaw_ty ty)
     end sg.consts
   end ; Caml.Format.pp_close_box out ()
 
