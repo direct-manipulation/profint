@@ -1,3 +1,6 @@
+* Demo signature should not be editable
+** use katex to render it
+** perhaps display it in a hover frame
 * Rule explanations
 ** Expand msteps to full CoS derivs
 Use a modal overlay
