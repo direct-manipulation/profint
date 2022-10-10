@@ -1,6 +1,26 @@
 CPP 2023 submission 33
 ----------------------
 
+UPDATE on 2022-10-10:
+
+> * It was discovered post submission that the drag-and-drop feature was not
+>   working on Chrome-based browsers because of a long standing Chrome bug:
+>
+>   https://bugs.chromium.org/p/chromium/issues/detail?id=501655
+>
+> * A workaround has been implemented for such browsers.
+>
+> * The version on github.io will be updated with the current version of the
+>   code base. Unfortunately, this version has had a lot of changes since the
+>   CPP2023 submission. This version will therefore be out of sync with the
+>   submission. However, it is quite complicated to backport the fix to the old
+>   version. This situation is regrettable.
+>
+> * The present version of this tool is mainly more "hands off" compared to the
+>   CPP2023 submission version. In particular, many existential instantations
+>   are guessed automatically.
+
+
 Instructions:
 
 * The `Profound-Intuitionistic` tool (aka `Profint`) is provided as a
