@@ -180,14 +180,14 @@ let profint_object =
           let utm = Uterm.thing_of_string Proprs.one_term permaText in
           load_uterm state.goal.fx utm
         end @@ Map.find pmap "p" ;
-        Js.some @@ Js.string @@ pp_to_string Types.pp_sigma !Types.sigma ;
-      with Cannot_start -> Js.null
+        Js._true
+      with Cannot_start -> Js._false
 
     method signatureChange text =
       sig_change @@ Js.to_string text
 
-    method formulaChange text =
-      change_formula @@ Js.to_string text
+    method getSignatureTeX =
+      pp_to_string To.Katex.pp_sigma !Types.sigma |> Js.string
 
     method getStateTeX = state.goal.rep
 

@@ -175,16 +175,17 @@ let formx_to_string fx =
 let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let pp_sigma out sg =
-  Caml.Format.pp_open_vbox out 0 ; begin
-    Set.iter ~f:begin fun i ->
-      if Set.mem sigma0.basics i then () else
-        Caml.Format.fprintf out {|%t : \mathsf{type}.@,|} (ident_to_doc ~font:"sf" i)
-    end sg.basics ;
-    Map.iteri ~f:begin fun ~key:k ~data:ty ->
-      if Map.mem sigma0.consts k then () else
-        Caml.Format.fprintf out {|%t : \mathsf{%a}.@,|} (ident_to_doc k) pp_ty (thaw_ty ty)
-    end sg.consts
-  end ; Caml.Format.pp_close_box out ()
+  Caml.Format.pp_print_string out {|\displaystyle{\begin{array}{lll}|};
+  Set.iter ~f:begin fun i ->
+    if Set.mem sigma0.basics i then () else
+      Caml.Format.fprintf out {|%t&\mkern -7mu{:}&\mkern -7mu \mathsf{type}.\\|} (ident_to_doc ~font:"sf" i)
+  end sg.basics ;
+  Map.iteri ~f:begin fun ~key:k ~data:ty ->
+    if Map.mem sigma0.consts k then () else
+      Caml.Format.fprintf out {|%t&\mkern -7mu{:}&\mkern -7mu \mathsf{%a}.\\|}
+        (ident_to_doc ~font:"sf" k) pp_ty (thaw_ty ty)
+  end sg.consts ;
+  Caml.Format.pp_print_string out {|\end{array}}|}
 
 let pp_path out (path : path) =
   Caml.Format.pp_print_string out @@ Path.to_string path

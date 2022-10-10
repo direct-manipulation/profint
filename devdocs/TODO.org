@@ -1,0 +1,14 @@
+* Rule explanations
+** Expand msteps to full CoS derivs
+Use a modal overlay
+* Output
+** HOL4
+** PVS
+** ACL2
+** Abella
+** Agda
+** HOL-Light
+** Dedukti
+** MMT?
+* Definitions
+* Induction

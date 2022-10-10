@@ -1,0 +1,8 @@
+* Right click actions
+** Contract
+** Weaken
+** Instantiate
+** Rename
+* Demo signature should not be editable
+** use katex to render it
+** perhaps display it in a hover frame

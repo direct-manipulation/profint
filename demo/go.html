@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="vendor/katex.min.css">
     <script src="vendor/katex.min.js"></script>
     <!-- ace -->
-    <script src="vendor/ace.js"></script>
+    <!-- <script src="vendor/ace.js"></script> -->
     <script src="vendor/hotkeys.min.js"></script>
     <!-- zip and FileSaver -->
     <script src="vendor/jszip.min.js"></script>
@@ -33,12 +33,22 @@
           padding-left: 40px;
           padding-top: 40px;
       }
+      /* body button { border-radius: 4px; border: 1px solid #555; } */
       #signature {
-          margin: 0; padding: 0;
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
+          display: none;
+          position: fixed;
+          background-color: #1b1a1a;
+          color: #fff;
+          z-index: 10000;
+      }
+      #toggleSig {
+          display: inline-block;
+      }
+      #toggleSig.signature-shown {
+          border-color: #1b1a1a;
+          background-color: #1b1a1a;
+          color: #fff;
+          transform: translateY(3px);
       }
       #interface { visibility: hidden; }
       .icon {
@@ -91,11 +101,11 @@
     </style>
   </head>
   <body>
-    <pre id="signature"></pre>
+    <div id="signature"></div>
 
     <div id="buttons" style="position:relative">
       <button id="toggleSig" onclick="demo.toggleSignature()"
-              style="margin-left:2vh;">Show Signature</button>
+              style="margin-left:2vh;">Signature</button>
       <button id="doUndo" onclick="demo.doUndo()" style="margin-left:2vh;">
         <span class="icon">&#xf1e3;</span>
       </button>

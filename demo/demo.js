@@ -171,14 +171,6 @@ function substituteWitness(elem) {
   }
 }
 
-function changeFormula() {
-  var text = window.prompt("Enter the new formula");
-  setFormula(text);
-  return false;
-}
-
-demo.changeFormula = changeFormula;
-
 function doUndo() {
   var res = profint.doUndo();
   if (res) renderFormula();
@@ -392,16 +384,6 @@ function renderFormula() {
   history.replaceState({}, 'Profint Interface', url.href);
 }
 
-function setFormula(text) {
-  var res = profint.formulaChange(text);
-  if (res) renderFormula();
-  else {
-    // console.log("formChange() failed");
-    output.css({"background-color": "red"});
-    output.animate({"background-color": "white"}, "slow");
-  }
-}
-
 function getProofKind() {
   return $("#proofSystem").val() || "-unknown-";
 }
@@ -434,20 +416,29 @@ function downProof() {
 demo.downProof = downProof;
 
 var signatureShown = true;
+var $toggleSig, $signature;
 
 function toggleSignature() {
   signatureShown = !signatureShown;
   if (signatureShown) {
-    $("#signature").show();
-    $("#toggleSig").html("Hide Signature");
+    $signature.css({
+      display: "inline-block",
+      top: $toggleSig.offset().top + $("#doUndo").outerHeight(),
+      left: $toggleSig.offset().left
+    }).show(50);
+    $toggleSig.addClass("signature-shown");
   } else {
-    $("#signature").hide();
-    $("#toggleSig").html("Show Signature");
+    $signature.hide(50);
+    $toggleSig.removeClass("signature-shown");
   }
 }
 demo.toggleSignature = toggleSignature;
 
 function demoSetup() {
+  // setup variables
+  $toggleSig = $("#toggleSig");
+  $signature = $("#signature");
+
   // [START] JSZip hack
   // for below see: https://github.com/Stuk/jszip/issues/369#issuecomment-546204220
   // reset the JSZip default date
@@ -489,8 +480,7 @@ function demoSetup() {
     return false;
   });
   $("#interface").css({ visibility: "visible" });
-  const sigText = profint.startup();
-  if (!sigText) {
+  if (!profint.startup()) {
     demo.toggleSignature = () => {};
     $("button, select").prop("disabled", true);
     output.html("<h3><em>Invalid parameters!</em></h3><br>Could not initialize profint");
@@ -498,22 +488,9 @@ function demoSetup() {
     throw new Error("Could not initialize profint!");
   }
   renderFormula() ;
-  $("#signature").html(sigText);
-  var sigEditor = ace.edit("signature");
-  sigEditor.setTheme("ace/theme/chrome");
-  sigEditor.setOptions({
-    minLines: 5,
-    maxLines: 20,
-    showLineNumbers: false,
-    showGutter: true,
-  });
-  document.sigEditor = sigEditor;
-  sigEditor.on("change", function(e) {
-    var res = profint.signatureChange(sigEditor.getValue());
-    if (!res)
-      $("#signature").css({"border": "2px solid red"});
-    else
-      $("#signature").css({"border": "none"});
+  $signature.html(function() {
+    const tex = profint.getSignatureTeX();
+    return katex.renderToString(tex, katex_options);
   });
   toggleSignature();
   $("#downName")
