@@ -72,11 +72,13 @@ let pp_sigma out sg =
   Caml.Format.pp_open_vbox out 0 ; begin
     Set.iter ~f:begin fun i ->
       if Set.mem sigma0.basics i then () else
-        Caml.Format.fprintf out {|\mathsf{%s} &: \mathsf{type}.\\@,|} (Ident.to_string i)
+        Caml.Format.fprintf out {|%t &: \mathsf{type}.\\@,|}
+          (To_katex.ident_to_doc ~font:"sf" i)
     end sg.basics ;
     Map.iteri ~f:begin fun ~key:k ~data:ty ->
       if Map.mem sigma0.consts k then () else
-        Caml.Format.fprintf out {|\mathsf{%s} &: %a.\\@,|} (Ident.to_string k) pp_ty (thaw_ty ty)
+        Caml.Format.fprintf out {|%t &: %a.\\@,|}
+          (To_katex.ident_to_doc ~font:"sf" k) pp_ty (thaw_ty ty)
     end sg.consts
   end ; Caml.Format.pp_close_box out () ;
   Caml.Format.pp_print_string out {|\end{align*}

@@ -32,6 +32,8 @@ let string_to_doc ?(font="it") str =
   Doc.string_as (String.length str)
   @@ {|\math|} ^ font ^ "{" ^ (texify str) ^ "}"
 
+let ident_to_doc ?font id = string_to_doc ?font (Ident.to_string id)
+
 let rec ty_to_exp ty =
   match ty with
   | Ty.Basic a ->
@@ -176,11 +178,11 @@ let pp_sigma out sg =
   Caml.Format.pp_open_vbox out 0 ; begin
     Set.iter ~f:begin fun i ->
       if Set.mem sigma0.basics i then () else
-        Caml.Format.fprintf out {|\mathsf{%s} : \mathsf{type}.@,|} (Ident.to_string i)
+        Caml.Format.fprintf out {|%t : \mathsf{type}.@,|} (ident_to_doc ~font:"sf" i)
     end sg.basics ;
     Map.iteri ~f:begin fun ~key:k ~data:ty ->
       if Map.mem sigma0.consts k then () else
-        Caml.Format.fprintf out {|\mathsf{%s} : \mathsf{%a}.@,|} (Ident.to_string k) pp_ty (thaw_ty ty)
+        Caml.Format.fprintf out {|%t : \mathsf{%a}.@,|} (ident_to_doc k) pp_ty (thaw_ty ty)
     end sg.consts
   end ; Caml.Format.pp_close_box out ()
 
