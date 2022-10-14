@@ -101,7 +101,7 @@ r : i -> i -> \o.
           flex-grow: 2;
       }
       #signature, #formula { margin: 0 0; padding: 0 0; }
-      #custom-launch { margin-top: 2vh; font-size: 140%; }
+      #custom-launch, #custom-reset { margin-top: 2vh; }
       table.syntax {
           /* border: 1px solid black; */
           /* border-spacing: 1vh; */
@@ -124,31 +124,44 @@ r : i -> i -> \o.
       <div id="yourown">
         <h2>State your conjecture...</h2>
 
+        <script>
+          const sigTextOrig = [
+            "i : \\type.",
+            "a, t : i -> i -> \\o."
+          ].join("\n");
+          const formTextOrig = [
+            "(\\A [x, y] t x y \\or t y x) \\to",
+            "(\\A [x, y] a x y \\to a y x \\to \\eq x y) \\to",
+            "(\\A [x, y] t x y \\to a x y) \\to",
+            "\\A [x, y] a x y \\to t x y"
+          ].join("\n");
+        </script>
+
         <div class="embed-editor" title="Signature">
-<!--           <pre id="signature">i : \type. -->
-<!-- j : i. -->
-<!-- f : i -&gt; i. -->
-<!-- p : i -&gt; \o. -->
-<!-- a, t : i -&gt; i -&gt; \o.</pre> -->
-          <pre id="signature">i : \type.
-a, t : i -&gt; i -&gt; \o.</pre>
+          <pre id="signature">...</pre>
         </div>
 
         <hr>
 
         <div class="embed-editor" title="Formula">
-          <!-- <pre id="formula">(\A [x] p x =&gt; p (f x)) =&gt; p j =&gt; p (f (f j))</pre> -->
-          <pre id="formula">(\A [x, y] t x y \or t y x) \to
-(\A [x, y] a x y \to a y x \to \eq x y) \to
-(\A [x, y] t x y \to a x y) \to
-\A [x, y] a x y \to t x y</pre>
+          <pre id="formula">...</pre>
         </div>
         <div style="margin-left:1em;">
           <em>i.e.,</em> <span id="conjecture-output"></span>
         </div>
-        <button id="custom-launch">Launch!</button>
+        <button id="custom-launch" style="margin-right:1px;">Launch!</button>
+        |
+        <button id="custom-reset" style="margin-left:1px;">Reset to default</button>
 
         <script>
+          $("#signature").text(function() {
+            const txt = window.localStorage.getItem("launcher-sig") || sigTextOrig;
+            return txt;
+          });
+          $("#formula").text(function() {
+            const txt = window.localStorage.getItem("launcher-form") || formTextOrig;
+            return txt;
+          });
           var sigEditor = ace.edit("signature");
           sigEditor.setTheme("ace/theme/chrome");
           sigEditor.setOptions({
@@ -183,7 +196,9 @@ a, t : i -&gt; i -&gt; \o.</pre>
             return allOk;
           }
           function formEditorUpdate(e) {
-            const formExpr = profint.formulaToTeX(formEditor.getValue());
+            const formText = formEditor.getValue();
+            window.localStorage.setItem("launcher-form", formText);
+            const formExpr = profint.formulaToTeX(formText);
             isOk.form = false;
             if (formExpr) {
               isOk.form = true;
@@ -195,7 +210,9 @@ a, t : i -&gt; i -&gt; \o.</pre>
             return updateBordersAndButtons();
           }
           function sigEditorChange(e) {
-            isOk.sig = !!profint.signatureChange(sigEditor.getValue());
+            const sigText = sigEditor.getValue();
+            window.localStorage.setItem("launcher-sig", sigText);
+            isOk.sig = !!profint.signatureChange(sigText);
             return formEditorUpdate();
           }
           formEditor.on("change", sigEditorChange);
@@ -205,6 +222,10 @@ a, t : i -&gt; i -&gt; \o.</pre>
             const url = makeURL(sigEditor.getValue(), formEditor.getValue());
             // console.log("Need to go to:", url);
             window.location.href = url;
+          });
+          $("#custom-reset").on("click", function(ev) {
+            sigEditor.session.doc.setValue(sigTextOrig);
+            formEditor.session.doc.setValue(formTextOrig);
           });
         </script>
 
