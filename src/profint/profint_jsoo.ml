@@ -362,13 +362,16 @@ let profint_object =
       in
       try
         let path = to_path path in
-        let var = Js.to_string text |> Ident.of_string in
-        state.goal <- mk_stage
-            ~fx:state.goal.fx
-            ~mstep:F.(Rename { path ; var }) ;
-        let deriv = compute_derivation state.goal in
-        push_goal @@ mk_stage ~fx:deriv.top ~mstep:F.Pristine ;
-        true
+        let var = Uterm.thing_of_string Proprs.one_term @@ Js.to_string text in
+        match var with
+        | Var var ->
+            state.goal <- mk_stage
+                ~fx:state.goal.fx
+                ~mstep:F.(Rename { path ; var }) ;
+            let deriv = compute_derivation state.goal in
+            push_goal @@ mk_stage ~fx:deriv.top ~mstep:F.Pristine ;
+            true
+        | _ -> fail "invalid identifier"
       with e -> fail (Exn.to_string e)
 
     method getProof kind =

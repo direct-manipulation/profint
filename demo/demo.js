@@ -78,7 +78,7 @@ function makeWitnessBoxAt(elem, tester, handler) {
           witnessBox = null;
           renderFormula();
         } else {
-          console.log("witness was not accepted");
+          console.log("term was not accepted");
           witnessBox.css({"background-color": "red"})
             .animate({"background-color": "inherit"}, "slow");
         }
