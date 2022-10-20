@@ -198,15 +198,14 @@ const setDropEffect = !window.chrome ? ((ev) => {}) :
 function renderFormula() {
   clearLinks();
   const output = $("#output");
-  output.html(function(){
+  output.html(function() {
     const expr = '\\displaystyle{' + profint.getStateTeX() + '}';
     // console.log("render: " + expr);
     const rend = katex.renderToString(expr, katex_options);
     // console.log("render: " + rend);
     return rend;
   });
-  $allNodes = $("#output .enclosing[data-path]");
-  $allNodes
+  $("#output .enclosing[data-path]")
     .attr("draggable", true)
     .on("contextmenu", function (ev) {
       const path = findPath(this);
@@ -221,79 +220,11 @@ function renderFormula() {
         if (operations.rename) $("#rmenu-rename").css({ display: "block" });
         $rmenu.css({ top: `${ev.clientY-5}px`,
                      left: `${ev.clientX-5}px` });
-        $rmenu.addClass("visible");
+        // $rmenu.addClass("visible");
+        $rmenu.show("fast");
       }
       return false;
-    })
-    .on("dragstart", function (ev) {
-      // console.log("dragstart", this);
-      if (formLink.src) {
-        flashRed();
-        return false;
-      }
-      ev.originalEvent.dataTransfer.effectAllowed = "copyMove";
-      linkSubformula(this, false);
-      ev.stopPropagation();
-    })
-    .on("dragend", function (ev) {
-      // console.log("dragend", this);
-      clearLinks();
-      $allNodes.removeClass("link-droppable");
-      ev.stopPropagation();
-      return false;
-    })
-    .on("dragleave", function(ev) {
-      $allNodes.removeClass("link-droppable");
-      return false;
-    })
-    .on("dragover", function(ev) {
-      setDropEffect(ev);
-      const de = ev.originalEvent.dataTransfer.dropEffect;
-      // console.log("dragover", de, this);
-      if (!$(this).hasClass("link-droppable")) {
-        $allNodes.removeClass("link-droppable");
-        $(this).addClass("link-droppable");
-      }
-      ev.stopPropagation();
-      ev.preventDefault();
-    })
-    .on("drop", function(ev) {
-      // console.log("drop", this);
-      setDropEffect(ev);
-      const de = ev.originalEvent.dataTransfer.dropEffect;
-      // console.log("drop", de, this);
-      // $(this).removeClass("link-droppable");
-      if (!formLink.src) {
-        flashRed();
-        return false;
-      }
-      linkSubformula(this, de === "copy");
-      ev.stopPropagation();
-      return false;
-    })
-    .on("click", function (ev) {
-      if (ev.ctrlKey) {
-        if (formLink.src)
-          linkSubformula(this, true);
-        else
-          contractSubformula(this);
-      }
-      else if (ev.altKey) weakenSubformula(this);
-      // else if (ev.shiftKey) substituteWitness(this);
-      else linkSubformula(this, false);
-      ev.stopPropagation();
     });
-  $("#output .enclosing").mouseover(function(ev) {
-    $("#output .enclosing").removeClass("hl-range");
-    $(this).addClass("hl-range");
-    // $("span.enclosing").css({"border-bottom": "0"});
-    // $(this).css({"border-bottom": "3px solid red"});
-    ev.stopPropagation();
-  });
-  $("#output .enclosing").mouseout(function(ev) {
-    $(this).removeClass("hl-range");
-    // $("span.enclosing").css({"border-bottom": "0"});
-  });
   $("#output .brk").html("<br>");
   $("#output span[data-spc]").html(function(){
     // console.log('data: ', $(this).data("spc"));
@@ -487,6 +418,89 @@ function demoSetup() {
     throw new Error("Could not initialize profint!");
   }
   renderFormula() ;
+  const output = $("#output");
+  const nearestSubformula = (ev) => {
+    let cur = $(ev.target);
+    while (true) {
+      if (cur.data("path")) break;
+      if (cur.is(output)) return null;
+      cur = cur.parent();
+    }
+    return cur[0];
+  };
+  $("#output")
+    .on("dragstart", function (ev) {
+      const cur = nearestSubformula(ev);
+      if (!cur) return;
+      // console.log("dragstart", $(cur).data("path"));
+      if (formLink.src) {
+        flashRed();
+        return false;
+      }
+      ev.originalEvent.dataTransfer.effectAllowed = "copyMove";
+      linkSubformula(cur, false);
+    })
+    .on("dragend", function (ev) {
+      const cur = nearestSubformula(ev);
+      if (!cur) return;
+      // console.log("dragend", $(cur).data("path"));
+      clearLinks();
+      $("#output .enclosing[data-path]").removeClass("link-droppable");
+    })
+    .on("dragleave", function(ev) {
+      const cur = nearestSubformula(ev);
+      if (!cur) return;
+      $(cur).removeClass("link-droppable");
+    })
+    .on("dragover", function(ev) {
+      const cur = nearestSubformula(ev);
+      if (!cur) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      setDropEffect(ev);
+      const de = ev.originalEvent.dataTransfer.dropEffect;
+      if (!$(cur).hasClass("link-droppable")) {
+        // console.log("dragover", de, cur);
+        $("#output .enclosing[data-path]").removeClass("link-droppable");
+        $(cur).addClass("link-droppable");
+      }
+    })
+    .on("drop", function(ev) {
+      const cur = nearestSubformula(ev);
+      if (!cur) return;
+      setDropEffect(ev);
+      const de = ev.originalEvent.dataTransfer.dropEffect;
+      if (!formLink.src) {
+        flashRed();
+        return false;
+      }
+      ev.stopPropagation();
+      linkSubformula(cur, de === "copy");
+    })
+    .on("click", function(ev) {
+      const cur = nearestSubformula(ev);
+      if (!cur) return;
+      if (ev.ctrlKey) {
+        if (formLink.src) linkSubformula(cur, true);
+        else contractSubformula(cur);
+      } else if (ev.altKey) weakenSubformula(cur);
+      else linkSubformula(cur, false);
+      // allow bubbling
+    })
+    .on("mouseover", function(ev) {
+      const cur = nearestSubformula(ev);
+      if (!cur) return;
+      $("#output .enclosing[data-path]").removeClass("hl-range");
+      $(cur).addClass("hl-range");
+      // allow bubbling
+    })
+    .on("mouseout", function(ev) {
+      const cur = nearestSubformula(ev);
+      if (!cur) return;
+      $(cur).removeClass("hl-range");
+      // allow bubbling
+    })
+  ;
   $signature.html(function() {
     const tex = profint.getSignatureTeX();
     return katex.renderToString(tex, katex_options);
@@ -507,10 +521,12 @@ function demoSetup() {
     });
   $rmenu = $("#rmenu");
   $rmenu.on("mouseleave", (ev) => {
-    $rmenu.removeClass("visible");
+    // $rmenu.removeClass("visible");
+    $rmenu.hide("fast");
   });
   $rmenu.children().on("mouseup", function(ev) {
-    $rmenu.removeClass("visible");
+    // $rmenu.removeClass("visible");
+    $rmenu.hide();
     // console.log($rmenu.data("attachment"), $(this).attr("id"));
     const elem = $rmenu.data("attachment");
     const id = $(this).attr("id");
@@ -532,7 +548,7 @@ function permaLink() {
   const trace = profint.getUITrace();
   let url = new URL(document.location);
   url.searchParams.set("p", trace);
-  console.log("permalink:", url.href);
+  // console.log("permalink:", url.href);
   // document.location.assign(url.href);
   window.open(url.href, "_blank");
 }
