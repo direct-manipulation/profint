@@ -1,7 +1,6 @@
 var demo = {};
 
 (function(){
-var initial_form = "(\\A [x] \\E [y] r (f x) y) & (\\A [z] r (f j) z => p (f z)) => \\E [u] p (f u)";
 
 const macros = {
   "\\o": "\\mathsf{o}",
