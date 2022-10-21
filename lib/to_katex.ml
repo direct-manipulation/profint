@@ -16,23 +16,44 @@ open! Types
 open! Term
 open! Form4
 
-let rep_arr : Doc.doc = Doc.(string_as 2 {|\to|} ++ cut)
+let is_digit _ c = Char.('0' <= c && c <= '9')
+let is_nondigit _ c = Char.(c < '0' || c > '9')
+
+let wrap_numbers str =
+  let rec spin exts f1 t1 f2 t2 pos str =
+    match String.lfindi str ~pos ~f:f1 with
+    | Some dpos ->
+        let sub = String.sub str ~pos ~len:(dpos - pos) in
+        spin ((t1, sub) :: exts) f2 t2 f1 t1 dpos str
+    | None ->
+        let sub = String.drop_prefix str pos in
+        (t1, sub) :: exts
+  in
+  spin [] is_digit `v is_nondigit `n 0 str |>
+  List.rev_filter_map ~f:(
+    fun (t, sub) ->
+      if String.is_empty sub then None else
+      match t with
+      | `n -> Some ("\\mathrm{" ^ sub ^ "}")
+      | _ -> Some sub) |>
+  String.concat ~sep:""
 
 let string_to_doc ?(font="it") str =
   let texify id =
     match String.split ~on:'_' id |>
-          List.filter ~f:(fun s -> not @@ String.is_empty s) |>
-          List.rev with
+          List.rev_filter ~f:(fun s -> not @@ String.is_empty s) with
     | [] -> id
     | last :: rev_rest ->
         List.fold_left ~f:begin fun n i ->
-          i ^ "_{" ^ n ^ "}"
-        end ~init:last rev_rest
+          (wrap_numbers i) ^ "_{" ^ n ^ "}"
+        end ~init:(wrap_numbers last) rev_rest
   in
   Doc.string_as (String.length str)
   @@ {|\math|} ^ font ^ "{" ^ (texify str) ^ "}"
 
 let ident_to_doc ?font id = string_to_doc ?font (Ident.to_string id)
+
+let rep_arrow : Doc.doc = Doc.(string_as 2 {|\to|} ++ cut)
 
 let rec ty_to_exp ty =
   match ty with
@@ -40,7 +61,7 @@ let rec ty_to_exp ty =
       let rep = if Ident.equal a Ty.k_o then "o" else (Ident.to_string a) in
       Doc.(Atom (string_to_doc ~font:"sf" rep))
   | Ty.Arrow (ta, tb) ->
-      Doc.(Appl (1, Infix (rep_arr, Right,
+      Doc.(Appl (1, Infix (rep_arrow, Right,
                            [ty_to_exp ta ; ty_to_exp tb])))
   | Ty.Var v -> begin
       match v.subst with

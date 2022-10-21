@@ -190,8 +190,11 @@ var $rmenu = undefined;
 
 const setDropEffect = !window.chrome ? ((ev) => {}) :
       (ev) => {
-        const ctrl = ev.originalEvent.ctrlKey;
-        ev.originalEvent.dataTransfer.dropEffect = ctrl ? "copy" : "move";
+        if (ev.originalEvent.dataTransfer) {
+          ev.originalEvent.dataTransfer.dropEffect =
+            ev.originalEvent.ctrlKey ? "copy" : "move";
+          console.log("setDropEffect:", ev.originalEvent.dataTransfer.dropEffect);
+        } else console.log("setDropEffect: ignored");
       };
 
 function renderFormula() {
@@ -363,10 +366,13 @@ function toggleSignature() {
 }
 demo.toggleSignature = toggleSignature;
 
+var $output;
+
 function demoSetup() {
   // setup variables
   $toggleSig = $("#toggleSig");
   $signature = $("#signature");
+  $output = $("#output");
 
   // [START] JSZip hack
   // for below see: https://github.com/Stuk/jszip/issues/369#issuecomment-546204220
@@ -427,7 +433,13 @@ function demoSetup() {
     }
     return cur[0];
   };
-  $("#output")
+  let dragTarget = null;
+  let dropEffect = "move";
+  $output
+    .on("drag", function (ev) {
+      // console.log("drag", ev.originalEvent.ctrlKey);
+      dropEffect = ev.originalEvent.ctrlKey ? "copy" : "move";
+    })
     .on("dragstart", function (ev) {
       const cur = nearestSubformula(ev);
       if (!cur) return;
@@ -436,7 +448,9 @@ function demoSetup() {
         flashRed();
         return false;
       }
-      ev.originalEvent.dataTransfer.effectAllowed = "copyMove";
+      ev.originalEvent.dataTransfer.effectAllowed = "all";
+      dropEffect = ev.originalEvent.ctrlKey ? "copy" : "move";
+      ev.originalEvent.dataTransfer.dropEffect = dropEffect;
       linkSubformula(cur, false);
     })
     .on("dragend", function (ev) {
@@ -446,35 +460,41 @@ function demoSetup() {
       clearLinks();
       $("#output .enclosing[data-path]").removeClass("link-droppable");
     })
-    .on("dragleave", function(ev) {
+    .on("dragenter", function(ev) {
+      ev.originalEvent.dataTransfer.dropEffect = dropEffect;
       const cur = nearestSubformula(ev);
       if (!cur) return;
-      $(cur).removeClass("link-droppable");
-    })
-    .on("dragover", function(ev) {
-      const cur = nearestSubformula(ev);
-      if (!cur) return;
+      // console.log("dragenter", $(cur).data("path"));
       ev.preventDefault();
-      ev.stopPropagation();
-      setDropEffect(ev);
-      const de = ev.originalEvent.dataTransfer.dropEffect;
-      if (!$(cur).hasClass("link-droppable")) {
-        // console.log("dragover", de, cur);
-        $("#output .enclosing[data-path]").removeClass("link-droppable");
+      if (!$(cur).is(dragTarget)) {
+        $(dragTarget).removeClass("link-droppable");
         $(cur).addClass("link-droppable");
+        dragTarget = cur;
       }
     })
-    .on("drop", function(ev) {
+    .on("dragleave", function(ev) {
+      if ($(ev.target).is($output) && dragTarget) {
+        $(dragTarget).removeClass("link-droppable");
+        dragTarget = null;
+      }
+    })
+    .on("dragover", function(ev) {
+      ev.originalEvent.dataTransfer.dropEffect = dropEffect;
       const cur = nearestSubformula(ev);
       if (!cur) return;
-      setDropEffect(ev);
-      const de = ev.originalEvent.dataTransfer.dropEffect;
+      ev.preventDefault();      // allow drops
+    })
+    .on("drop", function(ev) {
+      ev.originalEvent.dataTransfer.dropEffect = dropEffect;
+      const cur = nearestSubformula(ev);
+      if (!cur) return;
+      // console.log("drop", $(cur).data("path"));
       if (!formLink.src) {
         flashRed();
         return false;
       }
       ev.stopPropagation();
-      linkSubformula(cur, de === "copy");
+      linkSubformula(cur, dropEffect === "copy");
     })
     .on("click", function(ev) {
       const cur = nearestSubformula(ev);
@@ -500,6 +520,7 @@ function demoSetup() {
       // allow bubbling
     })
   ;
+
   $signature.html(function() {
     const tex = profint.getSignatureTeX();
     return katex.renderToString(tex, katex_options);
