@@ -5,6 +5,9 @@
   "homepage": "https://github.com/chaudhuri/profound-intuitionistic",
   "private": true,
   "license": "Apache-2.0",
+  "scripts": {
+    "build": "dune build && bun build.js"
+  },
   "dependencies": {
     "ace-builds": "^1.10.0",
     "file-saver": "^2.0.5",
@@ -14,5 +17,9 @@
     "jszip": "^3.10.1",
     "katex": "^0.16.2",
     "material-icons": "^1.11.11"
+  },
+  "devDependencies": {
+    "bun": "^1.1.7",
+    "esbuild": "^0.21.0"
   }
 }
