@@ -192,12 +192,12 @@ let rec uterm_to_exp ~cx ut =
       match List.nth cx.linear n with
       | Some { var ; _ } -> Doc.(Atom (string (Ident.to_string var)))
       | None ->
-          Doc.(Atom (Caml.Format.dprintf "`%d" n))
+          Doc.(Atom (Stdlib.Format.dprintf "`%d" n))
     end
   | Var v
   | Kon (v, None) -> Doc.(Atom (string (Ident.to_string v)))
   | Kon (v, Some ty) ->
-      Doc.(Atom (Caml.Format.dprintf "@[<hv1>(%s:@,%a)@]"
+      Doc.(Atom (Stdlib.Format.dprintf "@[<hv1>(%s:@,%a)@]"
                    (Ident.to_string v) Ty.pp ty))
   | App (t1, t2) ->
       Doc.(Appl (100, Infix (string " ", Left, [
@@ -208,7 +208,7 @@ let rec uterm_to_exp ~cx ut =
       let ty = Option.value ty ~default:K.ty_any in
       with_var cx { var ; ty } begin fun { var ; ty } cx ->
         let rep =
-          Caml.Format.dprintf "@[<hv1>[%s:@,%a]@]@ "
+          Stdlib.Format.dprintf "@[<hv1>[%s:@,%a]@]@ "
             (Ident.to_string var) Ty.pp ty
         in
         Doc.(Appl (1, Prefix (rep, uterm_to_exp ~cx body)))
@@ -221,10 +221,10 @@ let uterm_to_string cx ut =
 
 let rec pp_uterm_ out ut =
   match ut with
-  | Idx n -> Caml.Format.fprintf out "Idx(%d)" n
-  | Var v -> Caml.Format.fprintf out "Var(%s)" (Ident.to_string v)
-  | Kon (v, None) -> Caml.Format.fprintf out "Kon(%s)" (Ident.to_string v)
-  | Kon (v, Some ty) -> Caml.Format.fprintf out "Kon(%s,%a)" (Ident.to_string v) Ty.pp ty
-  | App (t1, t2) -> Caml.Format.fprintf out "App(%a,%a)" pp_uterm_ t1 pp_uterm_ t2
-  | Abs (v, None, b) -> Caml.Format.fprintf out "Lam(%s,%a)" (Ident.to_string v) pp_uterm_ b
-  | Abs (v, Some ty, b) -> Caml.Format.fprintf out "Lam(%s:%a,%a)" (Ident.to_string v) Ty.pp ty pp_uterm_ b
+  | Idx n -> Stdlib.Format.fprintf out "Idx(%d)" n
+  | Var v -> Stdlib.Format.fprintf out "Var(%s)" (Ident.to_string v)
+  | Kon (v, None) -> Stdlib.Format.fprintf out "Kon(%s)" (Ident.to_string v)
+  | Kon (v, Some ty) -> Stdlib.Format.fprintf out "Kon(%s,%a)" (Ident.to_string v) Ty.pp ty
+  | App (t1, t2) -> Stdlib.Format.fprintf out "App(%a,%a)" pp_uterm_ t1 pp_uterm_ t2
+  | Abs (v, None, b) -> Stdlib.Format.fprintf out "Lam(%s,%a)" (Ident.to_string v) pp_uterm_ b
+  | Abs (v, Some ty, b) -> Stdlib.Format.fprintf out "Lam(%s:%a,%a)" (Ident.to_string v) Ty.pp ty pp_uterm_ b

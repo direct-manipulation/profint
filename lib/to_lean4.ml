@@ -70,7 +70,7 @@ let rec formx_to_exp_ ~cx f =
       Doc.(Appl (10, Infix (string_as 3 " → ", Right, [a ; b])))
   | Forall (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Caml.Format.(fun out ->
+        let q = Stdlib.Format.(fun out ->
             pp_print_as out 3 "∀ (" ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " : " ;
@@ -81,7 +81,7 @@ let rec formx_to_exp_ ~cx f =
       end
   | Exists (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Caml.Format.(fun out ->
+        let q = Stdlib.Format.(fun out ->
             pp_print_as out 3 "∃ (" ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " : " ;
@@ -96,18 +96,18 @@ let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx fx.data
 let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let pp_sigma out sg =
-  Caml.Format.fprintf out "@[<v0>universe u@," ;
+  Stdlib.Format.fprintf out "@[<v0>universe u@," ;
   Set.iter ~f:begin fun i ->
     if Set.mem sigma0.basics i then () else
-      Caml.Format.fprintf out "variable {%s : Type u}@," (Ident.to_string i)
+      Stdlib.Format.fprintf out "variable {%s : Type u}@," (Ident.to_string i)
   end sg.basics ;
   Map.iteri ~f:begin fun ~key:k ~data:ty ->
     if Map.mem sigma0.consts k then () else
-      Caml.Format.fprintf out "variable {%s : %s}@,"
+      Stdlib.Format.fprintf out "variable {%s : %s}@,"
         (Ident.to_string k)
         (ty_to_string @@ thaw_ty ty)
   end sg.consts ;
-  Caml.Format.fprintf out "@,@]"
+  Stdlib.Format.fprintf out "@,@]"
 
 exception Unprintable
 
@@ -172,40 +172,40 @@ let pp_path rule concl out =
   List.rev !trail |>
   List.map ~f:ldir_to_string |>
   String.concat ~sep:", " |>
-  Caml.Format.pp_print_string out
+  Stdlib.Format.pp_print_string out
 
 let pp_rule_name out rn =
   match rn with
   | Cos.Inst { side ; term = tx } ->
-      Caml.Format.fprintf out "inst_%s (%a)"
+      Stdlib.Format.fprintf out "inst_%s (%a)"
         (match side with R -> "r" | _ -> "l")
         pp_termx tx
   | Cos.Rename _ ->
-      Caml.Format.pp_print_string out "id"
+      Stdlib.Format.pp_print_string out "id"
   | _ -> Cos.pp_rule_name out rn
 
 let pp_deriv out (sg, deriv) =
-  Caml.Format.fprintf out "@[<v0>section Example@," ;
+  Stdlib.Format.fprintf out "@[<v0>section Example@," ;
   pp_sigma out sg ;
-  Caml.Format.fprintf out "example (__profint_prem : %a) : %a := by@,"
+  Stdlib.Format.fprintf out "example (__profint_prem : %a) : %a := by@,"
     pp_formx deriv.Cos.top
     pp_formx deriv.Cos.bottom ;
   List.iter ~f:begin fun (prem, rule, concl) ->
-    Caml.Format.fprintf out "  within %t use %a@,"
+    Stdlib.Format.fprintf out "  within %t use %a@,"
       (pp_path rule concl)
       pp_rule_name rule.Cos.name ;
-    Caml.Format.fprintf out "  /- @[%a@] -/@," pp_formx prem ;
+    Stdlib.Format.fprintf out "  /- @[%a@] -/@," pp_formx prem ;
   end @@ List.rev deriv.middle ;
-  Caml.Format.fprintf out "  exact __profint_prem@," ;
-  Caml.Format.fprintf out "end Example@,@]"
+  Stdlib.Format.fprintf out "  exact __profint_prem@," ;
+  Stdlib.Format.fprintf out "end Example@,@]"
 
 let pp_header out () =
-  Caml.Format.fprintf out "@[<v0>import Profint@,open Profint@,@]"
+  Stdlib.Format.fprintf out "@[<v0>import Profint@,open Profint@,@]"
 
 let pp_footer _out () = ()
 
 let pp_comment out str =
-  Caml.Format.fprintf out "/- %s -/@," str
+  Stdlib.Format.fprintf out "/- %s -/@," str
 
 let name = "lean4"
 let files pf =

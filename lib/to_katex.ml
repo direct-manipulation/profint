@@ -72,8 +72,8 @@ let rec ty_to_exp ty =
 let pp_ty out ty = ty_to_exp ty |> Doc.bracket |> Doc.pp_linear out
 
 let rep_lambda var : Doc.doc =
-  Caml.Format.dprintf {|\lambda{%s}.\,@,|} var
-let rep_appl : Doc.doc = Caml.Format.dprintf {|\,@,|}
+  Stdlib.Format.dprintf {|\lambda{%s}.\,@,|} var
+let rep_appl : Doc.doc = Stdlib.Format.dprintf {|\,@,|}
 
 let rec termx_to_exp_ ~cx t =
   match t with
@@ -100,21 +100,21 @@ and head_to_exp_ ~cx head =
 let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
 let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_linear out
 
-let rep_eq  : Doc.doc = Caml.Format.dprintf "@<2>%s@," {|\mathbin{\doteq}|}
-let rep_and : Doc.doc = Caml.Format.dprintf "@<2>%s@," {|\mathbin{\land}|}
-let rep_top : Doc.doc = Caml.Format.dprintf "@<2>%s@," {|\top|}
-let rep_or  : Doc.doc = Caml.Format.dprintf "@<2>%s@," {|\mathbin{\lor}|}
-let rep_bot : Doc.doc = Caml.Format.dprintf "@<2>%s@," {|\bot|}
-let rep_imp : Doc.doc = Caml.Format.dprintf "@<2>%s@," {|\mathbin{\Rightarrow}|}
+let rep_eq  : Doc.doc = Stdlib.Format.dprintf "@<2>%s@," {|\mathbin{\doteq}|}
+let rep_and : Doc.doc = Stdlib.Format.dprintf "@<2>%s@," {|\mathbin{\land}|}
+let rep_top : Doc.doc = Stdlib.Format.dprintf "@<2>%s@," {|\top|}
+let rep_or  : Doc.doc = Stdlib.Format.dprintf "@<2>%s@," {|\mathbin{\lor}|}
+let rep_bot : Doc.doc = Stdlib.Format.dprintf "@<2>%s@," {|\bot|}
+let rep_imp : Doc.doc = Stdlib.Format.dprintf "@<2>%s@," {|\mathbin{\Rightarrow}|}
 let rep_forall vty : Doc.doc =
   let v = Ident.to_string vty.var in
-  Caml.Format.dprintf {|@<4>%s%t@<1>%s%a.@<1>%s@,|}
+  Stdlib.Format.dprintf {|@<4>%s%t@<1>%s%a.@<1>%s@,|}
     {|\forall{|}
     (string_to_doc v)
     {|}{:}|} pp_ty vty.ty {|\,|}
 let rep_exists vty : Doc.doc  =
   let v = Ident.to_string vty.var in
-  Caml.Format.dprintf {|@<4>%s%t@<1>%s%a.@<1>%s@,|}
+  Stdlib.Format.dprintf {|@<4>%s%t@<1>%s%a.@<1>%s@,|}
     {|\exists{|}
     (string_to_doc v)
     {|}{:}|} pp_ty vty.ty {|\,|}
@@ -171,17 +171,17 @@ let rec formx_to_exp_ ~cx (path : path) f =
 let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx Path.empty fx.data
 
 let formx_to_sout fx =
-  let sob = Caml.Format.make_symbolic_output_buffer () in
-  let sout = Caml.Format.formatter_of_symbolic_output_buffer sob in
-  Caml.Format.pp_set_geometry sout ~margin:80 ~max_indent:79 ;
+  let sob = Stdlib.Format.make_symbolic_output_buffer () in
+  let sout = Stdlib.Format.formatter_of_symbolic_output_buffer sob in
+  Stdlib.Format.pp_set_geometry sout ~margin:80 ~max_indent:79 ;
   formx_to_exp fx |> Doc.bracket |> Doc.pp sout ;
-  Caml.Format.pp_print_flush sout () ;
-  Caml.Format.flush_symbolic_output_buffer sob
+  Stdlib.Format.pp_print_flush sout () ;
+  Stdlib.Format.flush_symbolic_output_buffer sob
 
 let formx_to_string fx =
   let buf = Buffer.create 19 in
   formx_to_sout fx |>
-  List.iter ~f:Caml.Format.(fun item ->
+  List.iter ~f:Stdlib.Format.(fun item ->
       match item with
       | Output_newline -> Buffer.add_string buf "\\htmlClass{brk}{}"
       | Output_string str -> Buffer.add_string buf str
@@ -196,41 +196,41 @@ let formx_to_string fx =
 let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let pp_sigma out sg =
-  Caml.Format.pp_print_string out {|\displaystyle{\begin{array}{lll}|};
+  Stdlib.Format.pp_print_string out {|\displaystyle{\begin{array}{lll}|};
   Set.iter ~f:begin fun i ->
     if Set.mem sigma0.basics i then () else
-      Caml.Format.fprintf out {|%t&\mkern -7mu{:}&\mkern -7mu \mathsf{type}.\\|} (ident_to_doc ~font:"sf" i)
+      Stdlib.Format.fprintf out {|%t&\mkern -7mu{:}&\mkern -7mu \mathsf{type}.\\|} (ident_to_doc ~font:"sf" i)
   end sg.basics ;
   Map.iteri ~f:begin fun ~key:k ~data:ty ->
     if Map.mem sigma0.consts k then () else
-      Caml.Format.fprintf out {|%t&\mkern -7mu{:}&\mkern -7mu \mathsf{%a}.\\|}
+      Stdlib.Format.fprintf out {|%t&\mkern -7mu{:}&\mkern -7mu \mathsf{%a}.\\|}
         (ident_to_doc ~font:"sf" k) pp_ty (thaw_ty ty)
   end sg.consts ;
-  Caml.Format.pp_print_string out {|\end{array}}|}
+  Stdlib.Format.pp_print_string out {|\end{array}}|}
 
 let pp_path out (path : path) =
-  Caml.Format.pp_print_string out @@ Path.to_string path
+  Stdlib.Format.pp_print_string out @@ Path.to_string path
   (* Path.to_list path |> *)
-  (* Caml.Format.pp_print_list *)
-  (*   ~pp_sep:(fun out () -> Caml.Format.pp_print_string out ", ") *)
+  (* Stdlib.Format.pp_print_list *)
+  (*   ~pp_sep:(fun out () -> Stdlib.Format.pp_print_string out ", ") *)
   (*   Path.Dir.(fun out -> function *)
-  (*       | L -> Caml.Format.pp_print_string out "l" *)
-  (*       | R -> Caml.Format.pp_print_string out "r") out *)
+  (*       | L -> Stdlib.Format.pp_print_string out "l" *)
+  (*       | R -> Stdlib.Format.pp_print_string out "r") out *)
 
 let pp_deriv out (sg, deriv) =
   pp_sigma out sg ;
-  Caml.Format.fprintf out "%a@." pp_formx deriv.Cos.top ;
+  Stdlib.Format.fprintf out "%a@." pp_formx deriv.Cos.top ;
   List.iter ~f:begin fun (_, rule, concl) ->
-    Caml.Format.fprintf out "%a :: %a@."
+    Stdlib.Format.fprintf out "%a :: %a@."
       pp_path rule.Cos.path
       Cos.pp_rule_name rule.Cos.name ;
-    Caml.Format.fprintf out "%a@." pp_formx concl ;
+    Stdlib.Format.fprintf out "%a@." pp_formx concl ;
   end deriv.middle
 
 let pp_header _out () = ()
 let pp_footer _out () = ()
 let pp_comment out str =
-  Caml.Format.( pp_print_string out "% " ;
+  Stdlib.Format.( pp_print_string out "% " ;
            pp_print_string out str ;
            pp_print_newline out () )
 

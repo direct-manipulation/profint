@@ -406,7 +406,7 @@ let rec spin_rules ~emit concl =
   let rec try_all concl rules =
     match rules with
     | [] ->
-        Caml.Format.eprintf "spin_rules: stuck on: @[%a@]@. lpath = %a@. rpath = %a@. cpath = %a@.%!"
+        Stdlib.Format.eprintf "spin_rules: stuck on: @[%a@]@. lpath = %a@. rpath = %a@. cpath = %a@.%!"
           pp_formx concl.fx
           pp_path concl.lpath
           pp_path concl.rpath
@@ -440,10 +440,10 @@ let compute_derivation goal msteps =
   let middle = ref [] in
   let top = ref bottom in
   let emit rule =
-    (* Caml.Format.eprintf "compute_derivation: rule = %a@." pp_rule rule ; *)
-    (* Caml.Format.eprintf "compute_derivation: goal = %a@." pp_formx !top ; *)
+    (* Stdlib.Format.eprintf "compute_derivation: rule = %a@." pp_rule rule ; *)
+    (* Stdlib.Format.eprintf "compute_derivation: goal = %a@." pp_formx !top ; *)
     let prem = compute_premise !top rule in
-    (* Caml.Format.eprintf "compute_derivation: prem = %a@." pp_formx prem.goal ; *)
+    (* Stdlib.Format.eprintf "compute_derivation: prem = %a@." pp_formx prem.goal ; *)
     middle := (prem.goal, rule, !top) :: !middle ;
     top := prem.goal ;
     prem
@@ -525,23 +525,23 @@ let mark_locations goal mstep =
 
 let pp_mstep out mstep =
   match mstep with
-  | Pristine -> Caml.Format.pp_print_string out "Pristine"
+  | Pristine -> Stdlib.Format.pp_print_string out "Pristine"
   | Contract { path } ->
-      Caml.Format.fprintf out "Contract { path = %a }"
+      Stdlib.Format.fprintf out "Contract { path = %a }"
         pp_path path
   | Weaken { path } ->
-      Caml.Format.fprintf out "Weaken { path = %a }"
+      Stdlib.Format.fprintf out "Weaken { path = %a }"
         pp_path path
   | Inst { path ; term } ->
-      Caml.Format.fprintf out "Inst @[<hv2>{ path = %a ;@ termx = @[<hov2>%a@] }@]"
+      Stdlib.Format.fprintf out "Inst @[<hv2>{ path = %a ;@ termx = @[<hov2>%a@] }@]"
         pp_path path
         Uterm.pp_uterm_ term
   | Rename { path ; var } ->
-      Caml.Format.fprintf out "Rename @[<hv2>{ path = %a ;@ ident = %s }@]"
+      Stdlib.Format.fprintf out "Rename @[<hv2>{ path = %a ;@ ident = %s }@]"
         pp_path path
         (Ident.to_string var)
   | Link { src ; dest ; copy } ->
-      Caml.Format.fprintf out "Link @[<hv2>{ src = %a ;@ dest = %a ;@ copy = %b }@]"
+      Stdlib.Format.fprintf out "Link @[<hv2>{ src = %a ;@ dest = %a ;@ copy = %b }@]"
         pp_path src
         pp_path dest
         copy

@@ -175,11 +175,11 @@ let thaw_ty pty =
 let pp_sigma out sigma =
   Set.iter sigma.basics ~f:begin fun i ->
     if not @@ Set.mem sigma0.basics i then
-      Caml.Format.fprintf out "%s : \\type.@." (Ident.to_string i)
+      Stdlib.Format.fprintf out "%s : \\type.@." (Ident.to_string i)
   end ;
   Map.iteri sigma.consts ~f:begin fun ~key:k ~data:pty ->
     if not @@ Map.mem sigma0.consts k then
-      Caml.Format.fprintf out "%s : %a.@."
+      Stdlib.Format.fprintf out "%s : %a.@."
         (Ident.to_string k)
         Ty.pp (thaw_ty pty)
   end

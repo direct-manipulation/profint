@@ -96,7 +96,7 @@ and lower_spine ~above ~by spine =
 exception TypeError of string
 
 let type_error fmt =
-  Caml.Format.ksprintf (fun s -> raise (TypeError s)) fmt
+  Stdlib.Format.ksprintf (fun s -> raise (TypeError s)) fmt
 
 let rec ty_infer cx head =
   match head with

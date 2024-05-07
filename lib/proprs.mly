@@ -8,7 +8,7 @@
 %{
   open Base
   open Types
-  module Printf = Caml.Printf   (* [HACK] Menhir inserts calls to Printf *)
+  module Printf = Stdlib.Printf   (* [HACK] Menhir inserts calls to Printf *)
 
   let make_quant q vs bod =
     List.fold_right

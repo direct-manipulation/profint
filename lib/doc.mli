@@ -7,15 +7,15 @@
 
 open Base
 
-type doc = Caml.Format.formatter -> unit
+type doc = Stdlib.Format.formatter -> unit
 
 val string : string -> doc
 val string_as : int -> string -> doc
 val cut : doc
 val (++) : doc -> doc -> doc
 
-val pp : Caml.Format.formatter -> doc -> unit
-val pp_linear : Caml.Format.formatter -> doc -> unit
+val pp : Stdlib.Format.formatter -> doc -> unit
+val pp_linear : Stdlib.Format.formatter -> doc -> unit
 
 val to_string : doc -> string
 

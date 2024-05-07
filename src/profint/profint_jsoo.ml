@@ -72,15 +72,15 @@ let get_future fx utm =
 let load_uterm fx utm =
   match F.un_app utm with
   | Some ("T", [ goal_mstep ; history_msteps ; future_msteps ]) ->
-      (* Caml.Printf.printf "Trying to load history...\n" ; *)
+      (* Stdlib.Printf.printf "Trying to load history...\n" ; *)
       let (history, fx) = get_history fx history_msteps in
-      (* Caml.Printf.printf "Loaded history [size=%d]...\n" (List.length history) ; *)
-      (* Caml.Printf.printf "Trying to load goal...\n" ; *)
+      (* Stdlib.Printf.printf "Loaded history [size=%d]...\n" (List.length history) ; *)
+      (* Stdlib.Printf.printf "Trying to load goal...\n" ; *)
       let goal = mk_stage ~fx ~mstep:(F.uterm_to_mstep goal_mstep) in
       let fx = (compute_derivation goal).top in
-      (* Caml.Printf.printf "Trying to load future...\n" ; *)
+      (* Stdlib.Printf.printf "Trying to load future...\n" ; *)
       let (future, _) = get_future fx future_msteps in
-      (* Caml.Printf.printf "Loaded future [size=%d]...\n" (List.length future) ; *)
+      (* Stdlib.Printf.printf "Loaded future [size=%d]...\n" (List.length future) ; *)
       state.goal <- goal ;
       state.history <- history ;
       state.future <- List.rev future
@@ -97,13 +97,13 @@ let sig_change text =
     Types.sigma := sigma ;
     true
   end with _e ->
-    (* Caml.Format.eprintf "sig_change: %s@." (Printexc.to_string e) ; *)
+    (* Stdlib.Format.eprintf "sig_change: %s@." (Printexc.to_string e) ; *)
     false
 
 let to_path str : F.path =
   try Js.to_string str |> Path.of_string
   with e ->
-    Caml.Format.eprintf "to_path: %a@." Exn.pp e ;
+    Stdlib.Format.eprintf "to_path: %a@." Exn.pp e ;
     Exn.reraise e "to_path"
 
 let change_formula text =
@@ -118,7 +118,7 @@ let change_formula text =
 
 let get_proof kind =
   let fail reason =
-    Caml.Format.eprintf "get_proof(%s): failure: %s@." kind reason ;
+    Stdlib.Format.eprintf "get_proof(%s): failure: %s@." kind reason ;
     failwith "get_proof"
   in
   try
@@ -176,7 +176,7 @@ let profint_object =
         (* Printf.printf "formula initailized\n%!" ; *)
         Option.iter ~f:begin fun permaText ->
           let permaText = Url.urldecode permaText in
-          (* Caml.Printf.printf "Trying to load perma: %S\n%!" permaText ; *)
+          (* Stdlib.Printf.printf "Trying to load perma: %S\n%!" permaText ; *)
           let utm = Uterm.thing_of_string Proprs.one_term permaText in
           load_uterm state.goal.fx utm
         end @@ Map.find pmap "p" ;
@@ -202,7 +202,7 @@ let profint_object =
         let f = Uterm.form_of_string @@ Js.to_string text in
         Js.some @@ Js.string @@ pp_to_string To.Katex.pp_formx @@ Types.triv f
       with _e ->
-        (* Caml.Format.eprintf "formulaToTeX: %S: %s@." *)
+        (* Stdlib.Format.eprintf "formulaToTeX: %S: %s@." *)
         (*   (Js.to_string text) *)
         (*   (Printexc.to_string e) ; *)
         Js.null
@@ -334,7 +334,7 @@ let profint_object =
     method doWitness path text =
       let old_goal = state.goal in
       let fail reason =
-        Caml.Format.printf "doWitness: failure: %s@." reason ;
+        Stdlib.Format.printf "doWitness: failure: %s@." reason ;
         state.goal <- old_goal ;
         false
       in
@@ -356,7 +356,7 @@ let profint_object =
     method doRename path text =
       let old_goal = state.goal in
       let fail reason =
-        Caml.Format.printf "doRename: failure: %s@." reason ;
+        Stdlib.Format.printf "doRename: failure: %s@." reason ;
         state.goal <- old_goal ;
         false
       in

@@ -25,7 +25,7 @@ let pp_rule out goal rule =
                          pp_to_string Form4.pp_formx { tycx = cx ; data = f } in
         match expose f with
         | Imp (a, b) when Term.eq_term a b ->
-            Caml.Format.fprintf out "RN_init"
+            Stdlib.Format.fprintf out "RN_init"
         | _ -> fail ()
       end
     | Cos.Congr -> begin
@@ -34,22 +34,22 @@ let pp_rule out goal rule =
                          pp_to_string Form4.pp_formx { tycx = cx ; data = f } in
         match expose f with
         | Eq (s, t, _) when Term.eq_term s t ->
-            Caml.Format.fprintf out "RN_congr"
+            Stdlib.Format.fprintf out "RN_congr"
         | _ -> fail ()
       end
     | Cos.Inst { side ; term = tx } -> begin
-        Caml.Format.fprintf out "RN_inst_%s ("
+        Stdlib.Format.fprintf out "RN_inst_%s ("
           (match side with L -> "l" | _ -> "r") ;
         List.rev tx.tycx.linear |>
         List.iter ~f:begin fun vty ->
-          Caml.Format.fprintf out "fun (%s : %a) => " (Ident.to_string vty.var) pp_ty vty.ty
+          Stdlib.Format.fprintf out "fun (%s : %a) => " (Ident.to_string vty.var) pp_ty vty.ty
         end ;
-        Caml.Format.fprintf out "%a)" pp_termx tx
+        Stdlib.Format.fprintf out "%a)" pp_termx tx
       end
     | Cos.Rename _ ->
-        Caml.Format.pp_print_string out "RN_repeat"
+        Stdlib.Format.pp_print_string out "RN_repeat"
     | _ ->
-        Caml.Format.pp_print_string out "RN_" ;
+        Stdlib.Format.pp_print_string out "RN_" ;
         Cos.pp_rule_name out name
   in
   let rec pp_path n cx f0 dirs path =
@@ -88,32 +88,32 @@ let pp_rule out goal rule =
   in
   let trail, cx, f = pp_path 1 goal.tycx goal.data [] rule.path in
   let trail = "[" ^ ( trail |> List.map ~f:Int.to_string |> String.concat ~sep:";" ) ^ "]" in
-  Caml.Format.pp_print_string out "(" ;
+  Stdlib.Format.pp_print_string out "(" ;
   pp_rule cx f rule.Cos.name ;
-  Caml.Format.pp_print_string out ", " ;
-  Caml.Format.pp_print_string out trail ;
-  Caml.Format.pp_print_string out ")"
+  Stdlib.Format.pp_print_string out ", " ;
+  Stdlib.Format.pp_print_string out trail ;
+  Stdlib.Format.pp_print_string out ")"
 
 let pp_step out (prem, rule, concl) =
   pp_rule out concl rule ;
-  Caml.Format.fprintf out "@,(* %a *)" pp_formx prem
+  Stdlib.Format.fprintf out "@,(* %a *)" pp_formx prem
 
 let pp_deriv out (sg, deriv) =
-  Caml.Format.fprintf out "Section Example.@." ;
+  Stdlib.Format.fprintf out "Section Example.@." ;
   pp_sigma out sg ;
-  Caml.Format.fprintf out "Goal (%a) -> %a.@."
+  Stdlib.Format.fprintf out "Goal (%a) -> %a.@."
     pp_formx deriv.Cos.top
     pp_formx deriv.Cos.bottom ;
-  Caml.Format.fprintf out {|  let h := fresh "H" in@.|} ;
-  Caml.Format.fprintf out {|  intro h ;@.|} ;
-  Caml.Format.fprintf out {|  let deriv := fresh "deriv" in@.|} ;
-  Caml.Format.fprintf out {|  pose (deriv := @[<v2>[ %a ] : Profint.deriv@]) ;@.|}
-    (Caml.Format.pp_print_list pp_step
-       ~pp_sep:(fun out () -> Caml.Format.fprintf out " ;@,"))
+  Stdlib.Format.fprintf out {|  let h := fresh "H" in@.|} ;
+  Stdlib.Format.fprintf out {|  intro h ;@.|} ;
+  Stdlib.Format.fprintf out {|  let deriv := fresh "deriv" in@.|} ;
+  Stdlib.Format.fprintf out {|  pose (deriv := @[<v2>[ %a ] : Profint.deriv@]) ;@.|}
+    (Stdlib.Format.pp_print_list pp_step
+       ~pp_sep:(fun out () -> Stdlib.Format.fprintf out " ;@,"))
     (List.rev deriv.Cos.middle) ;
-  Caml.Format.fprintf out {|  apply (Profint.correctness deriv) ;@.|} ;
-  Caml.Format.fprintf out {|  unfold deriv ; Profint.check_solve.@.|} ;
-  Caml.Format.fprintf out {|Qed.@.End Example.@.|}
+  Stdlib.Format.fprintf out {|  apply (Profint.correctness deriv) ;@.|} ;
+  Stdlib.Format.fprintf out {|  unfold deriv ; Profint.check_solve.@.|} ;
+  Stdlib.Format.fprintf out {|Qed.@.End Example.@.|}
 
 let name = "coq_reflect"
 let files pf =

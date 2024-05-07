@@ -67,105 +67,105 @@ let side_to_string (side : Path.Dir.t) =
 let pp_rule_name out rn =
   match rn with
   | Goal_ts_imp { pick } ->
-      Caml.Format.fprintf out "goal_ts_imp_%s" (side_to_string pick)
+      Stdlib.Format.fprintf out "goal_ts_imp_%s" (side_to_string pick)
   | Goal_imp_ts ->
-      Caml.Format.fprintf out "goal_imp_ts"
+      Stdlib.Format.fprintf out "goal_imp_ts"
   | Goal_ts_and { pick } ->
-      Caml.Format.fprintf out "goal_ts_and_%s" (side_to_string pick)
+      Stdlib.Format.fprintf out "goal_ts_and_%s" (side_to_string pick)
   | Goal_and_ts { pick } ->
-      Caml.Format.fprintf out "goal_and_ts_%s" (side_to_string pick)
+      Stdlib.Format.fprintf out "goal_and_ts_%s" (side_to_string pick)
   | Goal_ts_or  { pick } ->
-      Caml.Format.fprintf out "goal_ts_or_%s" (side_to_string pick)
+      Stdlib.Format.fprintf out "goal_ts_or_%s" (side_to_string pick)
   | Goal_or_ts ->
-      Caml.Format.fprintf out "goal_or_ts"
+      Stdlib.Format.fprintf out "goal_or_ts"
   | Goal_ts_all ->
-      Caml.Format.fprintf out "goal_ts_all"
+      Stdlib.Format.fprintf out "goal_ts_all"
   | Goal_all_ts ->
-      Caml.Format.fprintf out "goal_all_ts"
+      Stdlib.Format.fprintf out "goal_all_ts"
   | Goal_ts_ex ->
-      Caml.Format.fprintf out "goal_ts_ex"
+      Stdlib.Format.fprintf out "goal_ts_ex"
   | Goal_ex_ts ->
-      Caml.Format.fprintf out "goal_ex_ts"
+      Stdlib.Format.fprintf out "goal_ex_ts"
   | Asms_and { minor ; pick } ->
-      Caml.Format.fprintf out "asms_and_%s_%s"
+      Stdlib.Format.fprintf out "asms_and_%s_%s"
         (side_to_string minor) (side_to_string pick)
   | Asms_or  { minor ; pick } ->
-      Caml.Format.fprintf out "asms_or_%s_%s"
+      Stdlib.Format.fprintf out "asms_or_%s_%s"
         (side_to_string minor) (side_to_string pick)
   | Asms_imp { minor ; pick } ->
-      Caml.Format.fprintf out "asms_imp_%s_%s"
+      Stdlib.Format.fprintf out "asms_imp_%s_%s"
         (side_to_string minor) (side_to_string pick)
   | Asms_all { minor } ->
-      Caml.Format.fprintf out "asms_all_%s"
+      Stdlib.Format.fprintf out "asms_all_%s"
         (side_to_string minor)
   | Asms_ex  { minor } ->
-      Caml.Format.fprintf out "asms_ex_%s"
+      Stdlib.Format.fprintf out "asms_ex_%s"
         (side_to_string minor)
   | Simp_and_top { cxkind ; minor } ->
-      Caml.Format.fprintf out "simp_%s_%s_%s"
+      Stdlib.Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with R -> "goal" | _ -> "asms")
         (match minor with L -> "and" | _ -> "top")
         (match minor with L -> "top" | _ -> "and")
   | Simp_or_top { cxkind ; minor } ->
-      Caml.Format.fprintf out "simp_%s_%s_%s"
+      Stdlib.Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with R -> "goal" | _ -> "asms")
         (match minor with L -> "or" | _ -> "top")
         (match minor with L -> "top" | _ -> "or")
   | Simp_imp_top { cxkind ; minor } ->
-      Caml.Format.fprintf out "simp_%s_%s_%s"
+      Stdlib.Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with R -> "goal" | _ -> "asms")
         (match minor with L -> "imp" | _ -> "top")
         (match minor with L -> "top" | _ -> "imp")
   | Simp_all_top { cxkind } ->
-      Caml.Format.fprintf out "simp_%s_all_top"
+      Stdlib.Format.fprintf out "simp_%s_all_top"
         (match cxkind with R -> "goal" | _ -> "asms")
   | Simp_and_bot { cxkind ; minor } ->
-      Caml.Format.fprintf out "simp_%s_%s_%s"
+      Stdlib.Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with R -> "goal" | _ -> "asms")
         (match minor with L -> "and" | _ -> "bot")
         (match minor with L -> "bot" | _ -> "and")
   | Simp_or_bot { cxkind ; minor } ->
-      Caml.Format.fprintf out "simp_%s_%s_%s"
+      Stdlib.Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with R -> "goal" | _ -> "asms")
         (match minor with L -> "or" | _ -> "bot")
         (match minor with L -> "bot" | _ -> "or")
   | Simp_bot_imp { cxkind } ->
-      Caml.Format.fprintf out "simp_%s_bot_imp"
+      Stdlib.Format.fprintf out "simp_%s_bot_imp"
         (match cxkind with R -> "goal" | _ -> "asms")
   | Simp_ex_bot { cxkind } ->
-      Caml.Format.fprintf out "simp_%s_ex_bot"
+      Stdlib.Format.fprintf out "simp_%s_ex_bot"
         (match cxkind with R -> "goal" | _ -> "asms")
   | Init ->
-      Caml.Format.fprintf out "init"
+      Stdlib.Format.fprintf out "init"
   | Rewrite { from } ->
-      Caml.Format.fprintf out "rewrite_%s"
+      Stdlib.Format.fprintf out "rewrite_%s"
         (match from with L -> "ltr" | _ -> "rtl")
   | Congr ->
-      Caml.Format.fprintf out "congr"
+      Stdlib.Format.fprintf out "congr"
   | Contract ->
-      Caml.Format.fprintf out "contract"
+      Stdlib.Format.fprintf out "contract"
   | Weaken ->
-      Caml.Format.fprintf out "weaken"
+      Stdlib.Format.fprintf out "weaken"
   | Inst { side ; term } ->
-      Caml.Format.fprintf out "inst_%s[@[%a@]]"
+      Stdlib.Format.fprintf out "inst_%s[@[%a@]]"
         (side_to_string side)
         Term.pp_termx term
   | Rename var ->
-      Caml.Format.fprintf out "rename[@[%s@]]"
+      Stdlib.Format.fprintf out "rename[@[%s@]]"
         (Ident.to_string var)
 
 let rec pp_path_list out (path : Path.Dir.t list) =
   match path with
   | [] -> ()
-  | [L] -> Caml.Format.fprintf out "l"
-  | [R] -> Caml.Format.fprintf out "r"
+  | [L] -> Stdlib.Format.fprintf out "l"
+  | [R] -> Stdlib.Format.fprintf out "r"
   | dir :: (_ :: _ as path) ->
-      Caml.Format.fprintf out "%a, %a" pp_path_list [dir] pp_path_list path
+      Stdlib.Format.fprintf out "%a, %a" pp_path_list [dir] pp_path_list path
 
-let pp_path out (path : Path.t) = Caml.Format.pp_print_string out (Path.to_dirstring path)
+let pp_path out (path : Path.t) = Stdlib.Format.pp_print_string out (Path.to_dirstring path)
 
 let pp_rule out rule =
-  Caml.Format.fprintf out "@[%a%s:: %a@]"
+  Stdlib.Format.fprintf out "@[%a%s:: %a@]"
     pp_path rule.path
     (if Path.is_empty rule.path then "" else " ")
     pp_rule_name rule.name
@@ -207,9 +207,9 @@ type cos_premise = {
 
 let compute_premise (goal : formx) (rule : rule) : cos_premise =
   let bad_match msg =
-    (* Caml.Format.printf "@.Bad_match[%s]:@. rule = %a@.goal = %a@." *)
+    (* Stdlib.Format.printf "@.Bad_match[%s]:@. rule = %a@.goal = %a@." *)
     (*   msg pp_rule rule pp_formx goal ; *)
-    Caml.Format.eprintf "compute_premise: bad_match: %s@." msg ;
+    Stdlib.Format.eprintf "compute_premise: bad_match: %s@." msg ;
     raise @@ Bad_match {goal ; rule} in
   let (prin, side) = formx_at goal rule.path in
   let prin = {

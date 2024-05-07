@@ -7,16 +7,16 @@
 
 open Base
 
-type doc = Caml.Format.formatter -> unit
+type doc = Stdlib.Format.formatter -> unit
 
 let string s : doc =
-  fun out -> Caml.Format.pp_print_string out s
+  fun out -> Stdlib.Format.pp_print_string out s
 
 let string_as n s : doc =
-  fun out -> Caml.Format.pp_print_as out n s
+  fun out -> Stdlib.Format.pp_print_as out n s
 
 let cut : doc =
-  fun out -> Caml.Format.pp_print_cut out ()
+  fun out -> Stdlib.Format.pp_print_cut out ()
 
 let (++) d1 d2 : doc =
   fun out -> d1 out ; d2 out
@@ -25,16 +25,16 @@ let pp out (doc : doc) = doc out
 
 let to_string (doc : doc) =
   let buf = Buffer.create 19 in
-  let out = Caml.Format.formatter_of_buffer buf in
-  Caml.Format.pp_set_geometry out
+  let out = Stdlib.Format.formatter_of_buffer buf in
+  Stdlib.Format.pp_set_geometry out
     ~margin:Int.max_value
     ~max_indent:(Int.max_value - 1) ;
   doc out ;
-  Caml.Format.pp_print_flush out () ;
+  Stdlib.Format.pp_print_flush out () ;
   Buffer.contents buf
 
 let pp_linear out (doc : doc) =
-  Caml.Format.pp_print_as out 0 (to_string doc)
+  Stdlib.Format.pp_print_as out 0 (to_string doc)
 
 type wrapping = Transparent | Opaque [@@deriving equal]
 type assoc = Left | Right | Non [@@deriving equal]
@@ -126,12 +126,12 @@ let rec bracket ~(ld:doc) ~(rd:doc) = function
       | Prefix (oprep, be) ->
           let opd = bracket ~ld ~rd be in
           let cond = prec >? be && not (is_prefix be) in
-          Caml.Format.dprintf "@[<hov2>%t@]"
+          Stdlib.Format.dprintf "@[<hov2>%t@]"
             (oprep ++ (delimit opd ~ld ~rd ~cond))
       | Postfix (oprep, be) ->
           let opd = bracket ~ld ~rd be in
           let cond = prec >? be && not (is_postfix be) in
-          Caml.Format.dprintf "@[<hv2>%t@]"
+          Stdlib.Format.dprintf "@[<hv2>%t@]"
             ((delimit opd ~ld ~rd ~cond) ++ oprep)
       | Infix (oprep, asc, l :: es) ->
           let ms, r = match List.rev es with
@@ -150,11 +150,11 @@ let rec bracket ~(ld:doc) ~(rd:doc) = function
               end ms in
           let ms = List.concat ms in
           fun out -> begin
-              Caml.Format.pp_open_box out 0 ;
+              Stdlib.Format.pp_open_box out 0 ;
               l out ;
               List.iter ~f:(fun m -> m out) ms ;
               oprep out ; r out ;
-              Caml.Format.pp_close_box out ()
+              Stdlib.Format.pp_close_box out ()
             end
       | Infix (_, _, []) -> invalid_arg "bracket"
     end

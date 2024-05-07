@@ -68,32 +68,32 @@ let mark_location fx rule =
   { fx with data = Paths.transform_at fx.data rule.Cos.path mk_hl }
 
 let pp_sigma out sg =
-  Caml.Format.pp_print_string out {|\begin{align*}|} ;
-  Caml.Format.pp_open_vbox out 0 ; begin
+  Stdlib.Format.pp_print_string out {|\begin{align*}|} ;
+  Stdlib.Format.pp_open_vbox out 0 ; begin
     Set.iter ~f:begin fun i ->
       if Set.mem sigma0.basics i then () else
-        Caml.Format.fprintf out {|%t &: \mathsf{type}.\\@,|}
+        Stdlib.Format.fprintf out {|%t &: \mathsf{type}.\\@,|}
           (To_katex.ident_to_doc ~font:"sf" i)
     end sg.basics ;
     Map.iteri ~f:begin fun ~key:k ~data:ty ->
       if Map.mem sigma0.consts k then () else
-        Caml.Format.fprintf out {|%t &: %a.\\@,|}
+        Stdlib.Format.fprintf out {|%t &: %a.\\@,|}
           (To_katex.ident_to_doc ~font:"sf" k) pp_ty (thaw_ty ty)
     end sg.consts
-  end ; Caml.Format.pp_close_box out () ;
-  Caml.Format.pp_print_string out {|\end{align*}
+  end ; Stdlib.Format.pp_close_box out () ;
+  Stdlib.Format.pp_print_string out {|\end{align*}
 |}
 
 let pp_path out (path : path) =
   Path.to_list path |>
-  Caml.Format.pp_print_list
-    ~pp_sep:(fun out () -> Caml.Format.pp_print_string out ", ")
+  Stdlib.Format.pp_print_list
+    ~pp_sep:(fun out () -> Stdlib.Format.pp_print_string out ", ")
     (fun out -> function
-       | Path.Dir.L -> Caml.Format.pp_print_string out "l"
-       | R -> Caml.Format.pp_print_string out "r") out
+       | Path.Dir.L -> Stdlib.Format.pp_print_string out "l"
+       | R -> Stdlib.Format.pp_print_string out "r") out
 
 let pp_header out () =
-  Caml.Format.pp_print_string out {|\documentclass[landscape]{article}
+  Stdlib.Format.pp_print_string out {|\documentclass[landscape]{article}
 \usepackage{proof}
 \usepackage{amsmath}
 \usepackage[a4paper,margin=1cm]{geometry}
@@ -105,7 +105,7 @@ let pp_header out () =
 |}
 
 let pp_footer out () =
-  Caml.Format.pp_print_string out {|
+  Stdlib.Format.pp_print_string out {|
 \end{document}
 |}
 
@@ -115,14 +115,14 @@ let pp_deriv out (sg, deriv) =
   List.iter ~f:begin fun chunk ->
     let (top, _, _) = List.last_exn chunk in
     (* let chunk = List.rev chunk in *)
-    Caml.Format.fprintf out {|\begin{gather*}
+    Stdlib.Format.fprintf out {|\begin{gather*}
 |} ;
     List.iter ~f:begin fun (_, rule, concl) ->
-      Caml.Format.fprintf out {|\infer{\mathstrut
+      Stdlib.Format.fprintf out {|\infer{\mathstrut
 %a
 }{|} pp_formx (mark_location concl rule)
     end chunk ;
-    Caml.Format.fprintf out {|\mathstrut %a%s
+    Stdlib.Format.fprintf out {|\mathstrut %a%s
 \end{gather*}
 \clearpage
 |} pp_formx top (String.make (List.length chunk) '}') ;
@@ -131,7 +131,7 @@ let pp_deriv out (sg, deriv) =
   pp_footer out ()
 
 let pp_comment out str =
-  Caml.Format.( pp_print_string out "% " ;
+  Stdlib.Format.( pp_print_string out "% " ;
            pp_print_string out str ;
            pp_print_newline out () )
 

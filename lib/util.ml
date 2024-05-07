@@ -9,9 +9,9 @@ open Base
 
 let pp_to_string pp thing =
   let buf = Buffer.create 19 in
-  let out = Caml.Format.formatter_of_buffer buf in
+  let out = Stdlib.Format.formatter_of_buffer buf in
   pp out thing ;
-  Caml.Format.pp_print_flush out () ;
+  Stdlib.Format.pp_print_flush out () ;
   Buffer.contents buf
 
 let setoff prefix str =

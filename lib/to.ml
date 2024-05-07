@@ -30,7 +30,7 @@ module type TO = sig
   val name : string
   val files : string -> dirtree list
   val build : unit -> string
-end with type 'a pp := Caml.Format.formatter -> 'a -> unit
+end with type 'a pp := Stdlib.Format.formatter -> 'a -> unit
 
 module Katex       : TO = To_katex
 module Pdf         : TO = To_pdf

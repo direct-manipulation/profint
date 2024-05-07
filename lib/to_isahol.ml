@@ -35,7 +35,7 @@ let rec termx_to_exp_ ~cx t =
   match t with
   | T.Abs { var ; body } ->
       with_var cx { var ; ty = K.ty_any } begin fun vty cx ->
-        let rep = Caml.Format.dprintf {|\<lambda> %s. |}
+        let rep = Stdlib.Format.dprintf {|\<lambda> %s. |}
             (Ident.to_string vty.var) in
         Doc.(Appl (1, Prefix (rep, termx_to_exp_  ~cx body)))
       end
@@ -72,7 +72,7 @@ let rec formx_to_exp_ ~cx f =
       Doc.(Appl (10, Infix (string_as 3 " \\<longrightarrow> ", Right, [a ; b])))
   | Forall (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Caml.Format.(fun out ->
+        let q = Stdlib.Format.(fun out ->
             pp_print_as out 3 "\\<forall> " ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " :: " ;
@@ -83,7 +83,7 @@ let rec formx_to_exp_ ~cx f =
       end
   | Exists (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Caml.Format.(fun out ->
+        let q = Stdlib.Format.(fun out ->
             pp_print_as out 3 "\\<exists> " ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " :: " ;
@@ -100,13 +100,13 @@ let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 let pp_sigma out sg =
   Map.iteri sg.consts ~f:begin fun ~key:k ~data:ty ->
     if Map.mem sigma0.consts k then () else
-      Caml.Format.fprintf out "  fixes %s :: \"%s\"@."
+      Stdlib.Format.fprintf out "  fixes %s :: \"%s\"@."
         (Ident.to_string k) (ty_to_string @@ thaw_ty ty)
   end
 
 exception Unprintable
 let unprintable reason =
-  Caml.Format.eprintf "to_isahol: failure: %s@." reason ;
+  Stdlib.Format.eprintf "to_isahol: failure: %s@." reason ;
   raise Unprintable
 
 let rec make_eqns ty ss ts =
@@ -123,7 +123,7 @@ type step_surgery_rule =
   | Cos_rule_name of Cos.rule_name
 
 type step_surgery_state = {
-  out : Caml.Format.formatter ;
+  out : Stdlib.Format.formatter ;
   close : char list ;
   to_here : path ;
   from_here : path ;
@@ -160,15 +160,15 @@ let init_like_lemma ~emit sss ty ss ts target =
             Doc.bracket |> Doc.to_string in
   let lem = List.fold_left sss.tycx.linear ~init:lem
       ~f:begin fun lem vty ->
-        Caml.Format.asprintf "\\<And> %s :: %a. %s"
+        Stdlib.Format.asprintf "\\<And> %s :: %a. %s"
           (Ident.to_string vty.var) pp_ty vty.ty lem
       end in
   let buf = Buffer.create 19 in
   emit buf ;
-  let out = Caml.Format.formatter_of_buffer buf in
+  let out = Stdlib.Format.formatter_of_buffer buf in
   let lemid = "i" ^ fresh_inner_counter () in
-  Caml.Format.fprintf out "have %s: \"%s\"@,  by blast@?" lemid lem ;
-  Caml.Format.fprintf sss.out "%s%s"
+  Stdlib.Format.fprintf out "have %s: \"%s\"@,  by blast@?" lemid lem ;
+  Stdlib.Format.fprintf sss.out "%s%s"
     lemid (String.of_char_list sss.close)
 
 let rec step_surgery ~emit sss =
@@ -176,7 +176,7 @@ let rec step_surgery ~emit sss =
   | None -> begin
       match sss.rule with
       | Inner_reference lemid ->
-          Caml.Format.fprintf sss.out "%s%s"
+          Stdlib.Format.fprintf sss.out "%s%s"
             lemid (String.of_char_list sss.close)
       | Cos_rule_name Cos.Init -> begin
           let fail () =
@@ -209,7 +209,7 @@ let rec step_surgery ~emit sss =
       | Cos_rule_name (Cos.Inst { side ; term = tx }) -> begin
           let f = if Path.Dir.equal side L then sss.premise else sss.conclusion in
           let fail () =
-            Caml.Format.kasprintf unprintable
+            Stdlib.Format.kasprintf unprintable
               "inst_%s: got %a"
               (match side with L -> "l" | _ -> "r")
               Form4.pp_formx { tycx = sss.tycx ; data = f } in
@@ -217,7 +217,7 @@ let rec step_surgery ~emit sss =
           | Forall ({ var ; ty }, b)
           | Exists ({ var ; ty }, b) ->
               with_var sss.tycx { var ; ty } begin fun { var ; ty } cx ->
-                Caml.Format.fprintf sss.out "inst_%s[of \"\\<lambda> %s :: %a. %a\" \"%a\"]%s"
+                Stdlib.Format.fprintf sss.out "inst_%s[of \"\\<lambda> %s :: %a. %a\" \"%a\"]%s"
                   (match side with L -> "l" | _ -> "r")
                   (Ident.to_string var) pp_ty ty
                   pp_formx { tycx = cx ; data = b }
@@ -227,10 +227,10 @@ let rec step_surgery ~emit sss =
           | _ -> fail ()
         end
       | Cos_rule_name (Cos.Rename _) ->
-          Caml.Format.fprintf sss.out "repeat%s"
+          Stdlib.Format.fprintf sss.out "repeat%s"
             (String.of_char_list sss.close)
       | Cos_rule_name name ->
-          Caml.Format.fprintf sss.out "%a%s"
+          Stdlib.Format.fprintf sss.out "%a%s"
             Cos.pp_rule_name name
             (String.of_char_list sss.close)
     end
@@ -238,7 +238,7 @@ let rec step_surgery ~emit sss =
       match dir, expose sss.conclusion, expose sss.premise with
       | L, And (b, _), And (a, _)
       | R, And (_, b), And (_, a) ->
-          Caml.Format.fprintf sss.out "impE[OF go_%s_and "
+          Stdlib.Format.fprintf sss.out "impE[OF go_%s_and "
             (match dir with L -> "left" | _ -> "right") ;
           step_surgery ~emit
             { sss with
@@ -248,7 +248,7 @@ let rec step_surgery ~emit sss =
               close = ']' :: sss.close }
       | L, Or (b, _), Or (a, _)
       | R, Or (_, b), Or (_, a) ->
-          Caml.Format.fprintf sss.out "impE[OF go_%s_or "
+          Stdlib.Format.fprintf sss.out "impE[OF go_%s_or "
             (match dir with L -> "left" | _ -> "right") ;
           step_surgery ~emit
             { sss with
@@ -258,14 +258,14 @@ let rec step_surgery ~emit sss =
               close = ']' :: sss.close }
       | L, Imp (b, _), Imp (a, _)
       | R, Imp (_, b), Imp (_, a) ->
-          Caml.Format.fprintf sss.out "impE[OF go_%s_imp "
+          Stdlib.Format.fprintf sss.out "impE[OF go_%s_imp "
             (match dir with L -> "left" | _ -> "right") ;
           step_surgery ~emit
             { sss with
               to_here = Path.snoc sss.to_here dir ;
               from_here = path ;
-              premise = if Caml.(dir = L) then b else a ;
-              conclusion = if Caml.(dir = L) then a else b ;
+              premise = if Stdlib.(dir = L) then b else a ;
+              conclusion = if Stdlib.(dir = L) then a else b ;
               close = ']' :: sss.close }
       | L, Forall ({ var ; ty }, q), Forall (_, p)
       | L, Exists ({ var ; ty }, q), Exists (_, p) ->
@@ -275,7 +275,7 @@ let rec step_surgery ~emit sss =
               | Forall _ -> "go_down_all"
               | _ -> "go_down_ex"
             in
-            Caml.Format.fprintf sss.out "impE[OF %s " transport_rule ;
+            Stdlib.Format.fprintf sss.out "impE[OF %s " transport_rule ;
             step_surgery ~emit
               { sss with
                 from_here = Path.empty ;
@@ -283,28 +283,28 @@ let rec step_surgery ~emit sss =
                 close = ']' :: sss.close } ;
             let buf = Buffer.create 19 in
             emit buf ;
-            let out = Caml.Format.formatter_of_buffer buf in
+            let out = Stdlib.Format.formatter_of_buffer buf in
             let prefix = List.fold_left ~f:begin fun lem vty ->
-                Caml.Format.asprintf "\\<And> %s :: %a. %s"
+                Stdlib.Format.asprintf "\\<And> %s :: %a. %s"
                   (Ident.to_string vty.var) pp_ty vty.ty lem
               end ~init:"" sss.tycx.linear in
-            Caml.Format.fprintf out "@[<v0>have %s: \"%s%a\"@," lemid
+            Stdlib.Format.fprintf out "@[<v0>have %s: \"%s%a\"@," lemid
               prefix
               pp_formx { tycx = sss.tycx ; data = Mk.mk_all vty (Mk.mk_imp p q) } ;
-            Caml.Format.fprintf out "proof@," ;
+            Stdlib.Format.fprintf out "proof@," ;
             List.iter ~f:begin fun vty ->
-              Caml.Format.fprintf out "  fix %s :: \"%a\"@," (Ident.to_string vty.var) pp_ty vty.ty
+              Stdlib.Format.fprintf out "  fix %s :: \"%a\"@," (Ident.to_string vty.var) pp_ty vty.ty
             end (List.rev sss.tycx.linear) ;
-            Caml.Format.fprintf out "  fix %s :: \"%a\"@," (Ident.to_string vty.var) pp_ty vty.ty ;
-            Caml.Format.fprintf out "  show \"%a\"@,"
+            Stdlib.Format.fprintf out "  fix %s :: \"%a\"@," (Ident.to_string vty.var) pp_ty vty.ty ;
+            Stdlib.Format.fprintf out "  show \"%a\"@,"
               pp_formx { tycx ; data = Mk.mk_imp p q } ;
-            Caml.Format.fprintf out "  by (rule " ;
+            Stdlib.Format.fprintf out "  by (rule " ;
             let sss = { sss with
                         out ; tycx ; premise = p ; conclusion = q ;
                         to_here = Path.empty ; from_here = path ;
                         close = [] } in
             step_surgery ~emit sss ;
-            Caml.Format.fprintf out ")@,qed@]@?"
+            Stdlib.Format.fprintf out ")@,qed@]@?"
           end
       | _ -> raise Unprintable
     end
@@ -314,8 +314,8 @@ let pp_rule stepno out (prem, rule, goal) =
   let emit buf = bufs := buf :: !bufs in
   let mainbuf = Buffer.create 19 in
   emit mainbuf ;
-  let mainout = Caml.Format.formatter_of_buffer mainbuf in
-  Caml.Format.fprintf mainout "have l%d: \"%a\"@,  by (rule impE[OF "
+  let mainout = Stdlib.Format.formatter_of_buffer mainbuf in
+  Stdlib.Format.fprintf mainout "have l%d: \"%a\"@,  by (rule impE[OF "
     (stepno + 1) pp_formx goal ;
   step_surgery ~emit {
     out = mainout ;
@@ -327,37 +327,37 @@ let pp_rule stepno out (prem, rule, goal) =
     conclusion = goal.data ;
     rule = Cos_rule_name rule.Cos.name ;
   } ;
-  Caml.Format.fprintf mainout " l%d])@?" stepno ;
+  Stdlib.Format.fprintf mainout " l%d])@?" stepno ;
   List.iter ~f:begin fun buf ->
     Buffer.contents buf
     |> String.split ~on:'\n'
-    |> List.iter ~f:(Caml.Format.fprintf out "%s@,")
+    |> List.iter ~f:(Stdlib.Format.fprintf out "%s@,")
   end !bufs
 
 let pp_step out stepno prc = pp_rule stepno out prc
 
 let pp_deriv out (sg, deriv) =
-  Caml.Format.fprintf out "lemma@.%a  assumes prem: \"%a\"@.  shows \"%a\"@."
+  Stdlib.Format.fprintf out "lemma@.%a  assumes prem: \"%a\"@.  shows \"%a\"@."
     pp_sigma sg
     pp_formx deriv.Cos.top
     pp_formx deriv.Cos.bottom ;
-  Caml.Format.fprintf out "proof -@.  @[<v0>" ;
-  Caml.Format.fprintf out "have l0: \"%a\" by (rule prem)@,"
+  Stdlib.Format.fprintf out "proof -@.  @[<v0>" ;
+  Stdlib.Format.fprintf out "have l0: \"%a\" by (rule prem)@,"
     pp_formx deriv.Cos.top ;
   List.iteri ~f:(pp_step out) deriv.Cos.middle ;
-  Caml.Format.fprintf out "show \"%a\" by (rule l%d)@]@."
+  Stdlib.Format.fprintf out "show \"%a\" by (rule l%d)@]@."
     pp_formx deriv.Cos.bottom
     (List.length deriv.Cos.middle) ;
-  Caml.Format.fprintf out "qed@."
+  Stdlib.Format.fprintf out "qed@."
 
 let pp_header out () =
-  Caml.Format.fprintf out "import Profint@." ;
-  Caml.Format.fprintf out "open Profint@."
+  Stdlib.Format.fprintf out "import Profint@." ;
+  Stdlib.Format.fprintf out "open Profint@."
 
 let pp_footer _out () = ()
 
 let pp_comment out str =
-  Caml.Format.fprintf out "(* %s *)@\n" str
+  Stdlib.Format.fprintf out "(* %s *)@\n" str
 
 let name = "isahol"
 let files pf =

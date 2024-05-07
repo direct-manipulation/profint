@@ -82,7 +82,7 @@ let rec form_to_exp ~cx f =
       Doc.(Appl (10, Infix (string_as 3 " → ", Right, [a ; b])))
   | Forall (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Caml.Format.(fun out ->
+        let q = Stdlib.Format.(fun out ->
             pp_print_as out 3 "∀ (" ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " : " ;
@@ -93,7 +93,7 @@ let rec form_to_exp ~cx f =
       end
   | Exists (vty, b) ->
       with_var cx vty begin fun vty cx ->
-        let q = Caml.Format.(fun out ->
+        let q = Stdlib.Format.(fun out ->
             pp_print_as out 3 "∃ (" ;
             pp_print_string out (Ident.to_string vty.var) ;
             pp_print_string out " : " ;
