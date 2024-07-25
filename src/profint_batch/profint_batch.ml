@@ -12,7 +12,7 @@ open! Util
 open! Types
 module YS = Yojson.Safe
 
-let failwithf fmt = Caml.Format.kasprintf failwith fmt
+let failwithf fmt = Stdlib.Format.kasprintf failwith fmt
 
 let bad_json () = failwithf "Bad JSON"
 
@@ -83,16 +83,16 @@ let serialize_into outdir system thing =
   let rec aux cwd t =
     match t with
     | File { fname ; contents } ->
-        let fname = Caml.Filename.concat cwd fname in
+        let fname = Stdlib.Filename.concat cwd fname in
         let oc = Stdlib.open_out_bin fname in
         Stdlib.output_string oc contents ;
         Stdlib.close_out oc
     | Dir { dname ; contents } ->
-        let cwd = Caml.Filename.concat cwd dname in
+        let cwd = Stdlib.Filename.concat cwd dname in
         FileUtil.mkdir ~parent:true cwd ;
         List.iter ~f:(aux cwd) contents
   in
-  let outdir = Caml.Filename.concat outdir T.name in
+  let outdir = Stdlib.Filename.concat outdir T.name in
   FileUtil.mkdir ~parent:true outdir ;
   let dirtree = T.files thing in
   List.iter ~f:(aux outdir) dirtree ;
@@ -135,16 +135,16 @@ let read_all ic =
 
 let run_command ?(print : unit option) cmd =
   let cmd = cmd ^ " 2>&1" in
-  Caml.Printf.printf "Running [CWD=%s]: %s\n%!"
+  Stdlib.Printf.printf "Running [CWD=%s]: %s\n%!"
     (Unix.getcwd ()) cmd ;
   let ic = Unix.open_process_in cmd in
   match Unix.waitpid [] (Unix.process_in_pid ic) with
   | (_, Unix.WEXITED 0) ->
       let output = read_all ic in
       if Option.is_some print then
-        Caml.Printf.printf "%s\n%!" (setoff "> " output) ;
+        Stdlib.Printf.printf "%s\n%!" (setoff "> " output) ;
   | _ | exception _ ->
-      Caml.Printf.eprintf "Error in subprocess:\n%s\n%!"
+      Stdlib.Printf.eprintf "Error in subprocess:\n%s\n%!"
         (setoff "> " (read_all ic)) ;
       failwith "Error in subprocess"
 
@@ -155,34 +155,34 @@ let main () =
     sysname := str ;
     mode := To.select str
   in
-  let outdir = ref @@ FilePath.concat (Caml.Filename.get_temp_dir_name ()) "batch" in
+  let outdir = ref @@ FilePath.concat (Stdlib.Filename.get_temp_dir_name ()) "batch" in
   let set_outdir dir = outdir := FilePath.reduce dir in
   let doit = ref false in
-  let opts = Caml.Arg.[
+  let opts = Stdlib.Arg.[
       "-format", String set_mode, "FMT Set output format to FMT (coq, coq_reflect, lean3, lean4, isahol)" ;
       "-d", String set_outdir, "DIR Set output direcory to DIR" ;
       "-run", Set doit, " ALso run the generated build" ;
-    ] |> Caml.Arg.align in
+    ] |> Stdlib.Arg.align in
   let input_files : string list ref = ref [] in
   let add_input_file fname =
     if List.exists ~f:(String.equal fname) !input_files then
       failwithf "Repeated input file %S" fname ;
     input_files := fname :: !input_files
   in
-  Caml.Arg.parse opts add_input_file @@
+  Stdlib.Arg.parse opts add_input_file @@
   Printf.sprintf "Usage: %s [OPTIONS] file1.json ...\n\nWhere OPTIONS are:"
-    (Caml.Filename.basename Caml.Sys.executable_name) ;
+    (Stdlib.Filename.basename Stdlib.Sys.executable_name) ;
   let module T = (val !mode : To.TO) in
   let buf = Buffer.create 19 in
-  let out = Caml.Format.formatter_of_buffer buf in
+  let out = Stdlib.Format.formatter_of_buffer buf in
   List.iter ~f:(process_file out ~mode:!mode) @@ List.rev !input_files ;
-  Caml.Format.pp_print_flush out () ;
+  Stdlib.Format.pp_print_flush out () ;
   let proofs = Buffer.contents buf in
   let outdir = serialize_into !outdir !mode proofs in
   if !doit then begin
     Unix.chdir outdir ;
     run_command ~print:() (T.build ()) ;
-    Caml.Printf.printf "Build complete.\n"
+    Stdlib.Printf.printf "Build complete.\n"
   end
 
 let () = main ()

@@ -184,6 +184,11 @@ let try_goal_ts_allex ~qsel : dmanip = fun ~emit concl ->
       | (Forall _ as fexp), Some (L, rpath)
       | (Exists _ as fexp), Some (L, rpath)
         when qsel fexp ->
+          (* Stdlib.Format.eprintf "try_goal_ts_allex: @[%a@]@. lpath = %a@. rpath = %a@. cpath = %a@.%!" *)
+          (*   pp_formx concl.fx *)
+          (*   pp_path concl.lpath *)
+          (*   pp_path concl.rpath *)
+          (*   pp_path concl.cpath ; *)
           let name = if is_forall fexp then Goal_ts_all else Goal_ts_ex in
           let fx = prin @@ emit { name ; path = concl.cpath } in
           let fx, cpath = go_path fx concl.cpath L in

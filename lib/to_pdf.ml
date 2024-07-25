@@ -100,6 +100,7 @@ let pp_header out () =
 \usepackage{xcolor}
 \definecolor{hl}{rgb}{0.5,0,0}
 \newcommand\hl[1]{{\color{hl}#1}}
+\newcommand\rn[1]{\hbox{\small\sffamily #1}}
 \pagestyle{empty}
 \begin{document}
 |}
@@ -108,6 +109,16 @@ let pp_footer out () =
   Stdlib.Format.pp_print_string out {|
 \end{document}
 |}
+
+let pp_print_astex out s =
+  let len = Stdlib.String.length s in
+  let s = Stdlib.String.split_on_char '_' s
+          |> Stdlib.String.concat "\\_" in
+  Stdlib.Format.pp_print_as out len s
+
+let pp_rule_name_astex out rn =
+  Stdlib.Format.kasprintf (pp_print_astex out) "%a"
+    Cos.pp_rule_name rn
 
 let pp_deriv out (sg, deriv) =
   pp_header out () ;
@@ -118,9 +129,11 @@ let pp_deriv out (sg, deriv) =
     Stdlib.Format.fprintf out {|\begin{gather*}
 |} ;
     List.iter ~f:begin fun (_, rule, concl) ->
-      Stdlib.Format.fprintf out {|\infer{\mathstrut
+      Stdlib.Format.fprintf out {|\infer[\rn{%a}]{\mathstrut
 %a
-}{|} pp_formx (mark_location concl rule)
+}{|}
+        pp_rule_name_astex rule.name
+        pp_formx (mark_location concl rule)
     end chunk ;
     Stdlib.Format.fprintf out {|\mathstrut %a%s
 \end{gather*}

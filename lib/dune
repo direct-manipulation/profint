@@ -6,7 +6,7 @@
   (preprocess (pps
     ppx_blob
     ppx_base
-    ; ppx_expect
+    ppx_yojson_conv
   ))
   (preprocessor_deps (glob_files_rec systems/**))
 )
