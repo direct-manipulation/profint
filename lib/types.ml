@@ -260,7 +260,7 @@ let with_var tycx vty go =
 type 'a incx = {
   tycx : tycx ;
   data : 'a ;
- }
+}
 [@@deriving sexp_of]
 
 let ( |@ ) f th = { th with data = f }

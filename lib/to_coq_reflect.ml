@@ -37,14 +37,14 @@ let pp_rule out goal rule =
             Stdlib.Format.fprintf out "RN_congr"
         | _ -> fail ()
       end
-    | Cos.Inst { side ; term = tx } -> begin
+    | Cos.Inst { side ; term = tx ; ty } -> begin
         Stdlib.Format.fprintf out "RN_inst_%s ("
           (match side with L -> "l" | _ -> "r") ;
         List.rev tx.tycx.linear |>
         List.iter ~f:begin fun vty ->
           Stdlib.Format.fprintf out "fun (%s : %a) => " (Ident.to_string vty.var) pp_ty vty.ty
         end ;
-        Stdlib.Format.fprintf out "%a)" pp_termx tx
+        Stdlib.Format.fprintf out "%a)" (pp_termx ty) tx
       end
     | Cos.Rename _ ->
         Stdlib.Format.pp_print_string out "RN_repeat"

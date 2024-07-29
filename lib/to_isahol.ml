@@ -46,8 +46,8 @@ let rec termx_to_exp_ ~cx t =
       let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
       Doc.(Appl (100, Infix (string " ", Left, (head :: spine))))
 
-let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
-let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_linear out
+let termx_to_exp _ty tx = termx_to_exp_ ~cx:tx.tycx tx.data
+let pp_termx ty out tx = termx_to_exp ty tx |> Doc.bracket |> Doc.pp_linear out
 
 let rec formx_to_exp_ ~cx f =
   match expose f with
@@ -144,8 +144,8 @@ let init_like_lemma ~emit sss ty ss ts target =
     make_eqns (Ty.norm_exn ty) ss ts |>
     List.filter_map ~f:begin fun (l, r, _) ->
       if Term.eq_term l r then None else
-      let l = termx_to_exp { tycx = sss.tycx ; data = l } in
-      let r = termx_to_exp { tycx = sss.tycx ; data = r } in
+      let l = termx_to_exp ty { tycx = sss.tycx ; data = l } in
+      let r = termx_to_exp ty { tycx = sss.tycx ; data = r } in
       Some Doc.(Appl (40, Infix (string " = ", Non, [l ; r])))
     end
   in
@@ -206,7 +206,7 @@ let rec step_surgery ~emit sss =
             end
           | _ -> fail ()
         end
-      | Cos_rule_name (Cos.Inst { side ; term = tx }) -> begin
+      | Cos_rule_name (Cos.Inst { side ; term = tx ; _ }) -> begin
           let f = if Path.Dir.equal side L then sss.premise else sss.conclusion in
           let fail () =
             Stdlib.Format.kasprintf unprintable
@@ -221,7 +221,7 @@ let rec step_surgery ~emit sss =
                   (match side with L -> "l" | _ -> "r")
                   (Ident.to_string var) pp_ty ty
                   pp_formx { tycx = cx ; data = b }
-                  pp_termx tx
+                  (pp_termx ty) tx
                   (String.of_char_list sss.close)
               end
           | _ -> fail ()

@@ -97,8 +97,8 @@ and head_to_exp_ ~cx head =
       let v = Ident.to_string (List.nth_exn cx.linear n).var in
       Doc.(Atom (string_to_doc v))
 
-let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
-let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_linear out
+let termx_to_exp _ tx = termx_to_exp_ ~cx:tx.tycx tx.data
+let pp_termx ty out tx = termx_to_exp ty tx |> Doc.bracket |> Doc.pp_linear out
 
 let rep_eq  : Doc.doc = Stdlib.Format.dprintf "@<2>%s@," {|\mathbin{\doteq}|}
 let rep_and : Doc.doc = Stdlib.Format.dprintf "@<2>%s@," {|\mathbin{\land}|}

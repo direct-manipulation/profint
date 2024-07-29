@@ -45,8 +45,8 @@ let rec termx_to_exp_ ~cx t =
       let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
       Doc.(Appl (100, Infix (string " ", Left, (head :: spine))))
 
-let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
-let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_linear out
+let termx_to_exp _ty tx = termx_to_exp_ ~cx:tx.tycx tx.data
+let pp_termx ty out tx = termx_to_exp ty tx |> Doc.bracket |> Doc.pp_linear out
 
 let rec formx_to_exp_ ~cx f =
   match expose f with
@@ -132,8 +132,8 @@ let make_lemma (target : formx) (eqs : (T.term * T.term * Ty.t) list) : string =
       let ex = Doc.(Appl (100, Infix (string " ", Left,
                                       [ Atom (string "@eq") ;
                                         ty_to_exp ty ;
-                                        termx_to_exp { tycx ; data = l } ;
-                                        termx_to_exp { tycx ; data = r } ]))) in
+                                        (termx_to_exp ty) { tycx ; data = l } ;
+                                        (termx_to_exp ty) { tycx ; data = r } ]))) in
       Some ex
     end eqs in
   let eq = match eqs with
@@ -178,7 +178,7 @@ let pp_rule out (prem, rule, goal) =
             has_subproof := true
         | _ -> fail ()
       end
-    | Cos.Inst { side ; term = tx } -> begin
+    | Cos.Inst { side ; term = tx ; _ } -> begin
         let f = if Path.Dir.equal side L then fp else fc in
         let fail () =
           Stdlib.Format.kasprintf unprintable
@@ -194,7 +194,7 @@ let pp_rule out (prem, rule, goal) =
                 pp_ty ty
                 (Ident.to_string var) pp_ty ty
                 pp_formx { tycx = cx ; data = b }
-                pp_termx tx
+                (pp_termx ty) tx
             end
         | _ -> fail ()
       end
@@ -219,8 +219,8 @@ let pp_rule out (prem, rule, goal) =
                   pp_ty ty
                   (Ident.to_string var) pp_ty ty
                   pp_formx { tycx = cx ; data = pbody }
-                  pp_termx { tycx = cx ; data = tfrom }
-                  pp_termx { tycx = cx ; data = tto }
+                  (pp_termx ty) { tycx = cx ; data = tfrom }
+                  (pp_termx ty) { tycx = cx ; data = tto }
               end
             | _ -> fail ()
           end

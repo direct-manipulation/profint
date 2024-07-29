@@ -51,7 +51,7 @@ type rule_name =
   | Congr
   | Contract
   | Weaken
-  | Inst of { side : Path.Dir.t ; term : term incx }
+  | Inst of { side : Path.Dir.t ; term : term incx ; ty : Ty.t }
   | Rename of Ident.t
 
 and rule = {
@@ -146,7 +146,7 @@ let pp_rule_name out rn =
       Stdlib.Format.fprintf out "contract"
   | Weaken ->
       Stdlib.Format.fprintf out "weaken"
-  | Inst { side ; term } ->
+  | Inst { side ; term ; _ } ->
       Stdlib.Format.fprintf out "inst_%s[@[%a@]]"
         (side_to_string side)
         Term.pp_termx term
@@ -442,8 +442,8 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
           mk_imp a (mk_imp a b)
       | R, Imp (_, b), Weaken ->
           b
-      | L, Forall (vty, b), Inst { side = L ; term = wtx }
-      | R, Exists (vty, b), Inst { side = R ; term = wtx } ->
+      | L, Forall (vty, b), Inst { side = L ; term = wtx ; _ }
+      | R, Exists (vty, b), Inst { side = R ; term = wtx ; _ } ->
           Term.ty_check prin.tycx wtx.data vty.ty ;
           Term.do_app (Abs {var = vty.var ; body = b}) [wtx.data]
       | _, Forall (vty, b), Rename var ->

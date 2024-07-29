@@ -44,8 +44,8 @@ let rec termx_to_exp_ ~cx t =
       let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
       Doc.(Appl (100, Infix (string " ", Left, (head :: spine))))
 
-let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
-let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_linear out
+let termx_to_exp _ty tx = termx_to_exp_ ~cx:tx.tycx tx.data
+let pp_termx ty out tx = termx_to_exp ty tx |> Doc.bracket |> Doc.pp_linear out
 
 let rec formx_to_exp_ ~cx f =
   match expose f with
@@ -176,10 +176,10 @@ let pp_path rule concl out =
 
 let pp_rule_name out rn =
   match rn with
-  | Cos.Inst { side ; term = tx } ->
+  | Cos.Inst { side ; term = tx ; ty } ->
       Stdlib.Format.fprintf out "inst_%s (%a)"
         (match side with R -> "r" | _ -> "l")
-        pp_termx tx
+        (pp_termx ty) tx
   | Cos.Rename _ ->
       Stdlib.Format.pp_print_string out "id"
   | _ -> Cos.pp_rule_name out rn

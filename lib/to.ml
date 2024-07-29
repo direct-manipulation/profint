@@ -12,12 +12,12 @@ open Types
 module type TO = sig
   type 'a pp
 
-  val ty_to_exp    : Ty.t -> Doc.exp
-  val termx_to_exp : T.term incx -> Doc.exp
-  val formx_to_exp : Form4.formx -> Doc.exp
+  (* val ty_to_exp    : Ty.t -> Doc.exp *)
+  (* val termx_to_exp : Ty.t -> T.term incx -> Doc.exp *)
+  (* val formx_to_exp : Form4.formx -> Doc.exp *)
 
   val pp_ty    : Ty.t pp
-  val pp_termx : T.term incx pp
+  val pp_termx : Ty.t -> T.term incx pp
   val pp_formx : Form4.formx pp
 
   val pp_sigma : sigma pp

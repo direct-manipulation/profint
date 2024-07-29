@@ -13,7 +13,6 @@ open! Types
 open! Form4
 
 module Json = Yojson.Safe
-let json_to_exp js = Doc.(Atom (string (Json.to_string js)))
 
 module External = struct
   open Ppx_yojson_conv_lib.Yojson_conv.Primitives
@@ -189,22 +188,64 @@ end
 
 exception Conversion
 
-let ty_to_exp (ty : Ty.t) =
+let of_ty (ty : Ty.t) : External.ty =
   let rec map ty =
     match Ty.norm_exn ty with
     | Ty.Basic a -> External.Basic (Ident.to_string a)
     | Ty.Arrow (a, b) -> External.Arrow (map a, map b)
     | Ty.Var _ -> assert false
   in
-  map ty |> [%yojson_of: _] |> json_to_exp
+  map ty
 
-(*
-let termx_to_exp (tx : T.term incx) =
-  let[@ocaml.warning "-27-39"] rec map t =
-    match t with
-    | T.Abs abs ->
-        External.Lam ((Ident.to_string abs.var, _), map abs.body)
-    | T.App app -> failwith "termx_to_exp: app"
+let yojson_of_ty ty : Json.t = of_ty ty |> [%yojson_of: _]
+
+let pp_ty ppf (ty : Ty.t) = yojson_of_ty ty |> Json.pp ppf
+
+let of_termx ty (tx : T.term incx) : External.term =
+  (* [HACK] *)
+  let unknown_ty = Ty.Basic (Ident.of_string "###UNKNOWN###") in
+  let rec map tycx t ty =
+    match t, Ty.norm_exn ty with
+    | T.Abs abs, Ty.Arrow (tya, tyb) ->
+        let vty = Types.{ var= abs.var ; ty = tya } in
+        with_var tycx vty begin fun vty tycx ->
+          External.Lam ((Ident.to_string vty.var, of_ty vty.ty), map tycx abs.body tyb)
+        end
+    | T.App app, _ -> begin
+        let hty = map_head tycx app.head in
+        let (t, _) = Stdlib.List.fold_left begin fun (h, tyh) a ->
+            match Ty.norm_exn tyh with
+            | Ty.Arrow (tya, tyh) ->
+                (External.App (h, map tycx a tya), tyh)
+            | _ -> raise Conversion
+          end hty app.spine
+        in
+        t
+      end
+    | _ -> raise Conversion
+  and map_head tycx h =
+    match h with
+    | T.Const (k, ty) -> (External.Const (Ident.to_string k), ty)
+    | T.Index n -> begin
+        let ty = match List.nth tycx.linear n with
+          | Some { ty ; _ } -> ty
+          | None -> unknown_ty
+        in
+        (External.Bvar n, ty)
+      end
   in
-  map tx.data |> [%yojson_of: _] |> json_to_exp
-*)
+  map tx.tycx tx.data ty
+
+let yojson_of_termx ty tx = of_termx ty tx |> [%yojson_of: _]
+
+let pp_termx ty ppf (tx : T.term incx) = yojson_of_termx ty tx |> Json.pp ppf
+
+let of_formx (fx : Form4.formx) : External.form =
+  let (* rec *) map fx =
+    match Form4.expose fx.data with
+    | Form4.Atom (T.App { head = T.Const (_p, _) ; spine = _ }) ->
+        failwith "unfinished"
+    | _ ->
+        failwith "unfinished"
+  in
+  map fx

@@ -16,8 +16,8 @@ let ty_to_exp = To_katex.ty_to_exp
 let pp_ty = To_katex.pp_ty
 
 let termx_to_exp_ ~cx t = To_katex.termx_to_exp_ ~cx t
-let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
-let pp_termx out tx = termx_to_exp tx |> Doc.bracket |> Doc.pp_linear out
+let termx_to_exp _ tx = termx_to_exp_ ~cx:tx.tycx tx.data
+let pp_termx ty out tx = termx_to_exp ty tx |> Doc.bracket |> Doc.pp_linear out
 
 let rec formx_to_exp_ ~cx (path : path) f =
   match expose f with

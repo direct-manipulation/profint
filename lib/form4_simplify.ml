@@ -104,7 +104,7 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : Pa
                 (*   (Ident.to_string vty.var) *)
                 (*   (Term.pp_term ~cx:fx.tycx) t *)
                 (*   (pp_form ~cx:tycx) b ; *)
-                let cpr = emit { name = Inst { side ; term = t |@ fx } ; path } in
+                let cpr = emit { name = Inst { side ; ty = vty.ty ; term = t |@ fx } ; path } in
                 let b = cpr.prin in
                 (* Caml.Format.printf "Result of u-subst: %a@.prin = %a@." *)
                 (*   pp_formx cpr.goal *)
@@ -133,7 +133,7 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : Pa
                 (*   (Ident.to_string vty.var) *)
                 (*   (Term.pp_term ~cx:fx.tycx) t *)
                 (*   (pp_form ~cx:tycx) b ; *)
-                let cpr = emit { name = Inst { side ; term = t |@ fx } ; path } in
+                let cpr = emit { name = Inst { side ; ty = vty.ty ; term = t |@ fx } ; path } in
                 let b = cpr.prin in
                 (* Caml.Format.printf "Result of e-subst: %a@.prin = %a@." *)
                 (*   pp_formx cpr.goal *)
