@@ -193,8 +193,8 @@ let profint_object =
 
     method termToTeX text =
       try
-        let (f, _) = Uterm.term_of_string @@ Js.to_string text in
-        Js.some @@ Js.string @@ pp_to_string To.Katex.pp_termx @@ Types.triv f
+        let (f, ty) = Uterm.term_of_string @@ Js.to_string text in
+        Js.some @@ Js.string @@ pp_to_string (To.Katex.pp_termx ty) @@ Types.triv f
       with _ -> Js.null
 
     method formulaToTeX text =

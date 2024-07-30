@@ -80,6 +80,7 @@ module External = struct
 
   type form =
     | Atom   of id * term list
+    | Eq     of term * term * ty
     | And    of form * form
     | True
     | Or     of form * form
@@ -175,14 +176,9 @@ module External = struct
     rule   : rule ;
   } [@@deriving yojson]
 
-  type rewrite = {
-    above  : form ;
-    below  : form ;
-  } [@@deriving yojson]
-
-  type instance = {
-    scheme : scheme ;
-    change : rewrite formx ;
+  type derivation = {
+    endf : form ;
+    rules : scheme list ;
   } [@@deriving yojson]
 end
 
@@ -197,13 +193,11 @@ let of_ty (ty : Ty.t) : External.ty =
   in
   map ty
 
-let yojson_of_ty ty : Json.t = of_ty ty |> [%yojson_of: _]
+let yojson_of_ty ty = of_ty ty |> [%yojson_of: External.ty]
 
-let pp_ty ppf (ty : Ty.t) = yojson_of_ty ty |> Json.pp ppf
+let pp_ty ppf (ty : Ty.t) = yojson_of_ty ty |> Json.pretty_print ppf
 
 let of_termx ty (tx : T.term incx) : External.term =
-  (* [HACK] *)
-  let unknown_ty = Ty.Basic (Ident.of_string "###UNKNOWN###") in
   let rec map tycx t ty =
     match t, Ty.norm_exn ty with
     | T.Abs abs, Ty.Arrow (tya, tyb) ->
@@ -229,23 +223,167 @@ let of_termx ty (tx : T.term incx) : External.term =
     | T.Index n -> begin
         let ty = match List.nth tycx.linear n with
           | Some { ty ; _ } -> ty
-          | None -> unknown_ty
+          | None -> raise Conversion
         in
         (External.Bvar n, ty)
       end
   in
   map tx.tycx tx.data ty
 
-let yojson_of_termx ty tx = of_termx ty tx |> [%yojson_of: _]
+let yojson_of_termx ty tx = of_termx ty tx |> [%yojson_of: External.term]
 
-let pp_termx ty ppf (tx : T.term incx) = yojson_of_termx ty tx |> Json.pp ppf
+let pp_termx ty ppf (tx : T.term incx) = yojson_of_termx ty tx |> Json.pretty_print ppf
 
 let of_formx (fx : Form4.formx) : External.form =
-  let (* rec *) map fx =
+  let rec map fx =
     match Form4.expose fx.data with
-    | Form4.Atom (T.App { head = T.Const (_p, _) ; spine = _ }) ->
-        failwith "unfinished"
-    | _ ->
+    | Form4.Atom (T.App { head = T.Const (p, ty) ; spine }) -> begin
+        let (args, _) = Stdlib.List.fold_left begin fun (args, ty) arg ->
+            match Ty.norm_exn ty with
+            | Ty.Arrow (tya, ty) ->
+                let arg = of_termx tya (arg |@ fx) in
+                (arg :: args, ty)
+            | _ -> raise Conversion
+          end ([], ty) spine in
+        let args = List.rev args in
+        External.Atom (Ident.to_string p, args)
+      end
+    | Form4.Eq (s, t, ty) ->
+        let s = of_termx ty (s |@ fx) in
+        let t = of_termx ty (t |@ fx) in
+        let ty = of_ty ty in
+        External.Eq (s, t, ty)
+    | Form4.And (f, g) ->
+        let f = map (f |@ fx) in
+        let g = map (g |@ fx) in
+        External.And (f, g)
+    | Form4.Top -> External.True
+    | Form4.Or (f, g) ->
+        let f = map (f |@ fx) in
+        let g = map (g |@ fx) in
+        External.Or (f, g)
+    | Form4.Bot -> External.False
+    | Form4.Imp (f, g) ->
+        let f = map (f |@ fx) in
+        let g = map (g |@ fx) in
+        External.Imp (f, g)
+    | Form4.Forall (vty, f) ->
+        with_var fx.tycx vty begin fun vty tycx ->
+          let f = map { tycx ; data = f } in
+          let ty = of_ty vty.ty in
+          External.Forall ((Ident.to_string vty.var, ty), f)
+        end
+    | Form4.Exists (vty, f) ->
+        with_var fx.tycx vty begin fun vty tycx ->
+          let f = map { tycx ; data = f } in
+          let ty = of_ty vty.ty in
+          External.Exists ((Ident.to_string vty.var, ty), f)
+        end
+    | Form4.Atom _ | Form4.Mdata _ ->
         failwith "unfinished"
   in
   map fx
+
+let yojson_of_formx fx = of_formx fx |> [%yojson_of: External.form]
+let pp_formx ppf fx = yojson_of_formx fx |> Json.pretty_print ppf
+
+let of_path (p : Path.t) : External.Position.t =
+  Path.to_list p |>
+  Stdlib.List.map begin function
+  | Path.Dir.L -> 0
+  | _ -> 1
+  end |>
+  External.Position.of_list
+
+let of_deriv (_sigma, (cd : Form4.Cos.deriv)) =
+  let endf = of_formx cd.bottom in
+  let rules =
+    List.rev cd.middle |>
+    Stdlib.List.map begin fun (_, (rule : Form4.Cos.rule), _) ->
+      let pos = of_path rule.path in
+      (* let ({ tycx ; _ }, _) = Form4.Paths.formx_at concl rule.path in *)
+      let rule : External.rule = match rule.name with
+        | Goal_ts_imp { pick = L }                -> Cos_goal_ts_imp_l
+        | Goal_ts_imp { pick = R }                -> Cos_goal_ts_imp_r
+        | Goal_imp_ts                             -> Cos_goal_imp_ts
+        | Goal_ts_and { pick = L }                -> Cos_goal_ts_and_l
+        | Goal_ts_and { pick = R }                -> Cos_goal_ts_and_r
+        | Goal_and_ts { pick = L }                -> Cos_goal_and_ts_l
+        | Goal_and_ts { pick = R }                -> Cos_goal_and_ts_r
+        | Goal_ts_or { pick = L }                 -> Cos_goal_ts_or_l
+        | Goal_ts_or { pick = R }                 -> Cos_goal_ts_or_r
+        | Goal_or_ts                              -> Cos_goal_or_ts
+        | Goal_ts_all                             -> Cos_goal_ts_all
+        | Goal_all_ts                             -> Cos_goal_all_ts
+        | Goal_ts_ex                              -> Cos_goal_ts_ex
+        | Goal_ex_ts                              -> Cos_goal_ex_ts
+        | Init                                    -> Cos_init
+        | Rewrite { from = L }                    -> Cos_rewrite_ltr
+        | Rewrite { from = R }                    -> Cos_rewrite_rtl
+        | Asms_and { minor = L ; pick = L }       -> Cos_asms_and_l_l
+        | Asms_and { minor = L ; pick = R }       -> Cos_asms_and_l_r
+        | Asms_and { minor = R ; pick = L }       -> Cos_asms_and_r_l
+        | Asms_and { minor = R ; pick = R }       -> Cos_asms_and_r_r
+        | Asms_or { minor = L ; pick = L }        -> Cos_asms_or_l_l
+        | Asms_or { minor = L ; pick = R }        -> Cos_asms_or_l_r
+        | Asms_or { minor = R ; pick = L }        -> Cos_asms_or_r_l
+        | Asms_or { minor = R ; pick = R }        -> Cos_asms_or_r_r
+        | Asms_imp { minor = L ; pick = L }       -> Cos_asms_imp_l_l
+        | Asms_imp { minor = L ; pick = R }       -> Cos_asms_imp_l_r
+        | Asms_imp { minor = R ; pick = L }       -> Cos_asms_imp_r_l
+        | Asms_imp { minor = R ; pick = R }       -> Cos_asms_imp_r_r
+        | Asms_all { minor = L }                  -> Cos_asms_all_l
+        | Asms_all { minor = R }                  -> Cos_asms_all_r
+        | Asms_ex { minor = L }                   -> Cos_asms_ex_l
+        | Asms_ex { minor = R }                   -> Cos_asms_ex_r
+        | Simp_and_top { cxkind = L ; minor = L } -> Cos_simp_asms_and_top
+        | Simp_and_top { cxkind = L ; minor = R } -> Cos_simp_asms_top_and
+        | Simp_and_top { cxkind = R ; minor = L } -> Cos_simp_goal_and_top
+        | Simp_and_top { cxkind = R ; minor = R } -> Cos_simp_goal_top_and
+        | Simp_or_top { cxkind = L ; minor = L }  -> Cos_simp_asms_or_top
+        | Simp_or_top { cxkind = L ; minor = R }  -> Cos_simp_asms_top_or
+        | Simp_or_top { cxkind = R ; minor = L }  -> Cos_simp_goal_or_top
+        | Simp_or_top { cxkind = R ; minor = R }  -> Cos_simp_goal_top_or
+        | Simp_imp_top { cxkind = L ; minor = L } -> Cos_simp_asms_imp_top
+        | Simp_imp_top { cxkind = L ; minor = R } -> Cos_simp_asms_top_imp
+        | Simp_imp_top { cxkind = R ; minor = L } -> Cos_simp_goal_imp_top
+        | Simp_imp_top { cxkind = R ; minor = R } -> Cos_simp_goal_top_imp
+        | Simp_all_top { cxkind = L }             -> Cos_simp_asms_all_top
+        | Simp_all_top { cxkind = R }             -> Cos_simp_goal_all_top
+        | Simp_and_bot { cxkind = L ; minor = L } -> Cos_simp_asms_and_bot
+        | Simp_and_bot { cxkind = L ; minor = R } -> Cos_simp_asms_bot_and
+        | Simp_and_bot { cxkind = R ; minor = L } -> Cos_simp_goal_and_bot
+        | Simp_and_bot { cxkind = R ; minor = R } -> Cos_simp_goal_bot_and
+        | Simp_or_bot { cxkind = L ; minor = L }  -> Cos_simp_asms_or_bot
+        | Simp_or_bot { cxkind = L ; minor = R }  -> Cos_simp_asms_bot_or
+        | Simp_or_bot { cxkind = R ; minor = L }  -> Cos_simp_goal_or_bot
+        | Simp_or_bot { cxkind = R ; minor = R }  -> Cos_simp_goal_bot_or
+        | Simp_bot_imp { cxkind = L }             -> Cos_simp_asms_bot_imp
+        | Simp_bot_imp { cxkind = R }             -> Cos_simp_goal_bot_imp
+        | Simp_ex_bot { cxkind = L }              -> Cos_simp_asms_ex_bot
+        | Simp_ex_bot { cxkind = R }              -> Cos_simp_goal_ex_bot
+        | Congr                                   -> Cos_congr
+        | Contract                                -> Cos_contract
+        | Weaken                                  -> Cos_weaken
+        | Inst { side = L ; term ; ty }           -> Cos_inst_l (of_termx ty term)
+        | Inst { side = R ; term ; ty }           -> Cos_inst_r (of_termx ty term)
+        | Rename _ -> raise Conversion
+      in
+      External.{ pos ; rule }
+    end in
+  External.{ endf ; rules }
+
+let yojson_of_deriv sd = of_deriv sd |> [%yojson_of: External.derivation]
+let pp_deriv ppf sd = yojson_of_deriv sd |> Json.pretty_print ppf
+
+let pp_sigma _ppf _sigm = ()
+
+let pp_header _ppf () = ()
+let pp_footer _ppf () = ()
+let pp_comment _ppf _com = ()
+
+let name = "json"
+let files pf = [
+  File { fname = "proof.json" ; contents = pf } ;
+]
+let build () = "echo Run: tond -t proof.tex proof.json"

@@ -32,7 +32,7 @@ module type TO = sig
   val build : unit -> string
 end with type 'a pp := Stdlib.Format.formatter -> 'a -> unit
 
-(* module Json        : TO = To_json *)
+module Json        : TO = To_json
 
 module Katex       : TO = To_katex
 module Pdf         : TO = To_pdf
@@ -47,7 +47,7 @@ exception Unknown of string
 
 let select sel : (module TO) =
   match sel with
-  (* | "json"        -> (module Json) *)
+  | "json"        -> (module Json)
   | "katex"       -> (module Katex)
   | "coq"         -> (module Coq)
   | "coq_reflect" -> (module Coq_reflect)
