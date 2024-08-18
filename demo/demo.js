@@ -221,12 +221,13 @@ function renderFormula() {
       const path = findPath(this);
       const operations = profint.getItems(path);
       // console.log(operations);
-      if (operations.show) {
+      if (true /* operations.show */) {
         $rmenu.data("attachment", this);
         $rmenu.children().css({ display: "none" });
         if (operations.contract) $("#rmenu-contract").css({ display: "block" });
         if (operations.weaken) $("#rmenu-weaken").css({ display: "block" });
-        if (operations.nullify) $("#rmenu-nullify").css({ display: "block" });
+        // if (operations.nullify)
+          $("#rmenu-nullify").css({ display: "block" });
         if (operations.instantiate) $("#rmenu-instantiate").css({ display: "block" });
         if (operations.rename) $("#rmenu-rename").css({ display: "block" });
         $rmenu.css({ top: `${ev.clientY-5}px`,

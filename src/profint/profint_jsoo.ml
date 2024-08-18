@@ -318,7 +318,6 @@ let profint_object =
         object%js
           val contract    = Js.bool !contract
           val weaken      = Js.bool !weaken
-          val nullify     = Js.bool true
           val instantiate = Js.bool !instantiate
           val rename      = Js.bool !rename
           val show        = Js.bool (!contract || !weaken ||
