@@ -51,8 +51,10 @@ type rule_name =
   | Congr
   | Contract
   | Weaken
+  | Nullify
   | Inst of { side : Path.Dir.t ; term : term incx }
   | Rename of Ident.t
+  | Cut of formx
 
 and rule = {
   name : rule_name ;
@@ -146,6 +148,8 @@ let pp_rule_name out rn =
       Stdlib.Format.fprintf out "contract"
   | Weaken ->
       Stdlib.Format.fprintf out "weaken"
+  | Nullify ->
+      Stdlib.Format.fprintf out "nullify"
   | Inst { side ; term } ->
       Stdlib.Format.fprintf out "inst_%s[@[%a@]]"
         (side_to_string side)
@@ -153,6 +157,9 @@ let pp_rule_name out rn =
   | Rename var ->
       Stdlib.Format.fprintf out "rename[@[%s@]]"
         (Ident.to_string var)
+  | Cut fx ->
+      Stdlib.Format.fprintf out "cut[@[%a@]@]"
+        pp_formx fx
 
 let rec pp_path_list out (path : Path.Dir.t list) =
   match path with
@@ -440,8 +447,11 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
         end
       | R, Imp (a, b), Contract ->
           mk_imp a (mk_imp a b)
-      | R, Imp (_, b), Weaken ->
-          b
+      | R, Imp (_, b), Weaken -> b
+      | R, _, Nullify ->
+          mk_bot
+      | L, _, Nullify ->
+          mk_top
       | L, Forall (vty, b), Inst { side = L ; term = wtx }
       | R, Exists (vty, b), Inst { side = R ; term = wtx } ->
           Term.ty_check prin.tycx wtx.data vty.ty ;
@@ -450,6 +460,8 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
           mk_all { vty with var } b
       | _, Exists (vty, b), Rename var ->
           mk_ex { vty with var } b
+      | R, _, Cut fx ->
+          mk_and fx.data (mk_imp fx.data prin.data)
       | _ -> bad_match "32"
   } in
   let goal = { goal with data = replace_at goal.data rule.path prin.data } in

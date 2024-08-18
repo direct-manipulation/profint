@@ -281,6 +281,18 @@ let profint_object =
         state.goal <- old_goal ;
         false
 
+    method doNullify path =
+      let old_goal = state.goal in
+      try
+        let path = to_path path in
+        state.goal <- mk_stage ~fx:state.goal.fx ~mstep:F.(Nullify { path }) ;
+        let deriv = compute_derivation state.goal in
+        push_goal @@ mk_stage ~fx:deriv.top ~mstep:F.Pristine ;
+        true
+      with _ ->
+        state.goal <- old_goal ;
+        false
+
     method getItems path =
       let fail () = Js.null in
       try
@@ -306,6 +318,7 @@ let profint_object =
         object%js
           val contract    = Js.bool !contract
           val weaken      = Js.bool !weaken
+          val nullify     = Js.bool true
           val instantiate = Js.bool !instantiate
           val rename      = Js.bool !rename
           val show        = Js.bool (!contract || !weaken ||

@@ -425,6 +425,7 @@ type mstep =
   | Pristine
   | Contract of { path : Path.t }
   | Weaken   of { path : Path.t }
+  | Nullify  of { path : Path.t }
   | Link     of { src  : Path.t ;
                   dest : Path.t ;
                   copy : bool } (* contract? *)
@@ -469,6 +470,8 @@ let compute_derivation goal msteps =
           ignore @@ emit { name = Contract ; path }
       | Weaken { path ; _ } ->
           ignore @@ emit { name = Weaken ; path }
+      | Nullify { path ; _ } ->
+          ignore @@ emit { name = Nullify ; path }
       | Inst { term ; path } ->
           let (fx, side) = formx_at goal path in
           let (term, _) = Uterm.ty_check fx.tycx term in
@@ -514,7 +517,7 @@ let mark_locations goal mstep =
   match mstep with
   | Pristine -> goal
   | Contract { path }
-  | Weaken { path } ->
+  | Weaken { path } | Nullify { path } ->
       transform_at goal.data path mk_src |@ goal
   | Inst { path ; _ }
   | Rename { path ; _ } ->
@@ -531,6 +534,9 @@ let pp_mstep out mstep =
         pp_path path
   | Weaken { path } ->
       Stdlib.Format.fprintf out "Weaken { path = %a }"
+        pp_path path
+  | Nullify { path } ->
+      Stdlib.Format.fprintf out "Nullify { path = %a }"
         pp_path path
   | Inst { path ; term } ->
       Stdlib.Format.fprintf out "Inst @[<hv2>{ path = %a ;@ termx = @[<hov2>%a@] }@]"
@@ -559,6 +565,7 @@ let mstep_to_uterm mstep =
   | Pristine -> U.var_s "P"
   | Contract { path } -> U.app (U.var_s "C") [path_to_uterm path]
   | Weaken { path } -> U.app (U.var_s "W") [path_to_uterm path]
+  | Nullify { path } -> U.app (U.var_s "K") [path_to_uterm path]
   | Link { src ; dest ; copy } ->
       let src = path_to_uterm src in
       let dst = path_to_uterm dest in
@@ -589,6 +596,9 @@ let uterm_to_mstep (utm : U.term) : mstep =
   | Some ("W", [path]) ->
       let path = uterm_to_path path in
       Weaken { path }
+  | Some ("K", [path]) ->
+      let path = uterm_to_path path in
+      Nullify { path }
   | Some (("L" | "Lc" as lnk), [ src ; dest ]) ->
       let src = uterm_to_path src in
       let dest = uterm_to_path dest in

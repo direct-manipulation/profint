@@ -162,6 +162,14 @@ function weakenSubformula(elem) {
   }
 }
 
+function nullifySubformula(elem) {
+  var res = profint.doNullify(findPath(elem));
+  if (res) renderFormula();
+  else {
+    console.log("nullifying failed");
+  }
+}
+
 function substituteWitness(elem) {
   var res = profint.doWitness(findPath(elem));
   if (res) renderFormula();
@@ -218,6 +226,7 @@ function renderFormula() {
         $rmenu.children().css({ display: "none" });
         if (operations.contract) $("#rmenu-contract").css({ display: "block" });
         if (operations.weaken) $("#rmenu-weaken").css({ display: "block" });
+        if (operations.nullify) $("#rmenu-nullify").css({ display: "block" });
         if (operations.instantiate) $("#rmenu-instantiate").css({ display: "block" });
         if (operations.rename) $("#rmenu-rename").css({ display: "block" });
         $rmenu.css({ top: `${ev.clientY-5}px`,
@@ -554,6 +563,8 @@ function demoSetup() {
       contractSubformula(elem);
     else if (id === "rmenu-weaken")
       weakenSubformula(elem);
+    else if (id === "rmenu-nullify")
+      nullifySubformula(elem);
     else if (id === "rmenu-instantiate")
       makeWitnessBoxAt(elem, is_instantiable, profint.doWitness);
     else if (id === "rmenu-rename")
