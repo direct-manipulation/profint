@@ -7,8 +7,6 @@
 
 (** Output suitable for Coq *)
 
-open Base
-
 open! Util
 open! Types
 open! Term
@@ -41,7 +39,7 @@ let pp_rule out goal rule =
         Stdlib.Format.fprintf out "RN_inst_%s ("
           (match side with L -> "l" | _ -> "r") ;
         List.rev tx.tycx.linear |>
-        List.iter ~f:begin fun vty ->
+        List.iter begin fun vty ->
           Stdlib.Format.fprintf out "fun (%s : %a) => " (Ident.to_string vty.var) pp_ty vty.ty
         end ;
         Stdlib.Format.fprintf out "%a)" pp_termx tx
@@ -78,7 +76,7 @@ let pp_rule out goal rule =
               pp_path (n + 1) cx f (0 :: dirs) path
             end
         | _ ->
-            String.concat ~sep:" "
+            String.concat " "
               [ "pp_rule:" ;
                 pp_to_string Cos.pp_rule rule ;
                 "::" ;
@@ -87,7 +85,7 @@ let pp_rule out goal rule =
       end
   in
   let trail, cx, f = pp_path 1 goal.tycx goal.data [] rule.path in
-  let trail = "[" ^ ( trail |> List.map ~f:Int.to_string |> String.concat ~sep:";" ) ^ "]" in
+  let trail = "[" ^ ( trail |> List.map Int.to_string |> String.concat ";" ) ^ "]" in
   Stdlib.Format.pp_print_string out "(" ;
   pp_rule cx f rule.Cos.name ;
   Stdlib.Format.pp_print_string out ", " ;
@@ -116,10 +114,10 @@ let pp_deriv out (sg, deriv) =
   Stdlib.Format.fprintf out {|Qed.@.End Example.@.|}
 
 let name = "coq_reflect"
+let cookie_re = Re.Pcre.regexp ~flags:[`MULTILINE] {|\(\*PROOF\*\)|}
 let files pf =
   let replace contents =
-    String.substr_replace_first contents
-      ~pattern:"(*PROOF*)\n" ~with_:pf
+    Re.Pcre.substitute ~rex:cookie_re ~subst:(fun _ -> pf) contents
   in [
     File { fname = "Proof.v" ;
            contents = replace [%blob "lib/systems/coq_reflect/Proof.v"] } ;

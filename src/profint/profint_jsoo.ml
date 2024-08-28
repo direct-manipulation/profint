@@ -5,8 +5,6 @@
  * See LICENSE for licensing details.
  *)
 
-open Base
-
 open Profint
 open Util
 open Js_of_ocaml
@@ -40,33 +38,33 @@ let state = { goal = mk_stage ~fx:(Types.triv F.Mk.mk_top) ~mstep:F.Pristine ;
 let save_uterm () =
   let open Types in
   let stage_to_uterm stg = Form4.mstep_to_uterm stg.mstep in
-  let history = U.app (U.var_s "H") @@ List.map ~f:stage_to_uterm state.history in
-  let future = U.app (U.var_s "F") @@ List.map ~f:stage_to_uterm state.future in
+  let history = U.app (U.var_s "H") @@ List.map stage_to_uterm state.history in
+  let future = U.app (U.var_s "F") @@ List.map stage_to_uterm state.future in
   let goal = stage_to_uterm state.goal in
   U.app (U.var_s "T") [goal ; history ; future]
 
 let get_history fx utm =
   match F.un_app utm with
   | Some ("H", utms) ->
-      List.fold_right utms ~init:([], fx)
-        ~f:(fun utm (history, fx) ->
-            let mstep = F.uterm_to_mstep utm in
-            let stg = mk_stage ~fx ~mstep in
-            let history = stg :: history in
-            let fx = (compute_derivation stg).top in
-            (history, fx))
+      List.fold_right begin fun utm (history, fx) ->
+        let mstep = F.uterm_to_mstep utm in
+        let stg = mk_stage ~fx ~mstep in
+        let history = stg :: history in
+        let fx = (compute_derivation stg).top in
+        (history, fx)
+      end utms ([], fx)
   | _ -> failwith "get_history"
 
 let get_future fx utm =
   match F.un_app utm with
   | Some ("F", utms) ->
-      List.fold_left utms ~init:([], fx)
-        ~f:(fun (future, fx) utm ->
-            let mstep = F.uterm_to_mstep utm in
-            let stg = mk_stage ~fx ~mstep in
-            let future = stg :: future in
-            let fx = (compute_derivation stg).top in
-            (future, fx))
+      List.fold_left begin fun (future, fx) utm ->
+        let mstep = F.uterm_to_mstep utm in
+        let stg = mk_stage ~fx ~mstep in
+        let future = stg :: future in
+        let fx = (compute_derivation stg).top in
+        (future, fx)
+      end ([], fx) utms
   | _ -> failwith "get_future"
 
 let load_uterm fx utm =
@@ -103,8 +101,8 @@ let sig_change text =
 let to_path str : F.path =
   try Js.to_string str |> Path.of_string
   with e ->
-    Stdlib.Format.eprintf "to_path: %a@." Exn.pp e ;
-    Exn.reraise e "to_path"
+    Stdlib.Format.eprintf "to_path: %s@." @@ Printexc.to_string e ;
+    raise e
 
 let change_formula text =
   try
@@ -127,11 +125,11 @@ let get_proof kind =
     | [] -> assert false    (* impossible! *)
     | last :: _ ->
         let deriv = F.compute_derivation last.fx
-            (List.map ~f:(fun stg -> stg.mstep) stages) in
+            (List.map (fun stg -> stg.mstep) stages) in
         let module O = (val To.select kind) in
         let str = pp_to_string O.pp_deriv (!Types.sigma, deriv) in
         str
-  with e -> fail (Exn.to_string e)
+  with e -> fail (Printexc.to_string e)
 
 let get_proof_bundle_zip name kind : Js.Unsafe.top Js.t =
   let proof = get_proof kind in
@@ -148,13 +146,13 @@ let get_proof_bundle_zip name kind : Js.Unsafe.top Js.t =
         let obj = Js.Unsafe.meth_call obj "folder" [|
             Js.Unsafe.coerce @@ Js.string dname ;
           |] in
-        List.iter ~f:(dirtree_to_obj obj) contents
+        List.iter (dirtree_to_obj obj) contents
   in
   let zip = Js.Unsafe.new_obj (Js.Unsafe.pure_js_expr "JSZip") [| |] in
   let obj = Js.Unsafe.meth_call zip "folder" [|
       Js.Unsafe.coerce @@ Js.string name
     |] in
-  List.iter ~f:(dirtree_to_obj obj) files ;
+  List.iter (dirtree_to_obj obj) files ;
   zip
 
 exception Cannot_start
@@ -163,23 +161,23 @@ let profint_object =
   object%js
     method startup =
       try
-        let pmap = Map.of_alist_exn (module String) Url.Current.arguments in
-        Option.iter ~f:begin fun sigText ->
+        let pmap = StringMap.of_seq @@ List.to_seq Url.Current.arguments in
+        Option.iter begin fun sigText ->
           if not @@ sig_change (Url.urldecode sigText) then
             raise Cannot_start;
-        end @@ Map.find pmap "s" ;
+        end @@ StringMap.find_opt "s" pmap ;
         (* Printf.printf "signature initailized\n%!" ; *)
-        Option.iter ~f:begin fun formText ->
+        Option.iter begin fun formText ->
           if not @@ change_formula (Url.urldecode formText) then
             raise Cannot_start
-        end @@ Map.find pmap "f" ;
+        end @@ StringMap.find_opt "f" pmap ;
         (* Printf.printf "formula initailized\n%!" ; *)
-        Option.iter ~f:begin fun permaText ->
+        Option.iter begin fun permaText ->
           let permaText = Url.urldecode permaText in
           (* Stdlib.Printf.printf "Trying to load perma: %S\n%!" permaText ; *)
           let utm = Uterm.thing_of_string Proprs.one_term permaText in
           load_uterm state.goal.fx utm
-        end @@ Map.find pmap "p" ;
+        end @@ StringMap.find_opt "p" pmap ;
         Js._true
       with Cannot_start -> Js._false
 
@@ -211,7 +209,7 @@ let profint_object =
       match state.history with
       | [] -> Js.array [| |]
       | _ -> state.history
-             |> List.map ~f:(fun stg -> stg.rep)
+             |> List.map (fun stg -> stg.rep)
              |> Array.of_list
              |> Js.array
 
@@ -220,7 +218,7 @@ let profint_object =
       | [] -> Js.array [| |]
       | _ ->
           state.future
-          |> List.rev_map ~f:(fun stg -> stg.rep)
+          |> List.rev_map (fun stg -> stg.rep)
           |> Array.of_list
           |> Js.array
 
@@ -351,7 +349,7 @@ let profint_object =
             push_goal @@ mk_stage ~fx:deriv.top ~mstep:F.Pristine ;
             true
         | _ -> fail "not instantiable"
-      with e -> fail (Exn.to_string e)
+      with e -> fail (Printexc.to_string e)
 
     method doRename path text =
       let old_goal = state.goal in
@@ -372,7 +370,7 @@ let profint_object =
             push_goal @@ mk_stage ~fx:deriv.top ~mstep:F.Pristine ;
             true
         | _ -> fail "invalid identifier"
-      with e -> fail (Exn.to_string e)
+      with e -> fail (Printexc.to_string e)
 
     method getProof kind =
       try Js.some @@ Js.string @@ get_proof (Js.to_string kind)

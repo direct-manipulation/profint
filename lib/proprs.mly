@@ -6,14 +6,13 @@
  *)
 
 %{
-  open Base
   open Types
   module Printf = Stdlib.Printf   (* [HACK] Menhir inserts calls to Printf *)
 
   let make_quant q vs bod =
     List.fold_right
-      ~f:(fun (x, ty) f -> U.(App (Kon (q, None), Abs (x, ty, f))))
-      ~init:bod vs
+      (fun (x, ty) f -> U.(App (Kon (q, None), Abs (x, ty, f))))
+      vs bod
 
   let rec make_app ts =
     match ts with
@@ -72,7 +71,7 @@ one_form:
 
 term:
 | vs=loption(lambda) bod=app_term
-  { List.fold_right ~f:(fun (x, ty) t -> U.Abs (x, ty, t)) ~init:bod vs }
+  { List.fold_right (fun (x, ty) t -> U.Abs (x, ty, t)) vs bod }
 
 app_term:
 | ts=nonempty_list(wrapped_term)
@@ -85,9 +84,9 @@ lambda:
 ids_ty:
 | xs=separated_nonempty_list(COMMA, IDENT) COLON ty=ty
   { let ty = Some ty in
-    List.map ~f:(fun x -> (x, ty)) xs }
+    List.map (fun x -> (x, ty)) xs }
 | xs=separated_nonempty_list(COMMA, IDENT)
-  { List.map ~f:(fun x -> (x, None)) xs }
+  { List.map (fun x -> (x, None)) xs }
 
 wrapped_term:
 | v=IDENT
@@ -135,6 +134,6 @@ signature:
 
 signature_elem:
 | vs=separated_nonempty_list(COMMA, IDENT) COLON ty=ty DOT
-  { List.map ~f:(fun v -> Const (v, ty)) vs }
+  { List.map (fun v -> Const (v, ty)) vs }
 | vs=separated_nonempty_list(COMMA, IDENT) COLON TYPE DOT
-  { List.map ~f:(fun v -> Basic v) vs }
+  { List.map (fun v -> Basic v) vs }

@@ -7,8 +7,6 @@
 
 (** Output suitable for Isabelle/HOL *)
 
-open Base
-
 open! Util
 open! Types
 open! Term
@@ -43,7 +41,7 @@ let rec termx_to_exp_ ~cx t =
       Term.head_to_exp ~cx head
   | T.App { head ; spine } ->
       let head = Term.head_to_exp ~cx head in
-      let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
+      let spine = List.map (termx_to_exp_ ~cx) spine in
       Doc.(Appl (100, Infix (string " ", Left, (head :: spine))))
 
 let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
@@ -98,11 +96,11 @@ let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx fx.data
 let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let pp_sigma out sg =
-  Map.iteri sg.consts ~f:begin fun ~key:k ~data:ty ->
-    if Map.mem sigma0.consts k then () else
+  Ident.Map.iter begin fun k ty ->
+    if Ident.Map.mem k sigma0.consts then () else
       Stdlib.Format.fprintf out "  fixes %s :: \"%s\"@."
         (Ident.to_string k) (ty_to_string @@ thaw_ty ty)
-  end
+  end sg.consts
 
 exception Unprintable
 let unprintable reason =
@@ -136,13 +134,15 @@ type step_surgery_state = {
 let fresh_inner_counter =
   let ctr = ref 0 in
   fun () ->
-    Int.incr ctr ;
+    ctr := !ctr + 1 ;
     "i" ^ Int.to_string !ctr
+
+let string_of_chars cs = List.to_seq cs |> String.of_seq
 
 let init_like_lemma ~emit sss ty ss ts target =
   let eqns =
     make_eqns (Ty.norm_exn ty) ss ts |>
-    List.filter_map ~f:begin fun (l, r, _) ->
+    List.filter_map begin fun (l, r, _) ->
       if Term.eq_term l r then None else
       let l = termx_to_exp { tycx = sss.tycx ; data = l } in
       let r = termx_to_exp { tycx = sss.tycx ; data = r } in
@@ -158,18 +158,17 @@ let init_like_lemma ~emit sss ty ss ts target =
   let lem = Doc.(Appl (1, Infix (string_as 3 " \\<longrightarrow> ",
                                  Right, [eqn ; target]))) |>
             Doc.bracket |> Doc.to_string in
-  let lem = List.fold_left sss.tycx.linear ~init:lem
-      ~f:begin fun lem vty ->
+  let lem = List.fold_left begin fun lem vty ->
         Stdlib.Format.asprintf "\\<And> %s :: %a. %s"
           (Ident.to_string vty.var) pp_ty vty.ty lem
-      end in
+      end lem sss.tycx.linear in
   let buf = Buffer.create 19 in
   emit buf ;
   let out = Stdlib.Format.formatter_of_buffer buf in
   let lemid = "i" ^ fresh_inner_counter () in
   Stdlib.Format.fprintf out "have %s: \"%s\"@,  by blast@?" lemid lem ;
   Stdlib.Format.fprintf sss.out "%s%s"
-    lemid (String.of_char_list sss.close)
+    lemid (string_of_chars sss.close)
 
 let rec step_surgery ~emit sss =
   match Path.expose_front sss.from_here with
@@ -177,7 +176,7 @@ let rec step_surgery ~emit sss =
       match sss.rule with
       | Inner_reference lemid ->
           Stdlib.Format.fprintf sss.out "%s%s"
-            lemid (String.of_char_list sss.close)
+            lemid (string_of_chars sss.close)
       | Cos_rule_name Cos.Init -> begin
           let fail () =
             "init: got " ^
@@ -222,17 +221,17 @@ let rec step_surgery ~emit sss =
                   (Ident.to_string var) pp_ty ty
                   pp_formx { tycx = cx ; data = b }
                   pp_termx tx
-                  (String.of_char_list sss.close)
+                  (string_of_chars sss.close)
               end
           | _ -> fail ()
         end
       | Cos_rule_name (Cos.Rename _) ->
           Stdlib.Format.fprintf sss.out "repeat%s"
-            (String.of_char_list sss.close)
+            (string_of_chars sss.close)
       | Cos_rule_name name ->
           Stdlib.Format.fprintf sss.out "%a%s"
             Cos.pp_rule_name name
-            (String.of_char_list sss.close)
+            (string_of_chars sss.close)
     end
   | Some (dir, path) -> begin
       match dir, expose sss.conclusion, expose sss.premise with
@@ -284,15 +283,15 @@ let rec step_surgery ~emit sss =
             let buf = Buffer.create 19 in
             emit buf ;
             let out = Stdlib.Format.formatter_of_buffer buf in
-            let prefix = List.fold_left ~f:begin fun lem vty ->
+            let prefix = List.fold_left begin fun lem vty ->
                 Stdlib.Format.asprintf "\\<And> %s :: %a. %s"
                   (Ident.to_string vty.var) pp_ty vty.ty lem
-              end ~init:"" sss.tycx.linear in
+              end "" sss.tycx.linear in
             Stdlib.Format.fprintf out "@[<v0>have %s: \"%s%a\"@," lemid
               prefix
               pp_formx { tycx = sss.tycx ; data = Mk.mk_all vty (Mk.mk_imp p q) } ;
             Stdlib.Format.fprintf out "proof@," ;
-            List.iter ~f:begin fun vty ->
+            List.iter begin fun vty ->
               Stdlib.Format.fprintf out "  fix %s :: \"%a\"@," (Ident.to_string vty.var) pp_ty vty.ty
             end (List.rev sss.tycx.linear) ;
             Stdlib.Format.fprintf out "  fix %s :: \"%a\"@," (Ident.to_string vty.var) pp_ty vty.ty ;
@@ -328,10 +327,10 @@ let pp_rule stepno out (prem, rule, goal) =
     rule = Cos_rule_name rule.Cos.name ;
   } ;
   Stdlib.Format.fprintf mainout " l%d])@?" stepno ;
-  List.iter ~f:begin fun buf ->
+  List.iter begin fun buf ->
     Buffer.contents buf
-    |> String.split ~on:'\n'
-    |> List.iter ~f:(Stdlib.Format.fprintf out "%s@,")
+    |> String.split_on_char '\n'
+    |> List.iter (Stdlib.Format.fprintf out "%s@,")
   end !bufs
 
 let pp_step out stepno prc = pp_rule stepno out prc
@@ -344,7 +343,7 @@ let pp_deriv out (sg, deriv) =
   Stdlib.Format.fprintf out "proof -@.  @[<v0>" ;
   Stdlib.Format.fprintf out "have l0: \"%a\" by (rule prem)@,"
     pp_formx deriv.Cos.top ;
-  List.iteri ~f:(pp_step out) deriv.Cos.middle ;
+  List.iteri (pp_step out) deriv.Cos.middle ;
   Stdlib.Format.fprintf out "show \"%a\" by (rule l%d)@]@."
     pp_formx deriv.Cos.bottom
     (List.length deriv.Cos.middle) ;
@@ -360,10 +359,10 @@ let pp_comment out str =
   Stdlib.Format.fprintf out "(* %s *)@\n" str
 
 let name = "isahol"
+let cookie_re = Re.Pcre.regexp ~flags:[`MULTILINE] {|\(\*PROOF\*\)|}
 let files pf =
   let replace contents =
-    String.substr_replace_first contents
-      ~pattern:"(*PROOF*)\n" ~with_:pf
+    Re.Pcre.substitute ~rex:cookie_re ~subst:(fun _ -> pf) contents
   in [
     File { fname = "Profint.thy" ;
            contents = [%blob "lib/systems/isabelle_hol/Profint.thy"] } ;

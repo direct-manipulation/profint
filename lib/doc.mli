@@ -5,8 +5,6 @@
  * See LICENSE for licensing details.
  *)
 
-open Base
-
 type doc = Stdlib.Format.formatter -> unit
 
 val string : string -> doc

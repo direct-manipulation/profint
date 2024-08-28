@@ -5,8 +5,6 @@
  * See LICENSE for licensing details.
  *)
 
-open Base
-
 open Types
 open T
 open Form4_core
@@ -502,7 +500,7 @@ let compute_derivation goal msteps =
           recursive_simplify ~emit !top Path.empty R
         end
     end in
-  List.iter ~f:compute_one msteps ;
+  List.iter compute_one msteps ;
   Form4_cos.{ top = !top ; middle = !middle ; bottom }
 
 let mk_src f =

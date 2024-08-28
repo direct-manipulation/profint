@@ -7,8 +7,6 @@
 
 (** Untyped terms and types with free variables *)
 
-open Base
-
 open Types
 open U
 
@@ -23,7 +21,7 @@ let ty_error ?ty fmt =
 let rec tygen ~emit (cx : tycx) tm ty_expected =
   match tm with
   | Idx n -> begin
-      match List.nth cx.linear n with
+      match List.nth_opt cx.linear n with
       | Some { ty ; _ } ->
           emit ty ty_expected ; Idx n
       | None ->
@@ -42,7 +40,7 @@ let rec tygen ~emit (cx : tycx) tm ty_expected =
       match lookup_ty k with
       | Some ty_a ->
           emit ty_a ty_expected ;
-          Option.iter ~f:(emit ty_a) ty ;
+          Option.iter (emit ty_a) ty ;
           Kon (k, Some ty_a)
       | None ->
           raise @@ TypeError {
@@ -189,7 +187,7 @@ let declare_const k str =
 let rec uterm_to_exp ~cx ut =
   match ut with
   | Idx n -> begin
-      match List.nth cx.linear n with
+      match List.nth_opt cx.linear n with
       | Some { var ; _ } -> Doc.(Atom (string (Ident.to_string var)))
       | None ->
           Doc.(Atom (Stdlib.Format.dprintf "`%d" n))

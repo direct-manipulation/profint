@@ -7,8 +7,6 @@
 
 (** Output suitable for Lean3 *)
 
-open Base
-
 open Util
 open Types
 open Term
@@ -42,7 +40,7 @@ let rec termx_to_exp_ ~cx t =
       Term.head_to_exp ~cx head
   | T.App { head ; spine } ->
       let head = Term.head_to_exp ~cx head in
-      let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
+      let spine = List.map (termx_to_exp_ ~cx) spine in
       Doc.(Appl (100, Infix (string " ", Left, (head :: spine))))
 
 let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
@@ -98,13 +96,13 @@ let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let pp_sigma out sg =
   Stdlib.Format.fprintf out "universe u@." ;
-  Set.iter ~f:begin fun i ->
-    if Set.mem sigma0.basics i then () else
+  Ident.Set.iter begin fun i ->
+    if Ident.Set.mem i sigma0.basics then () else
     let i = Ident.to_string i in
     Stdlib.Format.fprintf out "variable {%s : Type u}@.include %s@." i i
   end sg.basics ;
-  Map.iteri ~f:begin fun ~key:k ~data:ty ->
-    if Map.mem sigma0.consts k then () else
+  Ident.Map.iter begin fun k ty ->
+    if Ident.Map.mem k sigma0.consts then () else
     let k = Ident.to_string k in
     Stdlib.Format.fprintf out "variable {%s : %s}@.include %s@."
       k (ty_to_string @@ thaw_ty ty) k
@@ -127,7 +125,7 @@ let rec make_eqns ty ss ts =
 let make_lemma (target : formx) (eqs : (T.term * T.term * Ty.t) list) : string =
   let tycx = target.tycx in
   let target = formx_to_exp target in
-  let eqs = List.filter_map ~f:begin fun (l, r, ty) ->
+  let eqs = List.filter_map begin fun (l, r, ty) ->
       if Term.eq_term l r then None else
       let ex = Doc.(Appl (100, Infix (string " ", Left,
                                       [ Atom (string "@eq") ;
@@ -297,7 +295,7 @@ let pp_rule out (prem, rule, goal) =
               pp_path (n + 1) cx q p path
             end
         | _ ->
-            String.concat ~sep:" "
+            String.concat " "
               [ "pp_rule:" ;
                 pp_to_string Cos.pp_rule rule ;
                 "::" ;
@@ -319,7 +317,7 @@ let pp_deriv out (sg, deriv) =
     pp_formx deriv.Cos.top
     pp_formx deriv.Cos.bottom ;
   Stdlib.Format.fprintf out "begin@." ;
-  List.iter ~f:(pp_step out) (List.rev deriv.Cos.middle) ;
+  List.iter (pp_step out) (List.rev deriv.Cos.middle) ;
   Stdlib.Format.fprintf out "exact __profint@." ;
   Stdlib.Format.fprintf out "end@." ;
   Stdlib.Format.fprintf out "end Example.@."
@@ -334,10 +332,10 @@ let pp_comment out str =
   Stdlib.Format.fprintf out "/- %s -/@\n" str
 
 let name = "lean3"
+let cookie_re = Re.Pcre.regexp ~flags:[`MULTILINE] {|\/-PROOF-\/|}
 let files pf =
   let replace contents =
-    String.substr_replace_first contents
-      ~pattern:"/-PROOF-/\n" ~with_:pf
+    Re.Pcre.substitute ~rex:cookie_re ~subst:(fun _ -> pf) contents
   in [
     File { fname = "lean-toolchain" ;
            contents = [%blob "lib/systems/lean3/lean-toolchain"] } ;

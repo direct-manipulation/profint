@@ -7,8 +7,6 @@
 
 (** Output suitable for Coq *)
 
-open Base
-
 open! Util
 open! Types
 open! Term
@@ -43,7 +41,7 @@ let rec termx_to_exp_ ~cx t =
       Term.head_to_exp ~cx head
   | T.App { head ; spine } ->
       let head = Term.head_to_exp ~cx head in
-      let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
+      let spine = List.map (termx_to_exp_ ~cx) spine in
       Doc.(Appl (100, Infix (string " ", Left, (head :: spine))))
 
 let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
@@ -98,16 +96,16 @@ let formx_to_exp fx = formx_to_exp_ ~cx:fx.tycx fx.data
 let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let pp_sigma out sg =
-  Set.iter sg.basics ~f:begin fun i ->
-    if Set.mem sigma0.basics i then () else
+  Ident.Set.iter begin fun i ->
+    if Ident.Set.mem i sigma0.basics then () else
       Stdlib.Format.fprintf out "Context {%s : Type}.@." (Ident.to_string i)
-  end ;
-  Map.iteri sg.consts ~f:begin fun ~key:k ~data:ty ->
-    if Map.mem sigma0.consts k then () else
+  end sg.basics ;
+  Ident.Map.iter begin fun k ty ->
+    if Ident.Map.mem k sigma0.consts then () else
       Stdlib.Format.fprintf out "Context {%s : %s}.@."
         (Ident.to_string k)
         (ty_to_string @@ thaw_ty ty)
-  end
+  end sg.consts
 
 exception Unprintable
 let unprintable reason =
@@ -126,7 +124,7 @@ let rec make_eqns ty ss ts =
 let make_lemma (target : formx) (eqs : (T.term * T.term * Ty.t) list) : string =
   let tycx = target.tycx in
   let target = formx_to_exp target in
-  let eqs = List.filter_map eqs ~f:begin fun (l, r, ty) ->
+  let eqs = List.filter_map begin fun (l, r, ty) ->
       if Term.eq_term l r then None else
       let ex = Doc.(Appl (100, Infix (string " ", Left,
                                       [ Atom (string "@eq") ;
@@ -134,7 +132,7 @@ let make_lemma (target : formx) (eqs : (T.term * T.term * Ty.t) list) : string =
                                         termx_to_exp { tycx ; data = l } ;
                                         termx_to_exp { tycx ; data = r } ]))) in
       Some ex
-    end in
+    end eqs in
   let eq = match eqs with
     | [] -> Doc.(Atom (string "True"))
     | [eq] -> eq
@@ -266,7 +264,7 @@ let pp_rule out goal rule =
               pp_path (n + 1) cx f path
             end
         | _ ->
-            String.concat ~sep:" "
+            String.concat " "
               [ "pp_rule:" ;
                 pp_to_string Cos.pp_rule rule ;
                 "::" ;
@@ -288,7 +286,7 @@ let pp_deriv out (sg, deriv) =
     pp_formx deriv.Cos.top
     pp_formx deriv.Cos.bottom ;
   Stdlib.Format.fprintf out "intro __Profint_top.@." ;
-  List.iter ~f:(pp_step out) (List.rev deriv.Cos.middle) ;
+  List.iter (pp_step out) (List.rev deriv.Cos.middle) ;
   Stdlib.Format.fprintf out "exact __Profint_top.@.Qed.@.End Example.@."
 
 let pp_header out () =
@@ -302,10 +300,10 @@ let pp_comment out str =
   Stdlib.Format.fprintf out "(* %s *)@\n" str
 
 let name = "coq"
+let cookie_re = Re.Pcre.regexp ~flags:[`MULTILINE] {|\(\*PROOF\*\)|}
 let files pf =
   let replace contents =
-    String.substr_replace_first contents
-      ~pattern:"(*PROOF*)\n" ~with_:pf
+    Re.Pcre.substitute ~rex:cookie_re ~subst:(fun _ -> pf) contents
   in [
     File { fname = "Proof.v" ;
            contents = replace [%blob "lib/systems/coq/Proof.v"] } ;

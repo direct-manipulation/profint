@@ -5,8 +5,6 @@
  * See LICENSE for licensing details.
  *)
 
-open Base
-
 open Types
 
 module type TO = sig

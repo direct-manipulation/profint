@@ -5,8 +5,6 @@
  * See LICENSE for licensing details.
  *)
 
-open Base
-
 module Ty = struct
 
   type t =
@@ -14,9 +12,8 @@ module Ty = struct
     | Arrow of t * t
     | Var of {
         id : int ;
-        mutable subst : t Option.t [@equal.ignore] ;
+        mutable subst : t Option.t ;
       }
-  [@@deriving equal, sexp_of]
 
   type ty = t
 
@@ -32,6 +29,16 @@ module Ty = struct
         norm ty
     | Var { subst = None ; _ } ->
         None
+
+  let rec equal ty1 ty2 =
+    match ty1, ty2 with
+    | Basic x, Basic y -> Ident.equal x y
+    | Arrow (ty1a, ty1b), Arrow (ty2a, ty2b) ->
+        equal ty1a ty2a && equal ty1b ty2b
+    | ty1, Var { subst = Some ty2 ; _ }
+    | Var { subst = Some ty1 ; _ }, ty2 -> equal ty1 ty2
+    | Var { id = v1 ; _ }, Var { id = v2 ; _ } -> v1 = v2
+    | _ -> false
 
   exception Norm
 
@@ -72,8 +79,8 @@ type poly_ty = {
 }
 
 type sigma = {
-  basics : Ident.set ;
-  consts : poly_ty Ident.map ;
+  basics : Ident.Set.t ;
+  consts : poly_ty Ident.Map.t ;
 }
 
 exception Ill_formed_type of {
@@ -86,7 +93,7 @@ let check_well_formed sigma pty =
   let rec aux = function
     | Ty.Arrow (t1, t2) -> aux t1 ; aux t2
     | Ty.Basic b ->
-        if not @@ Set.mem sigma.basics b then fail ()
+        if not @@ Ident.Set.mem b sigma.basics then fail ()
     | Ty.Var {subst = Some _ ; _} -> fail ()
     | Ty.Var {id ; _} ->
         if not (0 <= id && id < pty.nvars) then fail ()
@@ -96,14 +103,14 @@ let check_well_formed sigma pty =
 exception Invalid_sigma_extension
 
 let is_declared sigma k =
-  Set.mem sigma.basics k || Map.mem sigma.consts k
+  Ident.Set.mem k sigma.basics || Ident.Map.mem k sigma.consts
 
 let add_basic sigma b =
   if is_declared sigma b then begin
     (* Format.eprintf "Basic type %S already declared@." b ; *)
     raise Invalid_sigma_extension
   end ;
-  { sigma with basics = Set.add sigma.basics b }
+  { sigma with basics = Ident.Set.add b sigma.basics }
 
 let add_const sigma k pty =
   if is_declared sigma k then begin
@@ -111,12 +118,12 @@ let add_const sigma k pty =
     raise Invalid_sigma_extension
   end ;
   check_well_formed sigma pty ;
-  { sigma with consts = Map.set ~key:k ~data:pty sigma.consts }
+  { sigma with consts = Ident.Map.add k pty sigma.consts }
 
 module K = struct
   let next_internal =
     let count = ref 0 in
-    fun hint -> Int.incr count ;
+    fun hint -> count := !count + 1 ;
       Printf.ksprintf Ident.of_string {|#%s@%d#|} hint !count
 
   let k_mdata = next_internal "mdata"
@@ -149,8 +156,8 @@ let sigma0 : sigma =
   ] in
   (* note: checks are being bypassed because these have been manually
      checked to be well-formed. *)
-  { basics = Set.of_list (module Ident) [Ty.k_o] ;
-    consts = Map.of_alist_exn (module Ident) binds }
+  { basics = Ident.Set.of_list [Ty.k_o] ;
+    consts = Ident.Map.of_seq @@ List.to_seq binds }
 
 let sigma : sigma ref = ref sigma0
 let reset_sigma () = sigma := sigma0
@@ -158,12 +165,12 @@ let reset_sigma () = sigma := sigma0
 let fresh_tyvar =
   let count = ref 0 in
   fun () ->
-    Int.incr count ;
+    count := !count + 1 ;
     Ty.Var {id = !count ; subst = None}
 
 let thaw_ty pty =
   if pty.nvars = 0 then pty.ty else
-  let tab = Array.init pty.nvars ~f:(fun _ -> fresh_tyvar ()) in
+  let tab = Array.init pty.nvars (fun _ -> fresh_tyvar ()) in
   let rec aux ty =
     match ty with
     | Ty.Basic _ -> ty
@@ -173,21 +180,22 @@ let thaw_ty pty =
   aux pty.ty
 
 let pp_sigma out sigma =
-  Set.iter sigma.basics ~f:begin fun i ->
-    if not @@ Set.mem sigma0.basics i then
+  Ident.Set.iter begin fun i ->
+    if not @@ Ident.Set.mem i sigma0.basics then
       Stdlib.Format.fprintf out "%s : \\type.@." (Ident.to_string i)
-  end ;
-  Map.iteri sigma.consts ~f:begin fun ~key:k ~data:pty ->
-    if not @@ Map.mem sigma0.consts k then
+  end sigma.basics ;
+  Ident.Map.iter begin fun k pty ->
+    if not @@ Ident.Map.mem k sigma0.consts then
       Stdlib.Format.fprintf out "%s : %a.@."
         (Ident.to_string k)
         Ty.pp (thaw_ty pty)
-  end
+  end sigma.consts
 
-let lookup_ty k = Option.map ~f:thaw_ty @@ Map.find !sigma.consts k
+let lookup_ty k = Option.map thaw_ty @@ Ident.Map.find_opt k !sigma.consts
 let lookup_ty_or_fresh k =
-  lookup_ty k |>
-  Option.value_or_thunk ~default:fresh_tyvar
+  match lookup_ty k with
+  | Some ty -> ty
+  | None -> fresh_tyvar ()
 
 (** Untyped terms *)
 module U = struct
@@ -197,7 +205,6 @@ module U = struct
     | Kon of Ident.t * Ty.t option
     | App of term * term
     | Abs of Ident.t * Ty.t option * term
-  [@@deriving equal, sexp_of]
 
   let rec app h args =
     match args with
@@ -218,41 +225,44 @@ module T = struct
     | Index of int
 
   and spine = term list
-  [@@deriving equal, sexp_of]
+
+  let equal_head h1 h2 =
+    match h1, h2 with
+    | Const (k1, ty1), Const (k2, ty2) ->
+        Ident.equal k1 k2 && Ty.equal ty1 ty2
+    | Index n1, Index n2 ->
+        n1 = n2
+    | _ -> false
 
   type sub =
     | Shift of int
     | Dot of sub * term
-  [@@deriving equal, sexp_of]
 end
 
 type typed_var = {
   var : Ident.t ;
   ty : Ty.t ;
 }
-[@@deriving equal, sexp_of]
+
+module StringMap = Map.Make(String)
 
 type tycx = {
   linear : typed_var list ;
-  lasts : (string, Ident.t, String.comparator_witness) Map.t;
+  lasts : Ident.t StringMap.t ;
 }
-(* [HACK] this does not currently work. 2022-09-25T23:11:57+02:00 *)
-(* [@@deriving sexp_of] *)
-
-let sexp_of_tycx tycx = [%sexp_of : typed_var list] tycx.linear
 
 let empty = {
   linear = [] ;
-  lasts = Map.empty (module String) ;
+  lasts = StringMap.empty ;
 }
 
 let with_var tycx vty go =
-  let salt = match Map.find tycx.lasts vty.var.base with
+  let salt = match StringMap.find_opt vty.var.base tycx.lasts with
     | None -> 0
     | Some old -> old.salt + 1
   in
   let vty = { vty with var = { vty.var with salt } } in
-  let lasts = Map.set ~key:vty.var.base ~data:vty.var tycx.lasts in
+  let lasts = StringMap.add vty.var.base vty.var tycx.lasts in
   let linear = vty :: tycx.linear in
   let tycx = { linear ; lasts } in
   go vty tycx

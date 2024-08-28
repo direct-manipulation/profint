@@ -5,18 +5,16 @@
  * See LICENSE for licensing details.
  *)
 
-open Base
-
-type doc = Stdlib.Format.formatter -> unit
+type doc = Format.formatter -> unit
 
 let string s : doc =
-  fun out -> Stdlib.Format.pp_print_string out s
+  fun out -> Format.pp_print_string out s
 
 let string_as n s : doc =
-  fun out -> Stdlib.Format.pp_print_as out n s
+  fun out -> Format.pp_print_as out n s
 
 let cut : doc =
-  fun out -> Stdlib.Format.pp_print_cut out ()
+  fun out -> Format.pp_print_cut out ()
 
 let (++) d1 d2 : doc =
   fun out -> d1 out ; d2 out
@@ -25,19 +23,22 @@ let pp out (doc : doc) = doc out
 
 let to_string (doc : doc) =
   let buf = Buffer.create 19 in
-  let out = Stdlib.Format.formatter_of_buffer buf in
-  Stdlib.Format.pp_set_geometry out
-    ~margin:Int.max_value
-    ~max_indent:(Int.max_value - 1) ;
+  let out = Format.formatter_of_buffer buf in
+  Format.pp_set_geometry out
+    ~margin:max_int
+    ~max_indent:(max_int - 1) ;
   doc out ;
-  Stdlib.Format.pp_print_flush out () ;
+  Format.pp_print_flush out () ;
   Buffer.contents buf
 
 let pp_linear out (doc : doc) =
-  Stdlib.Format.pp_print_as out 0 (to_string doc)
+  Format.pp_print_as out 0 (to_string doc)
 
-type wrapping = Transparent | Opaque [@@deriving equal]
-type assoc = Left | Right | Non [@@deriving equal]
+type wrapping = Transparent | Opaque
+type assoc = Left | Right | Non
+
+let equal_wrapping (x : wrapping) (y : wrapping) = x = y [@@ocaml.warning "-32"]
+let equal_assoc (x : assoc) (y : assoc) = x = y
 
 type exp =
   | Atom of doc
@@ -84,7 +85,7 @@ let rec reprec e =
   begin match e with
   | Atom _ -> (e, NVM)
   | Appl (p, Infix (d, asc, es)) ->
-      let es = List.map ~f:(fun e -> fst (reprec e)) es in
+      let es = List.map (fun e -> fst (reprec e)) es in
       (Appl (p, Infix (d, asc, es)), NVM)
   | Appl (p, Prefix (d, e)) ->
       begin
@@ -126,12 +127,12 @@ let rec bracket ~(ld:doc) ~(rd:doc) = function
       | Prefix (oprep, be) ->
           let opd = bracket ~ld ~rd be in
           let cond = prec >? be && not (is_prefix be) in
-          Stdlib.Format.dprintf "@[<hov2>%t@]"
+          Format.dprintf "@[<hov2>%t@]"
             (oprep ++ (delimit opd ~ld ~rd ~cond))
       | Postfix (oprep, be) ->
           let opd = bracket ~ld ~rd be in
           let cond = prec >? be && not (is_postfix be) in
-          Stdlib.Format.dprintf "@[<hv2>%t@]"
+          Format.dprintf "@[<hv2>%t@]"
             ((delimit opd ~ld ~rd ~cond) ++ oprep)
       | Infix (oprep, asc, l :: es) ->
           let ms, r = match List.rev es with
@@ -144,17 +145,16 @@ let rec bracket ~(ld:doc) ~(rd:doc) = function
           let r = delimit (bracket ~ld ~rd r) ~ld ~rd
               ~cond:(prec >? r
                      || infix_incompat_for Right prec asc r) in
-          let ms = List.map
-              ~f:begin fun e ->
+          let ms = List.map begin fun e ->
                 [oprep ; delimit (bracket ~ld ~rd e) ~ld ~rd ~cond:(prec >=? e)]
               end ms in
           let ms = List.concat ms in
           fun out -> begin
-              Stdlib.Format.pp_open_box out 0 ;
+              Format.pp_open_box out 0 ;
               l out ;
-              List.iter ~f:(fun m -> m out) ms ;
+              List.iter (fun m -> m out) ms ;
               oprep out ; r out ;
-              Stdlib.Format.pp_close_box out ()
+              Format.pp_close_box out ()
             end
       | Infix (_, _, []) -> invalid_arg "bracket"
     end

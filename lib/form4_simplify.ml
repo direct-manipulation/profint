@@ -5,8 +5,6 @@
  * See LICENSE for licensing details.
  *)
 
-open Base
-
 open Types
 open Form4_core
 open Form4_cos
@@ -98,7 +96,7 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : Pa
             OTHER (Mk.mk_all vty Mk.mk_bot)
         | OTHER b -> begin
             if not @@ Path.Dir.equal side L then OTHER (Mk.mk_all vty b) else
-            match Option.(ubind 0 b >>= Term.lower ~above:0 ~by:1) with
+            match Option.(bind (ubind 0 b) @@ Term.lower ~above:0 ~by:1) with
             | Some t -> begin
                 (* Caml.Format.printf "Found u-subst: %s := %a@.For: %a@." *)
                 (*   (Ident.to_string vty.var) *)
@@ -127,7 +125,7 @@ let rec recursive_simplify ~(emit : rule -> cos_premise) (fx : formx) (path : Pa
             OTHER (Mk.mk_ex vty Mk.mk_top)
         | OTHER b -> begin
             if not @@ Path.Dir.equal side R then OTHER (Mk.mk_ex vty b) else
-            match Option.(ebind 0 b >>= Term.lower ~above:0 ~by:1) with
+            match Option.(bind (ebind 0 b) @@ Term.lower ~above:0 ~by:1) with
             | Some t -> begin
                 (* Caml.Format.printf "Found e-subst: %s := %a@.For: %a@." *)
                 (*   (Ident.to_string vty.var) *)
@@ -162,14 +160,14 @@ and ebind n f =
     end
   | Or (f, g) ->
       Option.(
-        ebind n f >>= fun s ->
-        ebind n g >>= fun t ->
+        bind (ebind n f) @@ fun s ->
+        bind (ebind n g) @@ fun t ->
         if Term.eq_term s t then Some s else None)
   | Imp (_, g) ->
       ebind n g
   | Forall (_, f) | Exists (_, f) ->
       Option.(
-        ebind (n + 1) f >>= fun t ->
+        bind (ebind (n + 1) f) @@ fun t ->
         Term.lower ~above:0 ~by:1 t)
   | Top | Bot | Atom _ -> None
   | Mdata (_, _, f) -> ebind n f
@@ -178,8 +176,8 @@ and ubind n f =
   match expose f with
   | And (f, g) ->
       Option.(
-        ubind n f >>= fun s ->
-        ubind n g >>= fun t ->
+        bind (ubind n f) @@ fun s ->
+        bind (ubind n g) @@ fun t ->
         if Term.eq_term s t then Some s else None)
   | Imp (f, g) -> begin
       match ebind n f with
@@ -188,7 +186,7 @@ and ubind n f =
     end
   | Forall (_, f) | Exists (_, f) ->
       Option.(
-        ubind (n + 1) f >>= fun t ->
+        bind (ubind (n + 1) f) @@ fun t ->
         Term.lower ~above:0 ~by:1 t)
   | Top | Or _ | Bot | Eq _ | Atom _ -> None
   | Mdata (_, _, f) -> ubind n f
@@ -196,7 +194,7 @@ and ubind n f =
 and suitable n t =
   match t with
   | T.App { head ; spine } ->
-      suitable_head n head && List.for_all spine ~f:(suitable n)
+      suitable_head n head && List.for_all (suitable n) spine
   | T.Abs { body ; _ } ->
       suitable (n + 1) body
 

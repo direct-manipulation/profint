@@ -5,8 +5,6 @@
  * See LICENSE for licensing details.
  *)
 
-open Base
-
 open! Util
 open Types
 open! T
@@ -27,7 +25,7 @@ and sub_term sub term =
   | Abs f -> Abs {f with body = sub_term (bump sub) f.body}
   | App u ->
       let head = sub_head sub u.head in
-      let spine = List.map ~f:(sub_term sub) u.spine in
+      let spine = List.map (sub_term sub) u.spine in
       do_app head spine
 
 and sub_head sub head =
@@ -66,16 +64,16 @@ let shift n tm =
   | _ -> sub_term (Shift n) tm
 
 let rec lower ~above ~by tm =
+  let (let*) = Option.bind in
+  let return = Option.some in
   match tm with
   | App { head ; spine } ->
-      Option.(
-        lower_head ~above ~by head >>= fun head ->
-        lower_spine ~above ~by spine >>= fun spine ->
-        return @@ App { head ; spine })
+      let* head = lower_head ~above ~by head in
+      let* spine = lower_spine ~above ~by spine in
+      return @@ App { head ; spine }
   | Abs { var ; body } ->
-      Option.(
-        lower ~above:(above + 1) ~by:(by + 1) body >>= fun body ->
-        return @@ Abs { var ; body })
+      let* body = lower ~above:(above + 1) ~by:(by + 1) body in
+      return @@ Abs { var ; body }
 
 and lower_head ~above ~by head =
   match head with
@@ -85,13 +83,14 @@ and lower_head ~above ~by head =
       if n < 0 then None else Some (Index n)
 
 and lower_spine ~above ~by spine =
+  let (let*) = Option.bind in
+  let return = Option.some in
   match spine with
   | [] -> Some []
   | t :: spine ->
-      Option.(
-        lower ~above ~by t >>= fun t ->
-        lower_spine ~above ~by spine >>= fun spine ->
-        return (t :: spine))
+      let* t = lower ~above ~by t in
+      let* spine = lower_spine ~above ~by spine in
+      return (t :: spine)
 
 exception TypeError of string
 
@@ -163,7 +162,7 @@ let rec is_subterm tin tout =
   | Abs f ->
       is_subterm (shift 1 tin) f.body
   | App ap ->
-      List.exists ~f:(is_subterm tin) ap.spine
+      List.exists (is_subterm tin) ap.spine
 
 let rec rewrite ~tfrom ~tto tm =
   if eq_term tfrom tm then tto else
@@ -173,7 +172,7 @@ let rec rewrite ~tfrom ~tto tm =
                        ~tfrom:(shift 1 tfrom)
                        ~tto:(shift 1 tto) }
   | App ap -> App { ap with
-                    spine = List.map ~f:(rewrite ~tfrom ~tto) ap.spine }
+                    spine = List.map (rewrite ~tfrom ~tto) ap.spine }
 
 let rec term_to_exp ?(cx = empty) term =
   let open Doc in
@@ -193,7 +192,7 @@ let rec term_to_exp ?(cx = empty) term =
             Wrap (Opaque,
                   string "[",
                   Appl (0, Infix (string ",", Left,
-                                  List.map ~f:(term_to_exp ~cx) spine)),
+                                  List.map (term_to_exp ~cx) spine)),
                   string "]")
       in
       Appl (2, Infix (string " ", Non, [left ; right]))
@@ -203,7 +202,7 @@ and head_to_exp ?(cx = empty) head =
   match head with
   | Index n -> begin
       try
-        let vstr = Ident.to_string (List.nth_exn cx.linear n).var in
+        let vstr = Ident.to_string (List.nth cx.linear n).var in
         Atom (string vstr)
       with _ -> Atom (string ("?" ^ Int.to_string n))
     end

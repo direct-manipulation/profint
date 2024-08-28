@@ -7,8 +7,6 @@
 
 (** Output suitable for Lean 4 *)
 
-open Base
-
 open Util
 open Types
 open Form4
@@ -41,7 +39,7 @@ let rec termx_to_exp_ ~cx t =
       Term.head_to_exp ~cx head
   | T.App { head ; spine } ->
       let head = Term.head_to_exp ~cx head in
-      let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
+      let spine = List.map (termx_to_exp_ ~cx) spine in
       Doc.(Appl (100, Infix (string " ", Left, (head :: spine))))
 
 let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
@@ -97,12 +95,12 @@ let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let pp_sigma out sg =
   Stdlib.Format.fprintf out "@[<v0>universe u@," ;
-  Set.iter ~f:begin fun i ->
-    if Set.mem sigma0.basics i then () else
+  Ident.Set.iter begin fun i ->
+    if Ident.Set.mem i sigma0.basics then () else
       Stdlib.Format.fprintf out "variable {%s : Type u}@," (Ident.to_string i)
   end sg.basics ;
-  Map.iteri ~f:begin fun ~key:k ~data:ty ->
-    if Map.mem sigma0.consts k then () else
+  Ident.Map.iter begin fun k ty ->
+    if Ident.Map.mem k sigma0.consts then () else
       Stdlib.Format.fprintf out "variable {%s : %s}@,"
         (Ident.to_string k)
         (ty_to_string @@ thaw_ty ty)
@@ -134,8 +132,8 @@ let ldir_to_string = function
   | R 1 -> "r"
   | R n -> "r " ^ Int.to_string n
   | I xs ->
-      "i " ^ (List.map ~f:Ident.to_string xs |>
-              String.concat ~sep:" ")
+      "i " ^ (List.map Ident.to_string xs |>
+              String.concat " ")
 
 let pp_path rule concl out =
   let trail = ref [] in
@@ -170,8 +168,8 @@ let pp_path rule concl out =
   in
   get_trail concl.tycx concl.data rule.Cos.path ;
   List.rev !trail |>
-  List.map ~f:ldir_to_string |>
-  String.concat ~sep:", " |>
+  List.map ldir_to_string |>
+  String.concat ", " |>
   Stdlib.Format.pp_print_string out
 
 let pp_rule_name out rn =
@@ -190,7 +188,7 @@ let pp_deriv out (sg, deriv) =
   Stdlib.Format.fprintf out "example (__profint_prem : %a) : %a := by@,"
     pp_formx deriv.Cos.top
     pp_formx deriv.Cos.bottom ;
-  List.iter ~f:begin fun (prem, rule, concl) ->
+  List.iter begin fun (prem, rule, concl) ->
     Stdlib.Format.fprintf out "  within %t use %a@,"
       (pp_path rule concl)
       pp_rule_name rule.Cos.name ;
@@ -208,10 +206,10 @@ let pp_comment out str =
   Stdlib.Format.fprintf out "/- %s -/@," str
 
 let name = "lean4"
+let cookie_re = Re.Pcre.regexp ~flags:[`MULTILINE] {|/-PROOF-/|}
 let files pf =
   let replace contents =
-    String.substr_replace_first contents
-      ~pattern:"/-PROOF-/\n" ~with_:pf
+    Re.Pcre.substitute ~rex:cookie_re ~subst:(fun _ -> pf) contents
   in [
     File { fname = "lakefile.lean" ;
            contents = [%blob "lib/systems/lean4/lakefile.lean"] } ;

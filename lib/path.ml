@@ -5,11 +5,13 @@
  * See LICENSE for licensing details.
  *)
 
-open! Base
-
 module Dir = struct
   type t = L | R
-  [@@deriving equal]
+
+  let equal x y =
+    match x, y with
+    | L, L | R, R -> true
+    | _ -> false
 
   let flip = function L -> R | _ -> L
   let of_bool = function true -> R | _ -> L
@@ -18,7 +20,8 @@ module Dir = struct
 end
 
 type t = Z.t
-[@@deriving equal]
+
+let equal (p1 : t) p2 = Z.equal p1 p2
 
 let to_string : t -> _ =
   fun p -> "P" ^ Z.to_string p
@@ -46,7 +49,7 @@ let snoc (p : t) dir : t =
   let depth = Z.numbits p - 1 in
   match dir with
   | Dir.L -> Z.(p + one lsl depth)
-  | Dir.R -> Z.(p + one lsl Int.(depth + 1))
+  | Dir.R -> Z.(p + one lsl Int.(add depth 1))
 
 let flip_cons p d = cons d p
 let flip_snoc d p = snoc p d
@@ -67,7 +70,7 @@ let expose_front_exn (p : t) : Dir.t * t =
 let expose_back_exn (p : t) : t * Dir.t =
   if Z.(equal p one) then raise Empty else
   let depth = Z.numbits p - 1 in
-  let dir = Dir.of_bool Z.(testbit p Int.(depth - 1)) in
+  let dir = Dir.of_bool Z.(testbit p Int.(sub depth 1)) in
   let p = Z.(p land (one lsl depth |> pred)) in
   match dir with
   | Dir.R -> (p, dir)
@@ -97,8 +100,8 @@ let of_list l = List.fold_left l ~init:init ~f:snoc
 
 let to_dirstring p =
   to_list p |>
-  List.map ~f:Dir.to_string |>
-  String.concat ~sep:","
+  List.map Dir.to_string |>
+  String.concat ","
 
 module Private = struct
   let random_test ?(n=100) () =
@@ -120,7 +123,7 @@ module Private = struct
           str := Dir.R :: !str ;
           p := cons Dir.R !p
     done ;
-    let str = String.concat ~sep:"," @@ List.map ~f:Dir.to_string !str in
+    let str = String.concat "," @@ List.map Dir.to_string !str in
     let p = to_dirstring !p in
     assert (String.equal str p)
 end

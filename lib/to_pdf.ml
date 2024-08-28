@@ -7,8 +7,7 @@
 
 (** output PDF *)
 
-open Base
-
+open Util
 open Types
 open Form4
 
@@ -70,13 +69,13 @@ let mark_location fx rule =
 let pp_sigma out sg =
   Stdlib.Format.pp_print_string out {|\begin{align*}|} ;
   Stdlib.Format.pp_open_vbox out 0 ; begin
-    Set.iter ~f:begin fun i ->
-      if Set.mem sigma0.basics i then () else
+    Ident.Set.iter begin fun i ->
+      if Ident.Set.mem i sigma0.basics then () else
         Stdlib.Format.fprintf out {|%t &: \mathsf{type}.\\@,|}
           (To_katex.ident_to_doc ~font:"sf" i)
     end sg.basics ;
-    Map.iteri ~f:begin fun ~key:k ~data:ty ->
-      if Map.mem sigma0.consts k then () else
+    Ident.Map.iter begin fun k ty ->
+      if Ident.Map.mem k sigma0.consts then () else
         Stdlib.Format.fprintf out {|%t &: %a.\\@,|}
           (To_katex.ident_to_doc ~font:"sf" k) pp_ty (thaw_ty ty)
     end sg.consts
@@ -111,13 +110,13 @@ let pp_footer out () =
 
 let pp_deriv out (sg, deriv) =
   pp_header out () ;
-  let chunks = List.chunks_of ~length:30 (List.rev deriv.Cos.middle) in
-  List.iter ~f:begin fun chunk ->
-    let (top, _, _) = List.last_exn chunk in
+  let chunks = List.chunks_of 30 (List.rev deriv.Cos.middle) in
+  List.iter begin fun chunk ->
+    let (top, _, _) = List.last chunk in
     (* let chunk = List.rev chunk in *)
     Stdlib.Format.fprintf out {|\begin{gather*}
 |} ;
-    List.iter ~f:begin fun (_, rule, concl) ->
+    List.iter begin fun (_, rule, concl) ->
       Stdlib.Format.fprintf out {|\infer{\mathstrut
 %a
 }{|} pp_formx (mark_location concl rule)
@@ -140,7 +139,7 @@ let makefile = {|
 
 %.pdf: %.tex
 	pdflatex -interaction batchmode $(<)
-|} |> String.strip
+|}
 
 let name = "pdf"
 let files pf = [

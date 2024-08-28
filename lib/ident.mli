@@ -5,19 +5,18 @@
  * See LICENSE for licensing details.
  *)
 
-open Base
-
 type t = {
   base : string ;
   salt : int ;
 }
-[@@deriving equal, compare, sexp_of, hash]
 
-include Comparator.S with type t := t
+val compare : t -> t -> int
+val equal : t -> t -> bool
+val hash : t -> int
 
-type set = (t, comparator_witness) Set.t
-type 'a map = (t, 'a, comparator_witness) Map.t
-type 'a tab = (t, 'a) Hashtbl.t
+module Set : Set.S with type elt := t
+module Map : Map.S with type key := t
+module Tab : Hashtbl.S with type key := t
 
 val of_string : string -> t
 val to_string : t -> string

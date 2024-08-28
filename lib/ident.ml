@@ -7,23 +7,21 @@
 
 (** Interned (hash-consed) identifiers *)
 
-open Base
-
 module T = struct
   type t = {
     base : string ;
     salt : int ;
   }
-  [@@deriving equal, compare, sexp_of, hash]
+  let compare (x : t) y = Stdlib.compare x y
+  let equal (x : t) y = x = y
+  let hash (x : t) = Hashtbl.hash x
 end
 
 include T
 
-include Comparator.Make(T)
-
-type set = (t, comparator_witness) Set.t
-type 'a map = (t, 'a, comparator_witness) Map.t
-type 'a tab = (t, 'a) Hashtbl.t
+module Set = Set.Make (T)
+module Map = Map.Make (T)
+module Tab = Hashtbl.Make (T)
 
 let of_string base = { base ; salt = 0 }
 

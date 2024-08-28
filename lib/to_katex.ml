@@ -9,44 +9,41 @@
 
     https://katex.org *)
 
-open Base
-
 open! Util
 open! Types
 open! Term
 open! Form4
 
-let is_digit _ c = Char.('0' <= c && c <= '9')
-let is_nondigit _ c = Char.(c < '0' || c > '9')
-
 let wrap_numbers str =
   let rec spin exts f1 t1 f2 t2 pos str =
-    match String.lfindi str ~pos ~f:f1 with
+    match String.find_left_index ~pos str f1 with
     | Some dpos ->
-        let sub = String.sub str ~pos ~len:(dpos - pos) in
+        let sub = String.sub str pos (dpos - pos) in
         spin ((t1, sub) :: exts) f2 t2 f1 t1 dpos str
     | None ->
         let sub = String.drop_prefix str pos in
         (t1, sub) :: exts
   in
-  spin [] is_digit `v is_nondigit `n 0 str |>
-  List.rev_filter_map ~f:(
-    fun (t, sub) ->
-      if String.is_empty sub then None else
-      match t with
-      | `n -> Some ("\\mathrm{" ^ sub ^ "}")
-      | _ -> Some sub) |>
-  String.concat ~sep:""
+  spin [] Char.is_digit `v Char.is_nondigit `n 0 str |>
+  List.filter_map begin fun (t, sub) ->
+    if String.length sub = 0 then None else
+    match t with
+    | `n -> Some ("\\mathrm{" ^ sub ^ "}")
+    | _ -> Some sub
+  end |>
+  List.rev |>
+  String.concat ""
 
 let string_to_doc ?(font="it") str =
   let texify id =
-    match String.split ~on:'_' id |>
-          List.rev_filter ~f:(fun s -> not @@ String.is_empty s) with
+    match String.split_on_char '_' id |>
+          List.filter (fun s -> String.length s <> 0) |>
+          List.rev with
     | [] -> id
     | last :: rev_rest ->
-        List.fold_left ~f:begin fun n i ->
+        List.fold_left begin fun n i ->
           (wrap_numbers i) ^ "_{" ^ n ^ "}"
-        end ~init:(wrap_numbers last) rev_rest
+        end (wrap_numbers last) rev_rest
   in
   Doc.string_as (String.length str)
   @@ {|\math|} ^ font ^ "{" ^ (texify str) ^ "}"
@@ -85,7 +82,7 @@ let rec termx_to_exp_ ~cx t =
       head_to_exp_ ~cx head
   | T.App { head ; spine } ->
       let head = head_to_exp_ ~cx head in
-      let spine = List.map ~f:(termx_to_exp_ ~cx) spine in
+      let spine = List.map (termx_to_exp_ ~cx) spine in
       Doc.(Appl (100, Infix (rep_appl, Left, (head :: spine))))
 
 and head_to_exp_ ~cx head =
@@ -94,7 +91,7 @@ and head_to_exp_ ~cx head =
       let k = Ident.to_string k in
       Doc.(Atom (string_to_doc ~font:"sf" k))
   | T.Index n ->
-      let v = Ident.to_string (List.nth_exn cx.linear n).var in
+      let v = Ident.to_string (List.nth cx.linear n).var in
       Doc.(Atom (string_to_doc v))
 
 let termx_to_exp tx = termx_to_exp_ ~cx:tx.tycx tx.data
@@ -181,28 +178,28 @@ let formx_to_sout fx =
 let formx_to_string fx =
   let buf = Buffer.create 19 in
   formx_to_sout fx |>
-  List.iter ~f:Stdlib.Format.(fun item ->
-      match item with
-      | Output_newline -> Buffer.add_string buf "\\htmlClass{brk}{}"
-      | Output_string str -> Buffer.add_string buf str
-      | ( Output_spaces n | Output_indent n ) when n > 0 ->
-          Buffer.add_string buf "\\htmlData{spc=" ;
-          Buffer.add_string buf (Int.to_string n) ;
-          Buffer.add_string buf "}{}"
-      | _ -> ()
-    ) ;
+  List.iter begin fun item ->
+    match item with
+    | Format.Output_newline -> Buffer.add_string buf "\\htmlClass{brk}{}"
+    | Output_string str -> Buffer.add_string buf str
+    | ( Output_spaces n | Output_indent n ) when n > 0 ->
+        Buffer.add_string buf "\\htmlData{spc=" ;
+        Buffer.add_string buf (Int.to_string n) ;
+        Buffer.add_string buf "}{}"
+    | _ -> ()
+  end ;
   Buffer.contents buf
 
 let pp_formx out fx = formx_to_exp fx |> Doc.bracket |> Doc.pp_linear out
 
 let pp_sigma out sg =
   Stdlib.Format.pp_print_string out {|\displaystyle{\begin{array}{lll}|};
-  Set.iter ~f:begin fun i ->
-    if Set.mem sigma0.basics i then () else
+  Ident.Set.iter begin fun i ->
+    if Ident.Set.mem i sigma0.basics then () else
       Stdlib.Format.fprintf out {|%t&\mkern -7mu{:}&\mkern -7mu \mathsf{type}.\\|} (ident_to_doc ~font:"sf" i)
   end sg.basics ;
-  Map.iteri ~f:begin fun ~key:k ~data:ty ->
-    if Map.mem sigma0.consts k then () else
+  Ident.Map.iter begin fun k ty ->
+    if Ident.Map.mem k sigma0.consts then () else
       Stdlib.Format.fprintf out {|%t&\mkern -7mu{:}&\mkern -7mu \mathsf{%a}.\\|}
         (ident_to_doc ~font:"sf" k) pp_ty (thaw_ty ty)
   end sg.consts ;
@@ -220,7 +217,7 @@ let pp_path out (path : path) =
 let pp_deriv out (sg, deriv) =
   pp_sigma out sg ;
   Stdlib.Format.fprintf out "%a@." pp_formx deriv.Cos.top ;
-  List.iter ~f:begin fun (_, rule, concl) ->
+  List.iter begin fun (_, rule, concl) ->
     Stdlib.Format.fprintf out "%a :: %a@."
       pp_path rule.Cos.path
       Cos.pp_rule_name rule.Cos.name ;
