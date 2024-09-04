@@ -52,6 +52,8 @@ type rule_name =
   | Inst of { side : Path.Dir.t ; term : term incx }
   | Rename of Ident.t
 
+  | Cut of { lemma : formx }
+
 and rule = {
   name : rule_name ;
   path : Path.t ;
@@ -65,105 +67,107 @@ let side_to_string (side : Path.Dir.t) =
 let pp_rule_name out rn =
   match rn with
   | Goal_ts_imp { pick } ->
-      Stdlib.Format.fprintf out "goal_ts_imp_%s" (side_to_string pick)
+      Format.fprintf out "goal_ts_imp_%s" (side_to_string pick)
   | Goal_imp_ts ->
-      Stdlib.Format.fprintf out "goal_imp_ts"
+      Format.fprintf out "goal_imp_ts"
   | Goal_ts_and { pick } ->
-      Stdlib.Format.fprintf out "goal_ts_and_%s" (side_to_string pick)
+      Format.fprintf out "goal_ts_and_%s" (side_to_string pick)
   | Goal_and_ts { pick } ->
-      Stdlib.Format.fprintf out "goal_and_ts_%s" (side_to_string pick)
+      Format.fprintf out "goal_and_ts_%s" (side_to_string pick)
   | Goal_ts_or  { pick } ->
-      Stdlib.Format.fprintf out "goal_ts_or_%s" (side_to_string pick)
+      Format.fprintf out "goal_ts_or_%s" (side_to_string pick)
   | Goal_or_ts ->
-      Stdlib.Format.fprintf out "goal_or_ts"
+      Format.fprintf out "goal_or_ts"
   | Goal_ts_all ->
-      Stdlib.Format.fprintf out "goal_ts_all"
+      Format.fprintf out "goal_ts_all"
   | Goal_all_ts ->
-      Stdlib.Format.fprintf out "goal_all_ts"
+      Format.fprintf out "goal_all_ts"
   | Goal_ts_ex ->
-      Stdlib.Format.fprintf out "goal_ts_ex"
+      Format.fprintf out "goal_ts_ex"
   | Goal_ex_ts ->
-      Stdlib.Format.fprintf out "goal_ex_ts"
+      Format.fprintf out "goal_ex_ts"
   | Asms_and { minor ; pick } ->
-      Stdlib.Format.fprintf out "asms_and_%s_%s"
+      Format.fprintf out "asms_and_%s_%s"
         (side_to_string minor) (side_to_string pick)
   | Asms_or  { minor ; pick } ->
-      Stdlib.Format.fprintf out "asms_or_%s_%s"
+      Format.fprintf out "asms_or_%s_%s"
         (side_to_string minor) (side_to_string pick)
   | Asms_imp { minor ; pick } ->
-      Stdlib.Format.fprintf out "asms_imp_%s_%s"
+      Format.fprintf out "asms_imp_%s_%s"
         (side_to_string minor) (side_to_string pick)
   | Asms_all { minor } ->
-      Stdlib.Format.fprintf out "asms_all_%s"
+      Format.fprintf out "asms_all_%s"
         (side_to_string minor)
   | Asms_ex  { minor } ->
-      Stdlib.Format.fprintf out "asms_ex_%s"
+      Format.fprintf out "asms_ex_%s"
         (side_to_string minor)
   | Simp_and_top { cxkind ; minor } ->
-      Stdlib.Format.fprintf out "simp_%s_%s_%s"
+      Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with R -> "goal" | _ -> "asms")
         (match minor with L -> "and" | _ -> "top")
         (match minor with L -> "top" | _ -> "and")
   | Simp_or_top { cxkind ; minor } ->
-      Stdlib.Format.fprintf out "simp_%s_%s_%s"
+      Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with R -> "goal" | _ -> "asms")
         (match minor with L -> "or" | _ -> "top")
         (match minor with L -> "top" | _ -> "or")
   | Simp_imp_top { cxkind ; minor } ->
-      Stdlib.Format.fprintf out "simp_%s_%s_%s"
+      Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with R -> "goal" | _ -> "asms")
         (match minor with L -> "imp" | _ -> "top")
         (match minor with L -> "top" | _ -> "imp")
   | Simp_all_top { cxkind } ->
-      Stdlib.Format.fprintf out "simp_%s_all_top"
+      Format.fprintf out "simp_%s_all_top"
         (match cxkind with R -> "goal" | _ -> "asms")
   | Simp_and_bot { cxkind ; minor } ->
-      Stdlib.Format.fprintf out "simp_%s_%s_%s"
+      Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with R -> "goal" | _ -> "asms")
         (match minor with L -> "and" | _ -> "bot")
         (match minor with L -> "bot" | _ -> "and")
   | Simp_or_bot { cxkind ; minor } ->
-      Stdlib.Format.fprintf out "simp_%s_%s_%s"
+      Format.fprintf out "simp_%s_%s_%s"
         (match cxkind with R -> "goal" | _ -> "asms")
         (match minor with L -> "or" | _ -> "bot")
         (match minor with L -> "bot" | _ -> "or")
   | Simp_bot_imp { cxkind } ->
-      Stdlib.Format.fprintf out "simp_%s_bot_imp"
+      Format.fprintf out "simp_%s_bot_imp"
         (match cxkind with R -> "goal" | _ -> "asms")
   | Simp_ex_bot { cxkind } ->
-      Stdlib.Format.fprintf out "simp_%s_ex_bot"
+      Format.fprintf out "simp_%s_ex_bot"
         (match cxkind with R -> "goal" | _ -> "asms")
   | Init ->
-      Stdlib.Format.fprintf out "init"
+      Format.fprintf out "init"
   | Rewrite { from } ->
-      Stdlib.Format.fprintf out "rewrite_%s"
+      Format.fprintf out "rewrite_%s"
         (match from with L -> "ltr" | _ -> "rtl")
   | Congr ->
-      Stdlib.Format.fprintf out "congr"
+      Format.fprintf out "congr"
   | Contract ->
-      Stdlib.Format.fprintf out "contract"
+      Format.fprintf out "contract"
   | Weaken ->
-      Stdlib.Format.fprintf out "weaken"
+      Format.fprintf out "weaken"
   | Inst { side ; term } ->
-      Stdlib.Format.fprintf out "inst_%s[@[%a@]]"
+      Format.fprintf out "inst_%s[@[%a@]]"
         (side_to_string side)
         Term.pp_termx term
   | Rename var ->
-      Stdlib.Format.fprintf out "rename[@[%s@]]"
+      Format.fprintf out "rename[@[%s@]]"
         (Ident.to_string var)
+  | Cut { lemma } ->
+      Format.fprintf out "cut[@[%a@]@]" pp_formx lemma
 
 let rec pp_path_list out (path : Path.Dir.t list) =
   match path with
   | [] -> ()
-  | [L] -> Stdlib.Format.fprintf out "l"
-  | [R] -> Stdlib.Format.fprintf out "r"
+  | [L] -> Format.fprintf out "l"
+  | [R] -> Format.fprintf out "r"
   | dir :: (_ :: _ as path) ->
-      Stdlib.Format.fprintf out "%a, %a" pp_path_list [dir] pp_path_list path
+      Format.fprintf out "%a, %a" pp_path_list [dir] pp_path_list path
 
-let pp_path out (path : Path.t) = Stdlib.Format.pp_print_string out (Path.to_dirstring path)
+let pp_path out (path : Path.t) = Format.pp_print_string out (Path.to_dirstring path)
 
 let pp_rule out rule =
-  Stdlib.Format.fprintf out "@[%a%s:: %a@]"
+  Format.fprintf out "@[%a%s:: %a@]"
     pp_path rule.path
     (if Path.is_empty rule.path then "" else " ")
     pp_rule_name rule.name
@@ -205,9 +209,9 @@ type cos_premise = {
 
 let compute_premise (goal : formx) (rule : rule) : cos_premise =
   let bad_match msg =
-    (* Stdlib.Format.printf "@.Bad_match[%s]:@. rule = %a@.goal = %a@." *)
+    (* Format.printf "@.Bad_match[%s]:@. rule = %a@.goal = %a@." *)
     (*   msg pp_rule rule pp_formx goal ; *)
-    Stdlib.Format.eprintf "compute_premise: bad_match: %s@." msg ;
+    Format.eprintf "compute_premise: bad_match: %s@." msg ;
     raise @@ Bad_match {goal ; rule} in
   let (prin, side) = formx_at goal rule.path in
   let prin = {
@@ -448,6 +452,8 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
           mk_all { vty with var } b
       | _, Exists (vty, b), Rename var ->
           mk_ex { vty with var } b
+      | R, _, Cut { lemma } ->
+          mk_and lemma.data (mk_imp lemma.data prin.data)
       | _ -> bad_match "32"
   } in
   let goal = { goal with data = replace_at goal.data rule.path prin.data } in

@@ -110,7 +110,6 @@ let pp_sigma out sg =
 exception Unprintable
 
 type lean_dir = L of int | R of int | I of Ident.t list
-[@@deriving equal]
 
 let compatible d1 d2 =
   match d1, d2 with

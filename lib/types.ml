@@ -271,7 +271,6 @@ type 'a incx = {
   tycx : tycx ;
   data : 'a ;
  }
-[@@deriving sexp_of]
 
 let ( |@ ) f th = { th with data = f }
 
@@ -280,4 +279,3 @@ let triv th = { tycx = empty ; data = th }
 type dirtree =
   | File of { fname : string ; contents : string }
   | Dir of { dname : string ; contents : dirtree list }
-[@@deriving sexp_of]

@@ -404,7 +404,7 @@ let rec spin_rules ~emit concl =
   let rec try_all concl rules =
     match rules with
     | [] ->
-        Stdlib.Format.eprintf "spin_rules: stuck on: @[%a@]@. lpath = %a@. rpath = %a@. cpath = %a@.%!"
+        Format.eprintf "spin_rules: stuck on: @[%a@]@. lpath = %a@. rpath = %a@. cpath = %a@.%!"
           pp_formx concl.fx
           pp_path concl.lpath
           pp_path concl.rpath
@@ -428,6 +428,8 @@ type mstep =
                   copy : bool } (* contract? *)
   | Inst     of { path : Path.t ;
                   term : U.term }
+  | Cut      of { path : Path.t ;
+                  form : U.term }
   | Rename   of { path : Path.t ;
                   var  : Ident.t }
 
@@ -473,6 +475,12 @@ let compute_derivation goal msteps =
           let term = term |@ fx in
           let goal = (emit { name = Inst { side ; term } ; path }).goal in
           recursive_simplify ~emit goal Path.init R
+      | Cut { form ; path } ->
+          let (fx, side) = formx_at goal path in
+          if side <> Path.Dir.R then fail () ;
+          let (lemma, ty) = Uterm.ty_check fx.tycx form in
+          if not @@ Ty.equal ty Ty.o then fail () ;
+          ignore @@ emit { name = Cut { lemma = lemma |@ fx } ; path }
       | Rename { path ; var } ->
           ignore @@ emit { name = Rename var ; path }
       | Link { src ; dest ; copy } -> begin
@@ -515,8 +523,9 @@ let mark_locations goal mstep =
   | Weaken { path } ->
       transform_at goal.data path mk_src |@ goal
   | Inst { path ; _ }
-  | Rename { path ; _ } ->
-      transform_at goal.data path mk_src |@ goal
+  | Cut { path ; _ }
+  | Rename { path ; _ }
+    -> transform_at goal.data path mk_src |@ goal
   | Link lf ->
       let f = transform_at goal.data lf.src mk_src in
       transform_at f lf.dest mk_dest |@ goal
@@ -525,21 +534,25 @@ let pp_mstep out mstep =
   match mstep with
   | Pristine -> Stdlib.Format.pp_print_string out "Pristine"
   | Contract { path } ->
-      Stdlib.Format.fprintf out "Contract { path = %a }"
+      Format.fprintf out "Contract { path = %a }"
         pp_path path
   | Weaken { path } ->
-      Stdlib.Format.fprintf out "Weaken { path = %a }"
+      Format.fprintf out "Weaken { path = %a }"
         pp_path path
   | Inst { path ; term } ->
-      Stdlib.Format.fprintf out "Inst @[<hv2>{ path = %a ;@ termx = @[<hov2>%a@] }@]"
+      Format.fprintf out "Inst @[<hv2>{ path = %a ;@ termx = @[<hov2>%a@] }@]"
         pp_path path
         Uterm.pp_uterm_ term
+  | Cut { path ; form } ->
+      Format.fprintf out "Cut @[<hv2>{ path = %a;@ form = @[<hov2>%a@] }@]"
+        pp_path path
+        Uterm.pp_uterm_ form
   | Rename { path ; var } ->
-      Stdlib.Format.fprintf out "Rename @[<hv2>{ path = %a ;@ ident = %s }@]"
+      Format.fprintf out "Rename @[<hv2>{ path = %a ;@ ident = %s }@]"
         pp_path path
         (Ident.to_string var)
   | Link { src ; dest ; copy } ->
-      Stdlib.Format.fprintf out "Link @[<hv2>{ src = %a ;@ dest = %a ;@ copy = %b }@]"
+      Format.fprintf out "Link @[<hv2>{ src = %a ;@ dest = %a ;@ copy = %b }@]"
         pp_path src
         pp_path dest
         copy
@@ -565,6 +578,9 @@ let mstep_to_uterm mstep =
   | Inst { path ; term } ->
       let path = path_to_uterm path in
       U.app (U.var_s "I") [path ; term]
+  | Cut { path ; form } ->
+      let path = path_to_uterm path in
+      U.app (U.var_s "X") [path ; form]
   | Rename { path ; var } ->
       let path = path_to_uterm path in
       U.app (U.var_s "R") [ path ; U.Var var ]
@@ -595,6 +611,9 @@ let uterm_to_mstep (utm : U.term) : mstep =
   | Some ("I", [ path ; term ]) ->
       let path = uterm_to_path path in
       Inst { path ; term }
+  | Some ("X", [ path ; form ]) ->
+      let path = uterm_to_path path in
+      Cut { path ; form }
   | Some ("R", [ path ; U.Var var ]) ->
       let path = uterm_to_path path in
       Rename { path ; var }

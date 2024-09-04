@@ -35,16 +35,27 @@ function findPath(elem) {
   return path;
 }
 
+var witnessBox = null;
+var cutBox = null;
+
 function clearLinks() {
   formLink.src = null;
   formLink.dest = null;
   $("#output .enclosing").removeClass("f-src");
   $("#output .enclosing").removeClass("f-dest");
+  witnessBox = null;
+  cutBox = null;
 }
 
 demo.clearLinks = clearLinks;
 
-var witnessBox = null;
+function isBoxMode() {
+  if (witnessBox || cutBox) {
+    console.log(`There is a ${witnessBox ? "witnses" : "cut"} box`);
+    return true;
+  }
+  return false;
+}
 
 function is_instantiable(bv) {
   return (bv.side === "L" && bv.quantifier === "forall")
@@ -58,7 +69,7 @@ function makeWitnessBoxAt(elem, tester, handler) {
   const path = findPath(elem)
   const bv = profint.getBoundIdentifier(path);
   if (bv && tester(bv)) {
-    const txt = bv.ident ;
+    const txt = bv.ident;
     witnessBox = $("<input>")
       .attr("placeholder", txt)
       .attr("value", "")
@@ -95,16 +106,69 @@ function makeWitnessBoxAt(elem, tester, handler) {
 }
 
 function makeWitnessBox(tester, handler) {
-  if (witnessBox) {
-    console.log("there is already a witness box");
-    return;
-  }
+  if (isBoxMode()) return;
   var hlForm = $(".hl-range");
   if (hlForm.length != 1) {
     console.log("there is more than one hl!");
     return;
   }
   makeWitnessBoxAt(hlForm, tester, handler);
+}
+
+function makeCutBoxAt(elem, handler) {
+  // console.log("makeCutBox()", elem);
+  const path = findPath(elem);
+  const ops = profint.getItems(path);
+  if (!ops.cut) {
+    console.log(`Cut is not possible here`);
+    return;
+  }
+  // console.log(`Need to make a cutBox at ${path}`);
+  cutBox = $("<input>")
+    .attr("placeholder", "cut formula")
+    .attr("value", "")
+    .attr("size", 5)
+    .data("path", path)
+    .css({"font-family": "monospace",
+          "font-size": "inherit"})
+    .on("input", function(ev){
+      $(this).attr("size", Math.max(ev.target.value.length, 5));
+    })
+    .on("change", function(ev){
+      // console.log(`path: ${$(ev.target).data("path")}`);
+      // console.log(`cut formula: ${ev.target.value}`);
+      const res = handler($(ev.target).data("path"), ev.target.value);
+      if (res) {
+        cutBox = null;
+        renderFormula();
+      } else {
+        console.log("cut formula was not accepted");
+        cutBox.css({"background-color": "red"})
+          .animate({"background-color": "inherit"}, "slow");
+      }
+    })
+    .on("keyup", function(ev){
+      if (ev.key === "Escape") {
+        cutBox = null;
+        renderFormula();
+        ev.stopPropagation();
+      }
+    });
+  // $(elem).replaceWith(cutBox);
+  $(elem).prepend(cutBox);
+  //  $($(elem).children("span")[1]).replaceWith(cutBox);
+  cutBox.focus();
+}
+
+function makeCutBox(handler) {
+  if (isBoxMode()) return;
+  var hlForm = $(".hl-range");
+  if (hlForm.length != 1) {
+    console.log("There is more than one hl!");
+    return;
+  }
+  const elem = hlForm[0];
+  makeCutBoxAt(elem, handler);
 }
 
 function flashRed() {
@@ -123,7 +187,7 @@ function flashRed() {
 demo.flashRed = flashRed;
 
 function linkSubformula(elem, copy) {
-  if (witnessBox) return;
+  if (isBoxMode()) return;
   if (formLink.src) {
     if (formLink.dest || $(elem).is(formLink.src)) {
       // do nothing
@@ -159,14 +223,6 @@ function weakenSubformula(elem) {
   if (res) renderFormula();
   else {
     console.log("weakening failed");
-  }
-}
-
-function substituteWitness(elem) {
-  var res = profint.doWitness(findPath(elem));
-  if (res) renderFormula();
-  else {
-    console.log("witness failed");
   }
 }
 
@@ -220,6 +276,7 @@ function renderFormula() {
         if (operations.weaken) $("#rmenu-weaken").css({ display: "block" });
         if (operations.instantiate) $("#rmenu-instantiate").css({ display: "block" });
         if (operations.rename) $("#rmenu-rename").css({ display: "block" });
+        if (operations.cut) $("#rmenu-cut").css({ display: "block" });
         $rmenu.css({ top: `${ev.clientY-5}px`,
                      left: `${ev.clientX-5}px` });
         // $rmenu.addClass("visible");
@@ -381,10 +438,12 @@ function demoSetup() {
   const dateWithOffset = new Date(currDate.getTime() - currDate.getTimezoneOffset() * 60000);
   JSZip.defaults.date = dateWithOffset;
   // [END] JSZip hack
-  hotkeys("ctrl+up,ctrl+y,ctrl+down,ctrl+z,r,w,ctrl+c,n,d,escape", function (event, handler){
+  hotkeys("ctrl+up,ctrl+y,ctrl+down,ctrl+z,r,w,ctrl+c,n,d,l,escape", function (event, handler){
+    // console.log(`handler: ${handler.key}`);
     switch (handler.key) {
     case "escape":
       clearLinks();
+      renderFormula();
       break;
     case "ctrl+z":
     case "ctrl+down":
@@ -399,6 +458,9 @@ function demoSetup() {
       break;
     case "r":
       makeWitnessBox(is_anything, profint.doRename);
+      break;
+    case "l":
+      makeCutBox(profint.doCut);
       break;
     case 'd':
       $("#downProof").click();
@@ -422,7 +484,7 @@ function demoSetup() {
     $("#future, #history").html("");
     throw new Error("Could not initialize profint!");
   }
-  renderFormula() ;
+  renderFormula();
   const output = $("#output");
   const nearestSubformula = (ev) => {
     let cur = $(ev.target);
@@ -519,7 +581,7 @@ function demoSetup() {
       $(cur).removeClass("hl-range");
       // allow bubbling
     })
-  ;
+ ;
 
   $signature.html(function() {
     const tex = profint.getSignatureTeX();
@@ -558,6 +620,8 @@ function demoSetup() {
       makeWitnessBoxAt(elem, is_instantiable, profint.doWitness);
     else if (id === "rmenu-rename")
       makeWitnessBoxAt(elem, is_anything, profint.doRename);
+    else if (id === "rmenu-cut")
+      makeCutBoxAt(elem, profint.doCut);
     return false;
   });
 }

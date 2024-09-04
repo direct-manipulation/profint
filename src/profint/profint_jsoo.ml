@@ -288,17 +288,18 @@ let profint_object =
         let weaken      = ref false in
         let rename      = ref false in
         let instantiate = ref false in
+        let cut         = Path.Dir.(equal side R) in
         let () =
           match F.expose fx.data with
           | F.Forall _ ->
               rename := true ;
-              instantiate := Path.Dir.equal side L
+              instantiate := Path.Dir.(equal side L)
           | F.Exists _ ->
               rename := true ;
-              instantiate := Path.Dir.equal side R
+              instantiate := Path.Dir.(equal side R)
           | F.Imp _ ->
-              contract := Path.Dir.equal side R ;
-              weaken := Path.Dir.equal side R
+              contract := Path.Dir.(equal side R) ;
+              weaken := Path.Dir.(equal side R)
           | _ -> ()
         in
         object%js
@@ -306,8 +307,9 @@ let profint_object =
           val weaken      = Js.bool !weaken
           val instantiate = Js.bool !instantiate
           val rename      = Js.bool !rename
+          val cut         = Js.bool cut
           val show        = Js.bool (!contract || !weaken ||
-                                     !instantiate || !rename)
+                                     !instantiate || !rename || cut)
         end |> Js.some
       with _ -> fail ()
 
@@ -370,6 +372,23 @@ let profint_object =
             push_goal @@ mk_stage ~fx:deriv.top ~mstep:F.Pristine ;
             true
         | _ -> fail "invalid identifier"
+      with e -> fail (Printexc.to_string e)
+
+    method doCut path text =
+      let old_goal = state.goal in
+      let fail reason =
+        Stdlib.Format.printf "doCut: failure: %s@." reason ;
+        state.goal <- old_goal ;
+        false
+      in
+      try
+        let path = to_path path in
+        let form = Uterm.thing_of_string Proprs.one_form @@ Js.to_string text in
+        state.goal <- mk_stage ~fx:state.goal.fx
+            ~mstep:F.(Cut { path ; form }) ;
+        let deriv = compute_derivation state.goal in
+        push_goal @@ mk_stage ~fx:deriv.top ~mstep:F.Pristine ;
+        true
       with e -> fail (Printexc.to_string e)
 
     method getProof kind =
