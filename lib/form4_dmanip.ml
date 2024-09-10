@@ -471,11 +471,9 @@ let compute_derivation goal msteps =
       | Weaken { path ; _ } ->
           let goal = (emit { name = Weaken ; path }).goal in
           recursive_simplify ~emit goal Path.init R
-          (* ignore @@ emit { name = Weaken ; path } *)
       | Nullify { path ; _ } ->
           let goal = (emit { name = Nullify ; path }).goal in
           recursive_simplify ~emit goal Path.init R
-          (* ignore @@ emit { name = Nullify ; path } *)
       | Inst { term ; path } ->
           let (fx, side) = formx_at goal path in
           let (term, _) = Uterm.ty_check fx.tycx term in

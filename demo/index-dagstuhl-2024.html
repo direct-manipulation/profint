@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <!-- START icons -->
+    <link rel="shortcut icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+    <!-- END icons -->
+    <title>Profint Launcher</title>
+    <!-- jquery -->
+    <script src="vendor/jquery.min.js"></script>
+    <!-- katex -->
+    <link rel="stylesheet" href="vendor/katex.min.css">
+    <script src="vendor/katex.min.js"></script>
+    <!-- ace -->
+    <script src="vendor/ace.js"></script>
+    <script src="vendor/hotkeys.min.js"></script>
+    <!-- profint -->
+    <script src="profint_jsoo.bc.js"></script>
+    <script>
+      const macros = {
+          "\\o": "\\mathsf{o}",
+          "\\i": "\\mathsf{i}",
+      };
+
+      const katex_options = {
+          trust: true,
+          output: 'html',
+          strict: false,
+          macros
+      }
+
+      function makeCompact(str) {
+        return str.replaceAll(/\s+/g, " ").trim();
+      }
+
+      function makeURL(sigText, formText) {
+        const f = encodeURIComponent(makeCompact(formText));
+        const s = encodeURIComponent(makeCompact(sigText));
+        return `go.html?s=${s}&f=${f}`;
+      }
+
+      const premadeSignature = makeCompact(
+        String.raw`
+i : \type.
+f : i -> i.
+g : i -> i -> i.
+j, k : i.
+a, b, c : \o.
+p, q : i -> \o.
+r : i -> i -> \o.
+`);
+
+      $(document).ready(function(){
+        profint.signatureChange(premadeSignature);
+        $("#premade span.f").each(function(){
+          const formulaText = $(this).text();
+          const url = makeURL(premadeSignature, formulaText);
+          const formulaExpr = profint.formulaToTeX(formulaText);
+          try {
+            const html = katex.renderToString(formulaExpr, katex_options);
+            let anc = $('<a>').attr('href', url).attr('target', '_blank').html(html);
+            $(this).empty().append(anc);
+          } catch (error) {
+            console.error(`KATEX PARSE ERROR\nformulaText=${formulaText}\nformulaExpr=${formulaExpr}\n${error}`)
+          }
+        });
+      });
+    </script>
+    <style>
+      body { padding-left: 2vh; padding-right: 2vh; padding-top: 2vh; }
+      a {text-decoration: none;}
+      /* #signature {margin: 0; position: fixed; left: 80%; top: 0; right: 0;} */
+      .embed-editor { display: block; background-color: #abc; }
+      .row { display: flex; }
+      .column { flex: 50%; }
+      #maincontent {
+          display: flex;
+          flex-direction: column;
+          gap: 5px; /* 2vh; */
+          width: calc(100% - 4vh);
+          /* align-items: flex-start; */
+          margin: 0 auto; padding: 0;
+      }
+      #maincontent > * {
+          padding: 2vh 2vh;
+      }
+      #yourown {
+          /* display: inline-block; */
+          /* flex: 0 0 100%; */
+          background-color: #aeaeaa;
+      }
+      #premade {
+          /* height: 70%; */
+          /* width: 40%; */
+          background-color: #caceca;
+          /* flex-grow: 1; */
+      }
+      #expl {
+          background-color: #ababba;
+          width: 40%;
+          flex-grow: 2;
+          display: none;
+      }
+      #signature, #formula { margin: 0 0; padding: 0 0; }
+      #custom-launch, #custom-reset { margin-top: 2vh; }
+      table.syntax {
+          /* border: 1px solid black; */
+          /* border-spacing: 1vh; */
+      }
+      .syntax th { padding-bottom: 1vh; }
+      .syntax td {
+          text-align: center;
+          padding-left: 1vh;
+          padding-right: 1vh;
+      }
+      #expl code { font-size: 120%; background-color: #bababa; }
+    </style>
+  </head>
+  <body>
+    <h1>Profound&ndash;Intuitionistic</h1>
+    <h2>Seminar on Proof Representations (Dagstuhl 2024)</h2>
+
+    <div id="maincontent">
+      <div id="yourown">
+        <h2>State your conjecture...</h2>
+
+        <script>
+          const sigTextOrig = [
+            "i : \\type.",
+            "a, t : i -> i -> \\o."
+          ].join("\n");
+          const formTextOrig = [
+            "(\\A [x, y] t x y \\or t y x) \\to",
+            "(\\A [x, y] a x y \\to a y x \\to \\eq x y) \\to",
+            "(\\A [x, y] t x y \\to a x y) \\to",
+            "\\A [x, y] a x y \\to t x y"
+          ].join("\n");
+        </script>
+
+        <div class="embed-editor" title="Signature">
+          <pre id="signature">...</pre>
+        </div>
+
+        <hr>
+
+        <div class="embed-editor" title="Formula">
+          <pre id="formula">...</pre>
+        </div>
+        <div style="margin-left:1em;">
+          <em>i.e.,</em> <span id="conjecture-output"></span>
+        </div>
+        <button id="custom-launch" style="margin-right:1px;">Launch!</button>
+        |
+        <button id="custom-reset" style="margin-left:1px;">Reset to default</button>
+
+        <script>
+          $("#signature").text(function() {
+            const txt = window.localStorage.getItem("launcher-sig") || sigTextOrig;
+            return txt;
+          });
+          $("#formula").text(function() {
+            const txt = window.localStorage.getItem("launcher-form") || formTextOrig;
+            return txt;
+          });
+          var sigEditor = ace.edit("signature");
+          sigEditor.setTheme("ace/theme/chrome");
+          sigEditor.setOptions({
+            minLines: 3,
+            maxLines: 20,
+            fontSize: "15px",
+            showLineNumbers: true,
+            printMargin: false,
+            highlightActiveLine: false,
+          });
+          var formEditor = ace.edit("formula");
+          formEditor.setTheme("ace/theme/chrome");
+          formEditor.setOptions({
+            minLines: 3,
+            maxLines: 10,
+            fontSize: "15px",
+            showLineNumbers: true,
+            printMargin: false,
+            highlightActiveLine: false,
+          });
+          const isOk = {
+            sig: true,
+            form: true,
+          };
+          function updateBordersAndButtons() {
+            $("#signature").parent()
+              .css({ border: isOk.sig ? "none" : "2px solid red" });
+            $("#formula").parent()
+              .css({ border: isOk.form ? "none" : "2px solid red" });
+            const allOk = isOk.sig && isOk.form;
+            $("#custom-launch").prop("disabled", !allOk);
+            return allOk;
+          }
+          function formEditorUpdate(e) {
+            const formText = formEditor.getValue();
+            window.localStorage.setItem("launcher-form", formText);
+            const formExpr = profint.formulaToTeX(formText);
+            isOk.form = false;
+            if (formExpr) {
+              isOk.form = true;
+              const htmlStr = katex.renderToString(formExpr, katex_options);
+              $('#conjecture-output').html(htmlStr);
+            } else {
+              $('#conjecture-output').html("PARSE ERROR");
+            }
+            return updateBordersAndButtons();
+          }
+          function sigEditorChange(e) {
+            const sigText = sigEditor.getValue();
+            window.localStorage.setItem("launcher-sig", sigText);
+            isOk.sig = !!profint.signatureChange(sigText);
+            return formEditorUpdate();
+          }
+          formEditor.on("change", sigEditorChange);
+          sigEditor.on("change", sigEditorChange);
+          sigEditorChange();
+          $("#custom-launch").on("click", function(ev) {
+            const url = makeURL(sigEditor.getValue(), formEditor.getValue());
+            // console.log("Need to go to:", url);
+            window.location.href = url;
+          });
+          $("#custom-reset").on("click", function(ev) {
+            sigEditor.session.doc.setValue(sigTextOrig);
+            formEditor.session.doc.setValue(formTextOrig);
+          });
+        </script>
+
+      </div>
+      <div id="premade">
+        <h2>… or try one of these:</h2>
+
+        <div class="row">
+          <div class="column">
+
+            <h4>Propositional</h4>
+
+            <h5>Structural</h5>
+
+            <ul>
+              <li><span class="f">a \to a</span> (initial)</li>
+              <li><span class="f">a \to b \to a</span> (weakening)</li>
+              <li><span class="f">a \to a \and a</span> (contraction)</li>
+            </ul>
+
+            <h5>Connectives</h5>
+
+            <ul>
+              <li><span class="f">a \and b \to a \and b</span></li>
+              <li><span class="f">a \and b \to a</span></li>
+              <li><span class="f">a \and b \to b</span></li>
+              <li><span class="f">a \and b \to (a \to b \to c) \to c</span></li>
+              <li><span class="f">a \to \top</span></li>
+              <li><span class="f">(\top \to c) \to c</span></li>
+              <li><span class="f">a \to a \or b</span></li>
+              <li><span class="f">b \to a \or b</span></li>
+              <li><span class="f">a \or b \to (a \to c) \to (b \to c) \to c</span></li>
+              <li><span class="f">\bot \to c</span></li>
+              <li><span class="f">a \or b \to b \or a</span></li>
+              <li><span class="f">a \and b \to b \and a</span></li>
+              <li><span class="f">(a \to b) \to ((b \to \bot) \to a \to \bot)</span></li>
+            </ul>
+
+            <h5>Classically valid formulas (and their double negations)</h5>
+
+            <ul>
+              <li><span class="f">a \or (a \to \bot)</span> (not provable)</li>
+              <li><span class="f">((a \or (a \to \bot)) \to \bot) \to \bot</span></li>
+              <li><span class="f">((a \to b) \to a) \to a</span> (not provable)</li>
+              <li><span class="f">((((a \to b) \to a) \to a) \to \bot) \to \bot</span></li>
+              <li><span class="f">(a \to b) \or (b \to a)</span> (not provable)</li>
+              <li><span class="f">(((a \to b) \or (b \to a)) \to \bot) \to \bot</span></li>
+              <li><span class="f">((b \to \bot) \to (a \to \bot)) \to a \to b</span> (not provable)</li>
+            </ul>
+          </div> <!-- column -->
+
+          <div class="column">
+
+            <h4>First-Order</h4>
+
+            <ul>
+              <li><span class="f">(\A [x, y] p (g x y)) \to \A [z] p (g z z)</span></li>
+              <li><span class="f">p k \to \E [x] p x</span></li>
+              <li><span class="f">(\E [x] p x) \to (\A [z] (p z \to c)) \to c</span></li>
+              <li><span class="f">(\A [x] p x) \to p k</span></li>
+              <li><span class="f">(\E [x] p x \and (p x \to \bot)) \to \bot</span></li>
+              <li><span class="f">(\A [x] \E [y] r x y) \to (\E [w] \A [z] r z w)</span> (not provable)</li>
+              <li><span class="f">(\E [w] \A [z] r z w) \to (\A [x] \E [y] r x y)</span></li>
+              <li><span class="f">(\A [x] p x) \to \E [y] p y</span> (not provable)</li>
+              <li><span class="f">(\A [x] p x) \to \A [y] p y</span></li>
+              <li><span class="f">(\A [x] p x \to p (f x)) \to p j \to p (f (f j))</span></li>
+              <li><span class="f">((\A [x] p x) \or c) \to \A [x] (p x \or c)</span></li>
+              <li><span class="f">((\A [x] p x) \to c) \to \E [x] (p x \to c)</span> (not provable)</li>
+              <li><span class="f">((\E [x] p x) \or c) \to \E [x] (p x \or c)</span> (not provable)</li>
+            </ul>
+          </div> <!-- column -->
+        </div>   <!-- row -->
+      </div> <!-- premade -->
+      <div id="expl">
+        <h2>Guide</h2>
+
+        <h3>Concrete Syntax for Signatures</h3>
+
+        <ul>
+          <li><em>Basic types</em> have the signature type <code>\type</code></li>
+          <li><em>Predicates</em> have types built with the type
+            constructor <code>-&gt;</code> with the target
+            type <code>\o</code></li>
+          <li><em>Term constants</em> have types built with the infix type
+            constructor <code>-&gt;</code></li>
+          <li><code>-&gt;</code> is right-associative</li>
+        </ul>
+
+        <h3>Concrete Syntax for Formulas</h3>
+
+        <table class="syntax">
+          <tr>
+            <th>to get</th>
+            <th>write</th>
+          </tr>
+          <tr>
+            <td class="tex-form">\eq j k</td>
+            <td><code>\eq j k</code></td>
+          </tr>
+          <tr>
+            <td class="tex-form">a \and b</td>
+            <td><code>a \and b</code> or <code>a & b</code></td>
+          </tr>
+          <tr>
+            <td class="tex-form">\top</td>
+            <td><code>\top</code> or <code>#t</code></td>
+          </tr>
+          <tr>
+            <td class="tex-form">a \or b</td>
+            <td><code>a \or b</code> or <code>a | b</code></td>
+          </tr>
+          <tr>
+            <td class="tex-form">\bot</td>
+            <td><code>\bot</code> or <code>#f</code></td>
+          </tr>
+          <tr>
+            <td class="tex-form">a \to b</td>
+            <td><code>a \to b</code> or <code>a =&gt; b</code></td>
+          </tr>
+          <tr>
+            <td class="tex-form">\A [x] p x</td>
+            <td><code>\A [x:i] p x</code></td>
+          </tr>
+          <tr>
+            <td class="tex-form">\E [x] p x</td>
+            <td><code>\E [x:i] p x</code></td>
+          </tr>
+          <tr>
+            <td class="tex-term">[x] f x</td>
+            <td><code>[x] f x</code></td>
+          </tr>
+        </table>
+
+        <ul>
+          <li>Types can often be omitted after the variable in <code>\A</code>
+          or <code>\E</code>, i.e., they can be written <code>\A [x]</code>
+          or <code>\E [x]</code>.  When unambiguous, the types will be
+          inferred.</li>
+          <li>The
+          connectives <code>\and</code>, <code>\or</code>, <code>\to</code> are
+          right-associative and listed in the order of decreasing
+          precedence.</li>
+          <li>Both <code>\A [x:i]</code> and <code>\E [x:i]</code> behave like
+          prefix connectives of the lowest precedence.</li>
+          <li>Due to an ambiguity in the LALR grammar, equality <code>\eq</code>
+          cannot be written infix. This may be fixed with a hand-written LR
+          parser in the future.</li>
+        </ul>
+
+        <script>
+          profint.signatureChange(premadeSignature);
+          $(".tex-form").each(function (elem) {
+            const form = profint.formulaToTeX($(this).html());
+            const html = katex.renderToString(form, katex_options);
+            $(this).html(html);
+          });
+          $(".tex-term").each(function (elem) {
+            const form = profint.termToTeX($(this).html());
+            const html = katex.renderToString(form, katex_options);
+            $(this).html(html);
+          });
+        </script>
+      </div>
+    </div> <!-- maincontent -->
+
+  </body>
+</html>

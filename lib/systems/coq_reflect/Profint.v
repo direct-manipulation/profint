@@ -19,15 +19,17 @@ Polymorphic Inductive ctx : side -> list Type -> Type :=
 
 Reserved Notation "Cx '{{' P '}}'" (at level 1, format "'[ ' Cx '{{'  P  '}}' ']'").
 
-Fixpoint ho_absract (Ts : list Type) (U : Type) :=
-  match Ts return Type with
+Fixpoint ho_absract (Ts : list Type) (U : Type) : Type :=
+  (* match Ts return Type with *)
+  match Ts with
   | nil => U
   | A :: Ts => A -> ho_absract Ts U
   end.
 Notation "Ts ▷ U" := (ho_absract Ts U) (at level 100, right associativity).
 
-Fixpoint ctx_place side Ts (ctx : ctx side Ts) :=
-  match ctx in (ctx _ Us) return (Us ▷ Prop) -> Prop with
+Fixpoint ctx_place side Ts (ctx : ctx side Ts) : (Ts ▷ Prop) -> Prop :=
+  (* match ctx in (ctx _ Us) return (Us ▷ Prop) -> Prop with *)
+  match ctx with
   | Hole => fun p => p
   | AndL _ _ ctx q => fun p => ctx{{ p }} /\ q
   | AndR _ _ q ctx => fun p => q /\ ctx{{ p }}
