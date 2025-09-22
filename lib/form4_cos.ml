@@ -416,11 +416,12 @@ let compute_premise (goal : formx) (rule : rule) : cos_premise =
         end
       (* structural *)
       | R, Imp (a, b), Init -> begin
-          match expose a, expose b with
-          | Atom (App { head = f ; spine = ss }),
-            Atom (App { head = g ; spine = ts }) when Term.eq_head f g ->
-              compute_spine_congruence (Term.ty_infer prin.tycx f) ss ts
-          | _ -> bad_match "29"
+          if equal a b then mk_top
+          else match expose a, expose b with
+            | Atom (App { head = f ; spine = ss }),
+              Atom (App { head = g ; spine = ts }) when Term.eq_head f g ->
+                compute_spine_congruence (Term.ty_infer prin.tycx f) ss ts
+            | _ -> bad_match "29"
         end
       | R, Imp (a, b), Rewrite { from } -> begin
           match expose a with

@@ -125,12 +125,13 @@ function makeCutBoxAt(elem, handler) {
   }
   // console.log(`Need to make a cutBox at ${path}`);
   cutBox = $("<input>")
-    .attr("placeholder", "cut formula")
+    .attr("placeholder", "form")
     .attr("value", "")
     .attr("size", 5)
     .data("path", path)
     .css({"font-family": "monospace",
-          "font-size": "inherit"})
+          "font-size": "inherit",
+          "transform": "translateY(-1em)"})
     .on("input", function(ev){
       $(this).attr("size", Math.max(ev.target.value.length, 5));
     })

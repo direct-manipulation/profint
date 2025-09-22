@@ -150,6 +150,8 @@ let pp_rule out goal rule =
           unprintable @@ "init: got " ^
                          pp_to_string Form4.pp_formx { tycx = cx ; data = f } in
         match expose f with
+        | Imp (a, b) when T.equal a b ->
+            Cos.pp_rule_name out name
         | Imp (a, b) -> begin
             match expose a, expose b with
             | Atom T.(App { head = Const (_, ty) ; spine = ss }),

@@ -217,7 +217,7 @@ end
 (** Typed and normalized terms *)
 module T = struct
   type term =
-    | Abs of {var : Ident.t [@equal.ignore] ; body : term}
+    | Abs of {var : Ident.t ; body : term}
     | App of {head : head ; spine : spine}
 
   and head =
@@ -232,6 +232,21 @@ module T = struct
         Ident.equal k1 k2 && Ty.equal ty1 ty2
     | Index n1, Index n2 ->
         n1 = n2
+    | _ -> false
+
+  let rec equal t1 t2 =
+    match t1, t2 with
+    | Abs l1, Abs l2 -> equal l1.body l2.body
+    | App ap1, App ap2 ->
+        equal_head ap1.head ap2.head &&
+        equal_spine ap1.spine ap2.spine
+    | _ -> false
+
+  and equal_spine sp1 sp2 =
+    match sp1, sp2 with
+    | [], [] -> true
+    | (t1 :: sp1), (t2 :: sp2) ->
+        equal t1 t2 && equal_spine sp1 sp2
     | _ -> false
 
   type sub =

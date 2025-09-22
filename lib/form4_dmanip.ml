@@ -50,6 +50,9 @@ let try_goal_init : dmanip = fun ~emit concl ->
   abort_unless (Path.equal concl.lpath sing_l) ;
   abort_unless (Path.equal concl.rpath sing_r) ;
   match expose concl.fx.data with
+  | Imp (a, b) when equal a b ->
+      ignore @@ emit { name = Init ; path = concl.cpath } ;
+      Done
   | Imp (a, b) -> begin
       match expose a, expose b with
       | Atom T.(App a), Atom T.(App b) when T.equal_head a.head b.head ->

@@ -25,8 +25,8 @@ let to_string (doc : doc) =
   let buf = Buffer.create 19 in
   let out = Format.formatter_of_buffer buf in
   Format.pp_set_geometry out
-    ~margin:max_int
-    ~max_indent:(max_int - 1) ;
+    ~margin:(Format.pp_infinity - 1)
+    ~max_indent:(Format.pp_infinity - 2) ;
   doc out ;
   Format.pp_print_flush out () ;
   Buffer.contents buf
