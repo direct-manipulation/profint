@@ -2,12 +2,7 @@
   (name profint)
   (public_name profint.lib)
   (libraries zarith re)
-  ; (inline_tests)
-  (preprocess (pps
-    ppx_blob
-    ; ppx_base
-    ; ppx_expect
-  ))
+  (preprocess (pps ppx_blob))
   (preprocessor_deps (glob_files_rec systems/**))
 )
 

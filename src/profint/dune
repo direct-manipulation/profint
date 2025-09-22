@@ -1,6 +1,6 @@
 (executable
  (name profint_jsoo)
  (modes js)
- (libraries zarith js_of_ocaml zarith_stubs_js base profint)
- (preprocess (pps ppx_base js_of_ocaml-ppx))
+ (libraries zarith js_of_ocaml zarith_stubs_js profint)
+ (preprocess (pps js_of_ocaml-ppx))
 )
