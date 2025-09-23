@@ -6,7 +6,7 @@ maintainer: ["Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>"]
 authors: ["Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>"]
 license: "Apache-2.0"
 homepage: "https://chaudhuri.info/research/profint"
-bug-reports: "https://github.com/chaudhuri/profound-intuitionistic/issues"
+bug-reports: "https://github.com/direct-manipulation/profint/issues"
 depends: [
   "dune" {>= "3.17"}
   "ocaml" {>= "4.12"}
@@ -32,4 +32,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/chaudhuri/profound-intuitionistic.git"
+dev-repo: "git+https://github.com/direct-manipulation/profint.git"

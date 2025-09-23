@@ -9,7 +9,7 @@
 (authors "Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>")
 (maintainers "Kaustuv Chaudhuri <kaustuv.chaudhuri@inria.fr>")
 
-(source (github chaudhuri/profound-intuitionistic))
+(source (github direct-manipulation/profint))
 
 (homepage "https://chaudhuri.info/research/profint")
 
