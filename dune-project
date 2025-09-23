@@ -21,7 +21,7 @@
  (name profint)
  (synopsis "Profound: Intuitionistic Version")
  (depends
-  (ocaml (>= 4.12))
+  (ocaml (>= 5.2))
   (zarith (>= 1.12))
   (zarith_stubs_js (>= "v0.15"))
   (js_of_ocaml (>= 3.9.0))
