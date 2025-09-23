@@ -338,16 +338,16 @@ let files pf =
     Re.Pcre.substitute ~rex:cookie_re ~subst:(fun _ -> pf) contents
   in [
     File { fname = "lean-toolchain" ;
-           contents = [%blob "lib/systems/lean3/lean-toolchain"] } ;
+           contents = blob "lean3/lean-toolchain" } ;
     File { fname = "leanpkg.toml" ;
-           contents = [%blob "lib/systems/lean3/leanpkg.toml"] } ;
+           contents = blob "lean3/leanpkg.toml" } ;
     Dir {
       dname = "src" ;
       contents = [
         File { fname = "Proof.lean" ;
-               contents = replace [%blob "lib/systems/lean3/src/Proof.lean"] } ;
+               contents = replace @@ blob "lean3/src/Proof.lean" } ;
         File { fname = "Profint.lean" ;
-               contents = [%blob "lib/systems/lean3/src/Profint.lean"] } ;
+               contents = blob "lean3/src/Profint.lean" } ;
       ] } ;
   ]
 let build () = "leanpkg build"

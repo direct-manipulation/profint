@@ -135,8 +135,6 @@ module K = struct
   let k_bot = next_internal "bot"
   let k_imp = next_internal "imp"
   let k_eq  = next_internal "eq"
-  let k_pos_int = next_internal "posint"
-  let k_neg_int = next_internal "negint"
   let ty_any = Ty.Basic (next_internal "?")
 end
 
@@ -151,8 +149,6 @@ let sigma0 : sigma =
     K.k_bot,     {nvars = 0 ; ty = Ty.o} ;
     K.k_imp,     {nvars = 0 ; ty = Arrow (Ty.o, Arrow (Ty.o, Ty.o))} ;
     K.k_eq,      {nvars = 1 ; ty = Arrow (vnum 0, Arrow (vnum 0, Ty.o))} ;
-    K.k_pos_int, {nvars = 0 ; ty = Arrow (Ty.o, Arrow (Ty.o, Ty.o))} ;
-    K.k_neg_int, {nvars = 0 ; ty = Arrow (Ty.o, Arrow (Ty.o, Ty.o))} ;
   ] in
   (* note: checks are being bypassed because these have been manually
      checked to be well-formed. *)

@@ -1,13 +1,15 @@
 (library
   (name profint)
   (public_name profint.lib)
-  (libraries zarith re)
-  (preprocess (pps ppx_blob))
-  (preprocessor_deps (glob_files_rec systems/**))
-)
+  (libraries zarith re))
 
 (menhir
   (modules proprs)
   (flags --explain))
 
 (ocamllex prolex)
+
+(rule
+  (target blobs.ml)
+  (deps (glob_files_rec systems))
+  (action (run ocaml-crunch -m plain -o %{target} systems)))

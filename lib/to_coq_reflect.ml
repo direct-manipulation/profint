@@ -120,12 +120,12 @@ let files pf =
     Re.Pcre.substitute ~rex:cookie_re ~subst:(fun _ -> pf) contents
   in [
     File { fname = "Proof.v" ;
-           contents = replace [%blob "lib/systems/coq_reflect/Proof.v"] } ;
+           contents = replace @@ blob "coq_reflect/Proof.v" } ;
     File { fname = "Profint.v" ;
-           contents = [%blob "lib/systems/coq_reflect/Profint.v"] } ;
+           contents = blob "coq_reflect/Profint.v" } ;
     File { fname = "_CoqProject" ;
-           contents = [%blob "lib/systems/coq_reflect/_CoqProject"] } ;
+           contents = blob "coq_reflect/_CoqProject" } ;
     File { fname = "Makefile" ;
-           contents = [%blob "lib/systems/coq_reflect/Makefile"] } ;
+           contents = blob "coq_reflect/Makefile" } ;
   ]
 let build () = "make"

@@ -61,3 +61,5 @@ module List = struct
     in
     spin [] (length l) l
 end
+
+let blob fn = Blobs.read fn |> Option.get

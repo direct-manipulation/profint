@@ -365,15 +365,15 @@ let files pf =
     Re.Pcre.substitute ~rex:cookie_re ~subst:(fun _ -> pf) contents
   in [
     File { fname = "Profint.thy" ;
-           contents = [%blob "lib/systems/isabelle_hol/Profint.thy"] } ;
+           contents = blob "isabelle_hol/Profint.thy" } ;
     File { fname = "Proof.thy" ;
-           contents = replace [%blob "lib/systems/isabelle_hol/Proof.thy"] } ;
+           contents = replace @@ blob "isabelle_hol/Proof.thy" } ;
     File { fname = "ROOT" ;
-           contents = [%blob "lib/systems/isabelle_hol/ROOT"] } ;
+           contents = blob "isabelle_hol/ROOT" } ;
     Dir { dname = "document" ;
           contents = [
             File { fname = "root.tex" ;
-                   contents = [%blob "lib/systems/isabelle_hol/document/root.tex"] } ;
+                   contents = blob "isabelle_hol/document/root.tex" } ;
           ] } ;
   ]
 let build () = {|isabelle build -D .|}

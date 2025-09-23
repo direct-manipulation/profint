@@ -96,7 +96,7 @@ let rec fold_right p ~init ~f =
 
 let to_list p = fold_right p ~init:[] ~f:List.cons
 
-let of_list l = List.fold_left l ~init:init ~f:snoc
+let of_list l = List.fold_left snoc init l
 
 let to_dirstring p =
   to_list p |>

@@ -211,22 +211,22 @@ let files pf =
     Re.Pcre.substitute ~rex:cookie_re ~subst:(fun _ -> pf) contents
   in [
     File { fname = "lakefile.lean" ;
-           contents = [%blob "lib/systems/lean4/lakefile.lean"] } ;
+           contents = blob "lean4/lakefile.lean" } ;
     File { fname = "lean-toolchain" ;
-           contents = [%blob "lib/systems/lean4/lean-toolchain"] } ;
+           contents = blob "lean4/lean-toolchain" } ;
     Dir {
       dname = "Profint" ;
       contents = [
         File { fname = "Theorems.lean" ;
-               contents = [%blob "lib/systems/lean4/Profint/Theorems.lean"] } ;
+               contents = blob "lean4/Profint/Theorems.lean" } ;
         File { fname = "Paths.lean" ;
-               contents = [%blob "lib/systems/lean4/Profint/Paths.lean"] } ;
+               contents = blob "lean4/Profint/Paths.lean" } ;
         File { fname = "Within.lean" ;
-               contents = [%blob "lib/systems/lean4/Profint/Within.lean"] } ;
+               contents = blob "lean4/Profint/Within.lean" } ;
       ] } ;
     File { fname = "Profint.lean" ;
-           contents = [%blob "lib/systems/lean4/Profint.lean"] } ;
+           contents = blob "lean4/Profint.lean" } ;
     File { fname = "Proof.lean" ;
-           contents = replace [%blob "lib/systems/lean4/Proof.lean"] } ;
+           contents = replace @@ blob "lean4/Proof.lean" } ;
   ]
 let build () = "lake build"
