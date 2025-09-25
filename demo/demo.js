@@ -1,6 +1,8 @@
-var demo = {};
-
-(function(){
+import hotkeys from 'hotkeys-js';
+import { $, jQuery } from 'jquery';
+window.$ = $;
+window.jQuery = jQuery;
+import 'katex';
 
 const macros = {
   "\\o": "\\mathsf{o}",
@@ -38,7 +40,7 @@ function findPath(elem) {
 var witnessBox = null;
 var cutBox = null;
 
-function clearLinks() {
+export function clearLinks() {
   formLink.src = null;
   formLink.dest = null;
   $("#output .enclosing").removeClass("f-src");
@@ -47,11 +49,9 @@ function clearLinks() {
   cutBox = null;
 }
 
-demo.clearLinks = clearLinks;
-
 function isBoxMode() {
   if (witnessBox || cutBox) {
-    console.log(`There is a ${witnessBox ? "witnses" : "cut"} box`);
+    console.log(`There is a ${witnessBox ? "witness" : "cut"} box`);
     return true;
   }
   return false;
@@ -61,9 +61,10 @@ function is_instantiable(bv) {
   return (bv.side === "L" && bv.quantifier === "forall")
     || (bv.side === "R" && bv.quantifier === "exists");
 }
-function is_anything(bv) {
-  return true;
-}
+
+// function is_anything(bv) {
+//   return true;
+// }
 
 function makeWitnessBoxAt(elem, tester, handler) {
   const path = findPath(elem)
@@ -172,7 +173,7 @@ function makeCutBox(handler) {
   makeCutBoxAt(elem, handler);
 }
 
-function flashRed() {
+export function flashRed() {
   const op = $("#output");
   const color = op.css("color");
   const backColor = op.css("background-color");
@@ -184,8 +185,6 @@ function flashRed() {
     "background-color": backColor,
   }, "fast");
 }
-
-demo.flashRed = flashRed;
 
 function linkSubformula(elem, copy) {
   if (isBoxMode()) return;
@@ -227,32 +226,28 @@ function weakenSubformula(elem) {
   }
 }
 
-function doUndo() {
+export function doUndo() {
   var res = profint.doUndo();
   if (res) renderFormula();
   else flashRed(); // console.log("undo failed");
 }
 
-demo.doUndo = doUndo;
-
-function doRedo() {
+export function doRedo() {
   var res = profint.doRedo();
   if (res) renderFormula();
   else flashRed(); // console.log("redo failed");
 }
 
-demo.doRedo = doRedo;
-
 var $rmenu = undefined;
 
-const setDropEffect = !window.chrome ? ((ev) => {}) :
-      (ev) => {
-        if (ev.originalEvent.dataTransfer) {
-          ev.originalEvent.dataTransfer.dropEffect =
-            ev.originalEvent.ctrlKey ? "copy" : "move";
-          console.log("setDropEffect:", ev.originalEvent.dataTransfer.dropEffect);
-        } else console.log("setDropEffect: ignored");
-      };
+// const setDropEffect = !window.chrome ? ((ev) => {}) :
+//       (ev) => {
+//         if (ev.originalEvent.dataTransfer) {
+//           ev.originalEvent.dataTransfer.dropEffect =
+//             ev.originalEvent.ctrlKey ? "copy" : "move";
+//           console.log("setDropEffect:", ev.originalEvent.dataTransfer.dropEffect);
+//         } else console.log("setDropEffect: ignored");
+//       };
 
 function renderFormula() {
   clearLinks();
@@ -378,7 +373,7 @@ function getProofKind() {
   return $("#proofSystem").val() || "-unknown-";
 }
 
-function copyProof() {
+export function copyProof() {
   var proof = profint.getProof(getProofKind());
   if (proof) {
     navigator.clipboard.writeText(proof)
@@ -388,9 +383,7 @@ function copyProof() {
   } else flashRed();
 }
 
-demo.copyProof = copyProof;
-
-function downProof() {
+export function downProof() {
   const kind = getProofKind();
   const name = $("#downName").val();
   const dirName = `${name}-${kind}`;
@@ -403,12 +396,10 @@ function downProof() {
   } else flashRed();
 }
 
-demo.downProof = downProof;
-
 var signatureShown = true;
 var $toggleSig, $signature;
 
-function toggleSignature() {
+export function toggleSignature() {
   signatureShown = !signatureShown;
   if (signatureShown) {
     $signature.css({
@@ -422,11 +413,10 @@ function toggleSignature() {
     $toggleSig.removeClass("signature-shown");
   }
 }
-demo.toggleSignature = toggleSignature;
 
 var $output;
 
-function demoSetup() {
+export function demoSetup() {
   // setup variables
   $toggleSig = $("#toggleSig");
   $signature = $("#signature");
@@ -439,7 +429,7 @@ function demoSetup() {
   const dateWithOffset = new Date(currDate.getTime() - currDate.getTimezoneOffset() * 60000);
   JSZip.defaults.date = dateWithOffset;
   // [END] JSZip hack
-  hotkeys("ctrl+up,ctrl+y,ctrl+down,ctrl+z,r,w,ctrl+c,n,d,l,escape", function (event, handler){
+  hotkeys("ctrl+up,ctrl+y,ctrl+down,ctrl+z,r,w,ctrl+c,n,d,l,escape", function (_ev, handler){
     // console.log(`handler: ${handler.key}`);
     switch (handler.key) {
     case "escape":
@@ -590,7 +580,7 @@ function demoSetup() {
   });
   toggleSignature();
   $("#downName")
-    .on("input", function(ev) {
+    .on("input", function(_ev) {
       const txt = $(this).val();
       $(this).attr("size", txt.length);
       const isGood = txt.match(/^[a-zA-Z][a-zA-Z0-9_]*$/);
@@ -603,11 +593,11 @@ function demoSetup() {
       }
     });
   $rmenu = $("#rmenu");
-  $rmenu.on("mouseleave", (ev) => {
+  $rmenu.on("mouseleave", (_ev) => {
     // $rmenu.removeClass("visible");
     $rmenu.hide("fast");
   });
-  $rmenu.children().on("mouseup", function(ev) {
+  $rmenu.children().on("mouseup", function(_ev) {
     // $rmenu.removeClass("visible");
     $rmenu.hide();
     // console.log($rmenu.data("attachment"), $(this).attr("id"));
@@ -627,9 +617,7 @@ function demoSetup() {
   });
 }
 
-demo.demoSetup = demoSetup;
-
-function permaLink() {
+export function permaLink() {
   const trace = profint.getUITrace();
   let url = new URL(document.location);
   url.searchParams.set("p", trace);
@@ -637,7 +625,3 @@ function permaLink() {
   // document.location.assign(url.href);
   window.open(url.href, "_blank");
 }
-
-demo.permaLink = permaLink;
-
-})();

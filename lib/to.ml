@@ -31,6 +31,7 @@ module type TO = sig
 end with type 'a pp := Stdlib.Format.formatter -> 'a -> unit
 
 module Katex       : TO = To_katex
+module Html        : TO = To_html
 module Pdf         : TO = To_pdf
 
 module Coq         : TO = To_coq

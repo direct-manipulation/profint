@@ -192,13 +192,13 @@ let profint_object =
     method termToTeX text =
       try
         let (f, _) = Uterm.term_of_string @@ Js.to_string text in
-        Js.some @@ Js.string @@ pp_to_string To.Katex.pp_termx @@ Types.triv f
+        Js.some @@ Js.string @@ pp_to_string To.Html.pp_termx @@ Types.triv f
       with _ -> Js.null
 
     method formulaToTeX text =
       try
         let f = Uterm.form_of_string @@ Js.to_string text in
-        Js.some @@ Js.string @@ pp_to_string To.Katex.pp_formx @@ Types.triv f
+        Js.some @@ Js.string @@ pp_to_string To.Html.pp_formx @@ Types.triv f
       with _e ->
         (* Stdlib.Format.eprintf "formulaToTeX: %S: %s@." *)
         (*   (Js.to_string text) *)
