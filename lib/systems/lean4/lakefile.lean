@@ -4,7 +4,7 @@ open Lake DSL
 package profint { }
 lean_lib Profint { }
 
-@[defaultTarget]
+@[default_target]
 lean_exe profint {
   root := `Proof
 }

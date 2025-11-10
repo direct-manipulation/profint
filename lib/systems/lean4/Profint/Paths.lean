@@ -12,8 +12,8 @@ inductive Direction : Type where
   | l | r | d | i (x : Ident)
 deriving Inhabited
 
-def Direction.toString (d : Direction) :=
-  match d with
+def Direction.toString (dir : Direction) :=
+  match dir with
   | .l => "(l)"
   | .r => "(r)"
   | .d => "(d)"

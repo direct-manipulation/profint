@@ -23,8 +23,8 @@ def filterSame (qs : Array (Expr × Expr)) : TacticM (Array (Expr × Expr)) := d
 
 def mkBigEq (qs : Array (Expr × Expr)) : TacticM Expr := do
   let qs ← filterSame qs
-  if qs.isEmpty then return (mkConst ``True) else
-  let (s, t) := qs.back
+  if h : qs.isEmpty then return (mkConst ``True) else
+  let (s, t) := qs.back (by grind [Array.isEmpty_iff_size_eq_zero])
   let mut result ← mkEq s t
   for (s, t) in qs.reverse[1:] do
     result := mkAnd (← mkEq s t) result
@@ -222,10 +222,10 @@ def mkWithinArg (path : Path) (pos : Nat) (rn : Term) (goal : Expr)
       let trm ← mkWithinArg path (pos + 1) rn bod ;
       `($(mkIdent ``go_right_imp) $trm)
   | _ => throwError s!"within/main: {dir} incompatible with {goal}"
-termination_by mkWithinArg path pos _ _ => path.size - pos
+termination_by path.size - pos
 decreasing_by
-  rename_i hgt ; simp_wf ; apply Nat.sub_succ_lt_self ;
-  simp_arith at hgt |- ; assumption
+  all_goals grind
+
 
 elab "within " path:term,* " use " rule:term : tactic => do
   let path ← parsePath path
